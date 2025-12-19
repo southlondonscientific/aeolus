@@ -16,8 +16,7 @@
 
 """Data download module"""
 
-from downloader import *
-
 from .database_operations import *
+from .downloader import *
 
 __version__ = "0.1.0"
