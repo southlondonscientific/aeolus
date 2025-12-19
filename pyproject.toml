@@ -1,0 +1,21 @@
+[project]
+name = "aeolus_aq"
+version = "0.1.0"
+authors = [
+  { name="Ruaraidh Dobson", email="ruaraidh.dobson@gmail.com" },
+]
+description = """This module provides functions for downloading metadata and data files from
+air quality networks and standardising them into a common pandas DataFrame format."""
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=2.3.3",
+    "rdata>=0.11",
+    "requests>=2.32.5",
+    "sqlmodel>=0.0.27",
+]
+license = "GPL-3.0-or-later"
+license-files = ["LICEN[CS]E*"]
+
+[project.urls]
+Homepage = "https://github.com/southlondonscientific/aeolus"

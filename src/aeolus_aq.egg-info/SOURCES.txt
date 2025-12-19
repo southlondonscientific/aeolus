@@ -1,0 +1,11 @@
+LICENCE
+README.md
+pyproject.toml
+src/aeolus/__init__.py
+src/aeolus/database_operations.py
+src/aeolus/downloader.py
+src/aeolus_aq.egg-info/PKG-INFO
+src/aeolus_aq.egg-info/SOURCES.txt
+src/aeolus_aq.egg-info/dependency_links.txt
+src/aeolus_aq.egg-info/requires.txt
+src/aeolus_aq.egg-info/top_level.txt
