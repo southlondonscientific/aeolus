@@ -319,6 +319,81 @@ def download_regulatory_data(
         return df
 
 
+def get_breathe_london_metadata(
+    site: str | None = None,
+    borough: str | None = None,
+    species: str | None = None,
+    sponsor: str | None = None,
+    facility: str | None = None,
+    latitude: float | None = None,
+    longitude: float | None = None,
+    radius_km: float | None = None,
+) -> pd.DataFrame:
+    """
+    Get site metadata from Breathe London API.
+
+    Returns:
+        pd.DataFrame: Site metadata. All Breathe London metadata is preserved,
+        but several are renamed to match the format of other metadata sources.
+
+        Renamed:
+            "SiteCode": "site_code"
+            "SiteName": "site_name"
+            "Latitude": "latitude"
+            "Longitude": "longitude"
+            "Facility": "owner"
+
+        Retained:
+            'DeviceCode', 'InstallationCode', 'Location', 'Borough', 'SiteClassification',
+            'SensorHeightAboveGround', 'DistanceToKerb', 'SponsorName', 'SiteLocationType',
+            'StartDate', 'EndDate', 'PowerTag', 'SiteDescription', 'SitePhotoURL', 'SensorContract'
+
+        Added:
+            'source_network' = 'Breathe London'
+
+    """
+
+    # All three of latitude, longitude, and radius_km must be provided if any of them are provided
+    if any([latitude, longitude, radius_km]) and not all(
+        [latitude, longitude, radius_km]
+    ):
+        raise ValueError("latitude, longitude, and radius_km must be provided")
+
+    params = {
+        "SiteCode": site,
+        "Borough": borough,
+        "Species": species,
+        "Sponsor": sponsor,
+        "Facility": facility,
+        "Latitude": latitude,
+        "Longitude": longitude,
+        "RadiusKM": radius_km,
+    }
+    headers = {"X-API-KEY": BL_API_KEY}
+
+    url = "https://breathe-london-7x54d7qf.ew.gateway.dev/ListSensors"
+    response = requests.get(url, params=params, headers=headers)
+    response.raise_for_status()
+    data = response.json()
+    df = pd.DataFrame(data)
+
+    # Rename columns
+    df.rename(
+        columns={
+            "SiteCode": "site_code",
+            "SiteName": "site_name",
+            "Latitude": "latitude",
+            "Longitude": "longitude",
+            "Facility": "owner",
+        },
+        inplace=True,
+    )
+
+    df["source_network"] = "Breathe London"
+
+    return df
+
+
 def download_breathe_london_data(
     site=None,
     borough=None,
@@ -332,7 +407,12 @@ def download_breathe_london_data(
     radius_km=None,
 ) -> pd.DataFrame:
     """
-    Download air quality data from Breathe London API.
+    Download air quality data from Breathe London API. All parameters are
+    optional, but if any of latitude, longitude, or radius_km are provided,
+    they must all be provided.
+
+    Note: all Breathe London functions require the BL_API_KEY environment
+    variable to be set. To get an api key, visit breathelondon.org/developers.
 
     Parameters:
         site (str): Site code.
@@ -361,6 +441,14 @@ def download_breathe_london_data(
         "Longitude": longitude,
         "RadiusKM": radius_km,
     }
+
+    if any([latitude, longitude, radius_km]) and not all(
+        [latitude, longitude, radius_km]
+    ):
+        raise ValueError(
+            "If any of latitude, longitude, or radius_km are provided, they must all be provided together."
+        )
+
     headers = {"X-API-KEY": BL_API_KEY}
     req_url = "https://breathe-london-7x54d7qf.ew.gateway.dev/SensorData"
     r = requests.get(req_url, params=params, headers=headers)
@@ -372,7 +460,9 @@ def download_breathe_london_data(
 
 def normalise_breathe_london_data(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Normalise Breathe London data into a consistent
+    Normalise Breathe London data into a consistent format.
+
+    This function is normally called only from download_breathe_london_data.
     """
     columns = {
         "SiteCode": "site_code",
