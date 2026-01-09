@@ -26,6 +26,22 @@
   - `select_columns()`: Select subset of columns
   - `apply_function()`: Wrap custom transformations
 
+- **Source registry module** (`registry.py`): Simple dictionary-based source management
+  - `register_source()`: Register a data source
+  - `get_source()`: Retrieve a registered source
+  - `list_sources()`: List all available sources
+  - `source_exists()`: Check if source is registered
+  - `get_source_info()`: Get source metadata
+  - Case-insensitive source name handling
+
+- **Regulatory sources module** (`sources/regulatory.py`): UK regulatory networks in functional style
+  - Factory functions: `make_metadata_fetcher()`, `make_data_fetcher()`
+  - Composable normalisation pipelines using transforms
+  - Registered networks: AURN, SAQN, SAQD, NI, WAQN, AQE, LOCAL, LMAM
+  - Shared configuration (URLs, measurands)
+  - Low-level `fetch_rdata()` function with error handling
+  - Tested with real data (MY1 site, 3046 sites metadata, 26,677 data records)
+
 ### Fixed
 - **meteorology.py**: Added missing `timedelta` import (was causing runtime error)
 - **downloader.py**: Fixed incorrect return type annotation `pd.DataFrame()` → `pd.DataFrame`
@@ -75,11 +91,23 @@ df_clean = normalise_aurn(df_raw)
 
 ---
 
-## Next Steps
+## Next Steps (Remaining from Original Plan)
 
-See architecture planning documents for upcoming changes:
-- Source registry system
-- Retry logic with exponential backoff
+Completed so far:
+- ✅ Step 1: Fixed bugs
+- ✅ Step 2: Created types.py
+- ✅ Step 3: Created transforms.py
+- ✅ Step 4: Created registry.py
+- ✅ Step 5: Refactored AURN & regulatory networks
+
+Still to do:
+- Step 6: Add retry decorator (1 hour)
+- Step 7: Write first tests (1-2 hours)
+- Step 8: Update __init__.py exports (30 mins)
+
+Future enhancements:
 - Parquet export for data lake
 - Additional data sources (OpenAQ, Met Office DataPoint)
+- Breathe London refactor to match new architecture
+- TimescaleDB integration for production
 - Comprehensive test suite
