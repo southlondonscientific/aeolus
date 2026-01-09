@@ -204,7 +204,7 @@ def get_network_metadata(network: str) -> pd.DataFrame:
 
 def multiple_download_regulatory_data(
     sites: list | str, years: list | int, networks: list | str
-) -> pd.DataFrame():
+) -> pd.DataFrame:
     """
     Download data for multiple regulatory network sites and years.
 
@@ -480,9 +480,6 @@ def normalise_breathe_london_data(df: pd.DataFrame) -> pd.DataFrame:
     df["date_time"] = pd.to_datetime(df["date_time"])
 
     df = df.drop(columns=["Source", "SensorContract", "Duration"])
-
-    # Replace "nan" with -999 - bad practice but will do for now
-    df = df.fillna(value=-999)
 
     return df
 

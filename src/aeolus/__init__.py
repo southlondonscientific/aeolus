@@ -18,5 +18,6 @@
 
 from .database_operations import *
 from .downloader import *
+from .meteorology import *
 
-__version__ = "0.1.0"
+__version__ = "0.1.1a"
