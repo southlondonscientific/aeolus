@@ -26,6 +26,9 @@ Available sources are registered automatically when this package is imported.
 
 # Import source modules to trigger their registration
 # As we add more sources, import them here
-from . import regulatory  # noqa: F401
+from . import (
+    openaq,  # noqa: F401
+    regulatory,  # noqa: F401
+)
 
-__all__ = ["regulatory"]
+__all__ = ["regulatory", "openaq"]

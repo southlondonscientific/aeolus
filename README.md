@@ -51,19 +51,62 @@ Wheels and source distributions are available under Releases on Github.
 
 Currently, Aeolus supports downloading data from the following networks:
 
+### UK Networks
 - **AURN** (DEFRA's Automatic Urban and Rural Network)
 - **SAQN** (Scottish Air Quality Network)
 - **WAQN** (Wales Air Quality Network)
 - **NI** (Northern Ireland Air Quality Network)
 - **AQE** (Air Quality England)
 - **LOCAL** (Local regulatory networks in England)
-- **Breathe London** (requires API key set in environment variable `BL_API_KEY`)
+- **Breathe London** (requires API key: `BL_API_KEY`)
+
+### Global Networks
+- **OpenAQ** (Global air quality data platform - 100+ countries)
+  - Requires free API key: `OPENAQ_API_KEY`
+  - Get your key at: https://openaq.org/
+  - Find location IDs at: https://explore.openaq.org/
 
 Data from regulatory networks is sourced via the [OpenAir project](https://davidcarslaw.github.io/openair/) (using RData files provided by each regulatory network). My thanks to David Carslaw and all other contributors (see Carslaw & Ropkins, 2012 for further information).
 
 Data from Breathe London is licensed under the Open Government Licence v3.0. For further information, see https://www.breathelondon.org.
 
+## Setup
+
+### API Keys
+
+Some data sources require API keys. Copy `.env.example` to `.env` and add your keys:
+
+```bash
+cp .env.example .env
+# Edit .env and add your API keys
+```
+
+Required for:
+- **OpenAQ**: Get free key at https://openaq.org/ (required for global data)
+- **Breathe London**: Get key at https://www.breathelondon.org/developers (optional)
+
+The `.env` file is git-ignored for security.
+
 ## Usage Examples
+
+### Download from OpenAQ (Global Data)
+
+```python
+import aeolus
+from datetime import datetime
+
+# Download from any OpenAQ location worldwide
+# Find location IDs at: https://explore.openaq.org/
+data = aeolus.download(
+    sources="OpenAQ",
+    sites=["2178"],  # Example: a monitoring station
+    start_date=datetime(2024, 1, 1),
+    end_date=datetime(2024, 1, 31)
+)
+
+# Data is automatically standardized to match other sources
+print(data.head())
+```
 
 ### Download from Multiple Sources
 
@@ -81,6 +124,14 @@ data = aeolus.download(
 
 # Data is automatically combined into one DataFrame
 print(data['source_network'].unique())  # ['AURN', 'SAQN']
+
+# Can also combine UK and global sources
+data = aeolus.download(
+    sources=["AURN", "OpenAQ"],
+    sites=["MY1", "2178"],
+    start_date=datetime(2024, 1, 1),
+    end_date=datetime(2024, 1, 31)
+)
 ```
 
 ### Get Separate DataFrames per Source
