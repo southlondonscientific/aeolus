@@ -1,6 +1,6 @@
 [project]
 name = "aeolus_aq"
-version = "0.1.0"
+version = "0.1.1a"
 authors = [
   { name="Ruaraidh Dobson", email="ruaraidh.dobson@gmail.com" },
 ]
@@ -13,6 +13,7 @@ dependencies = [
     "rdata>=0.11",
     "requests>=2.32.5",
     "sqlmodel>=0.0.27",
+    "tenacity>=8.2.0",
 ]
 license = "GPL-3.0-or-later"
 license-files = ["LICEN[CS]E*"]

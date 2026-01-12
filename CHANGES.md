@@ -39,8 +39,18 @@
   - Composable normalisation pipelines using transforms
   - Registered networks: AURN, SAQN, SAQD, NI, WAQN, AQE, LOCAL, LMAM
   - Shared configuration (URLs, measurands)
-  - Low-level `fetch_rdata()` function with error handling
+  - Low-level `fetch_rdata()` function with error handling and retry logic
   - Tested with real data (MY1 site, 3046 sites metadata, 26,677 data records)
+
+- **Decorators module** (`decorators.py`): Function decorators for cross-cutting concerns
+  - `with_retry()`: Exponential backoff retry logic for network operations
+  - `with_timeout()`: Ensure HTTP requests have timeouts
+  - `with_logging()`: Add structured logging to functions
+  - `ignore_exceptions()`: Gracefully handle non-critical failures
+  - Pre-configured decorators: `retry_on_network_error`, `retry_aggressive`, `retry_gentle`
+  - Uses `tenacity` library for robust retry logic
+  - Automatically retries on connection errors, timeouts, and 5xx server errors
+  - Does not retry on 4xx client errors (bad requests)
 
 ### Fixed
 - **meteorology.py**: Added missing `timedelta` import (was causing runtime error)
@@ -99,9 +109,9 @@ Completed so far:
 - ✅ Step 3: Created transforms.py
 - ✅ Step 4: Created registry.py
 - ✅ Step 5: Refactored AURN & regulatory networks
+- ✅ Step 6: Added retry decorator with exponential backoff
 
 Still to do:
-- Step 6: Add retry decorator (1 hour)
 - Step 7: Write first tests (1-2 hours)
 - Step 8: Update __init__.py exports (30 mins)
 

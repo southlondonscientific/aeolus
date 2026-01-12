@@ -39,6 +39,7 @@ import pandas as pd
 import rdata
 import requests
 
+from ..decorators import retry_on_network_error
 from ..registry import register_source
 from ..transforms import (
     add_column,
@@ -50,7 +51,6 @@ from ..transforms import (
     reset_index,
 )
 from ..types import DataFetcher, MetadataFetcher, Normaliser
-
 
 # Configuration - URLs for each network
 METADATA_URLS = {
@@ -118,6 +118,7 @@ REGULATORY_MEASURANDS = [
 
 
 # Low-level fetcher - downloads and parses RData files
+@retry_on_network_error
 def fetch_rdata(url: str) -> pd.DataFrame | None:
     """
     Fetch and parse an RData file from a URL.
@@ -163,10 +164,12 @@ def normalise_regulatory_metadata(network_name: str) -> Normaliser:
     """
     return compose(
         drop_columns("parameter", "Parameter_name"),
-        rename_columns({
-            "site_id": "site_code",
-            "local_authority": "owner",
-        }),
+        rename_columns(
+            {
+                "site_id": "site_code",
+                "local_authority": "owner",
+            }
+        ),
         add_column("source_network", network_name.upper()),
         reset_index(),
     )
@@ -183,6 +186,7 @@ def normalise_regulatory_data(network_name: str) -> Normaliser:
     Returns:
         Normaliser: Function that normalises data DataFrame
     """
+
     def normalise(df: pd.DataFrame) -> pd.DataFrame:
         # Identify which measurands are present in this DataFrame
         measurands_present = [m for m in REGULATORY_MEASURANDS if m in df.columns]
@@ -198,11 +202,13 @@ def normalise_regulatory_data(network_name: str) -> Normaliser:
                 id_vars=["site", "code", "date"],
                 measurands=measurands_present,
             ),
-            rename_columns({
-                "site": "site_name",
-                "code": "site_code",
-                "date": "date_time",
-            }),
+            rename_columns(
+                {
+                    "site": "site_name",
+                    "code": "site_code",
+                    "date": "date_time",
+                }
+            ),
             drop_columns("site_name"),  # We typically don't need this in data
             convert_timestamps("date_time", unit="s"),
             add_column("source_network", network_name.upper()),
@@ -225,6 +231,7 @@ def make_metadata_fetcher(network_name: str) -> MetadataFetcher:
     Returns:
         MetadataFetcher: Function that fetches and normalises metadata
     """
+
     def fetch_metadata() -> pd.DataFrame:
         url = METADATA_URLS[network_name.lower()]
         df = fetch_rdata(url)
@@ -249,10 +256,9 @@ def make_data_fetcher(network_name: str) -> DataFetcher:
     Returns:
         DataFetcher: Function that fetches and normalises data
     """
+
     def fetch_data(
-        sites: list[str],
-        start_date: datetime,
-        end_date: datetime
+        sites: list[str], start_date: datetime, end_date: datetime
     ) -> pd.DataFrame:
         base_url = DATA_BASE_URLS[network_name.lower()]
         years = range(start_date.year, end_date.year + 1)
@@ -284,9 +290,8 @@ def make_data_fetcher(network_name: str) -> DataFetcher:
 
         # Filter to the requested date range
         if not normalised.empty and "date_time" in normalised.columns:
-            mask = (
-                (normalised["date_time"] >= start_date) &
-                (normalised["date_time"] <= end_date)
+            mask = (normalised["date_time"] >= start_date) & (
+                normalised["date_time"] <= end_date
             )
             normalised = normalised[mask]
 
@@ -296,73 +301,97 @@ def make_data_fetcher(network_name: str) -> DataFetcher:
 
 
 # Register AURN (the primary network)
-register_source("AURN", {
-    "name": "AURN",
-    "fetch_metadata": make_metadata_fetcher("aurn"),
-    "fetch_data": make_data_fetcher("aurn"),
-    "normalise": normalise_regulatory_data("AURN"),
-    "requires_api_key": False,
-})
+register_source(
+    "AURN",
+    {
+        "name": "AURN",
+        "fetch_metadata": make_metadata_fetcher("aurn"),
+        "fetch_data": make_data_fetcher("aurn"),
+        "normalise": normalise_regulatory_data("AURN"),
+        "requires_api_key": False,
+    },
+)
 
 # Register SAQN (Scottish Air Quality Network)
-register_source("SAQN", {
-    "name": "SAQN",
-    "fetch_metadata": make_metadata_fetcher("saqn"),
-    "fetch_data": make_data_fetcher("saqn"),
-    "normalise": normalise_regulatory_data("SAQN"),
-    "requires_api_key": False,
-})
+register_source(
+    "SAQN",
+    {
+        "name": "SAQN",
+        "fetch_metadata": make_metadata_fetcher("saqn"),
+        "fetch_data": make_data_fetcher("saqn"),
+        "normalise": normalise_regulatory_data("SAQN"),
+        "requires_api_key": False,
+    },
+)
 
 # Register SAQD (alias for SAQN)
-register_source("SAQD", {
-    "name": "SAQD",
-    "fetch_metadata": make_metadata_fetcher("saqd"),
-    "fetch_data": make_data_fetcher("saqd"),
-    "normalise": normalise_regulatory_data("SAQD"),
-    "requires_api_key": False,
-})
+register_source(
+    "SAQD",
+    {
+        "name": "SAQD",
+        "fetch_metadata": make_metadata_fetcher("saqd"),
+        "fetch_data": make_data_fetcher("saqd"),
+        "normalise": normalise_regulatory_data("SAQD"),
+        "requires_api_key": False,
+    },
+)
 
 # Register NI (Northern Ireland)
-register_source("NI", {
-    "name": "NI",
-    "fetch_metadata": make_metadata_fetcher("ni"),
-    "fetch_data": make_data_fetcher("ni"),
-    "normalise": normalise_regulatory_data("NI"),
-    "requires_api_key": False,
-})
+register_source(
+    "NI",
+    {
+        "name": "NI",
+        "fetch_metadata": make_metadata_fetcher("ni"),
+        "fetch_data": make_data_fetcher("ni"),
+        "normalise": normalise_regulatory_data("NI"),
+        "requires_api_key": False,
+    },
+)
 
 # Register WAQN (Wales Air Quality Network)
-register_source("WAQN", {
-    "name": "WAQN",
-    "fetch_metadata": make_metadata_fetcher("waqn"),
-    "fetch_data": make_data_fetcher("waqn"),
-    "normalise": normalise_regulatory_data("WAQN"),
-    "requires_api_key": False,
-})
+register_source(
+    "WAQN",
+    {
+        "name": "WAQN",
+        "fetch_metadata": make_metadata_fetcher("waqn"),
+        "fetch_data": make_data_fetcher("waqn"),
+        "normalise": normalise_regulatory_data("WAQN"),
+        "requires_api_key": False,
+    },
+)
 
 # Register AQE (Air Quality England)
-register_source("AQE", {
-    "name": "AQE",
-    "fetch_metadata": make_metadata_fetcher("aqe"),
-    "fetch_data": make_data_fetcher("aqe"),
-    "normalise": normalise_regulatory_data("AQE"),
-    "requires_api_key": False,
-})
+register_source(
+    "AQE",
+    {
+        "name": "AQE",
+        "fetch_metadata": make_metadata_fetcher("aqe"),
+        "fetch_data": make_data_fetcher("aqe"),
+        "normalise": normalise_regulatory_data("AQE"),
+        "requires_api_key": False,
+    },
+)
 
 # Register Local (Local Monitoring and Management)
-register_source("LOCAL", {
-    "name": "Local",
-    "fetch_metadata": make_metadata_fetcher("local"),
-    "fetch_data": make_data_fetcher("local"),
-    "normalise": normalise_regulatory_data("Local"),
-    "requires_api_key": False,
-})
+register_source(
+    "LOCAL",
+    {
+        "name": "Local",
+        "fetch_metadata": make_metadata_fetcher("local"),
+        "fetch_data": make_data_fetcher("local"),
+        "normalise": normalise_regulatory_data("Local"),
+        "requires_api_key": False,
+    },
+)
 
 # Register LMAM (alias for Local)
-register_source("LMAM", {
-    "name": "LMAM",
-    "fetch_metadata": make_metadata_fetcher("lmam"),
-    "fetch_data": make_data_fetcher("lmam"),
-    "normalise": normalise_regulatory_data("LMAM"),
-    "requires_api_key": False,
-})
+register_source(
+    "LMAM",
+    {
+        "name": "LMAM",
+        "fetch_metadata": make_metadata_fetcher("lmam"),
+        "fetch_data": make_data_fetcher("lmam"),
+        "normalise": normalise_regulatory_data("LMAM"),
+        "requires_api_key": False,
+    },
+)
