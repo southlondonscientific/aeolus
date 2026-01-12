@@ -31,6 +31,7 @@ All networks follow the same data format (RData files from OpenAir), so they
 share common fetching and normalisation functions.
 """
 
+import warnings
 from datetime import datetime
 from logging import warning
 from typing import Callable
@@ -38,6 +39,15 @@ from typing import Callable
 import pandas as pd
 import rdata
 import requests
+
+# Suppress harmless rdata warnings about POSIXct/POSIXt conversion
+# These occur when parsing R datetime objects but don't affect functionality
+warnings.filterwarnings(
+    "ignore",
+    message="Missing constructor for R class",
+    category=UserWarning,
+    module="rdata.conversion._conversion",
+)
 
 from ..decorators import retry_on_network_error
 from ..registry import register_source
