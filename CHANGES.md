@@ -52,6 +52,17 @@
   - Automatically retries on connection errors, timeouts, and 5xx server errors
   - Does not retry on 4xx client errors (bad requests)
 
+- **Clean Public API** (`api.py`): Simple, user-friendly interface for common operations
+  - `list_sources()`: List all available data sources
+  - `get_metadata(source)`: Get site metadata from a source
+  - `download(sources, sites, start_date, end_date)`: Download air quality data
+  - `get_source_info(source)`: Get information about a source
+  - `download_all_sites(source, ...)`: Download data for all sites in a network
+  - Alias functions: `get_sites()`, `fetch()`
+  - Support for combining multiple sources or keeping them separate
+  - Graceful error handling with warnings for failed sources
+  - Updated `__init__.py` to expose clean API while maintaining backwards compatibility
+
 ### Fixed
 - **meteorology.py**: Added missing `timedelta` import (was causing runtime error)
 - **downloader.py**: Fixed incorrect return type annotation `pd.DataFrame()` → `pd.DataFrame`
@@ -59,8 +70,10 @@
 - **__init__.py**: Synchronized version number with `pyproject.toml` (now `0.1.1a`)
 
 ### Changed
-- Architecture moving towards functional composition model
-- Preparing for source registry and modular data source system
+- Architecture now fully functional with composition model
+- Complete source registry and modular data source system
+- Public API simplified - users no longer need to understand internal structure
+- README updated with comprehensive examples and usage guide
 
 ## [0.1.1a] - 2025-01-XX
 
@@ -110,10 +123,10 @@ Completed so far:
 - ✅ Step 4: Created registry.py
 - ✅ Step 5: Refactored AURN & regulatory networks
 - ✅ Step 6: Added retry decorator with exponential backoff
+- ✅ Step 7: Created clean public API with simple interface
 
 Still to do:
-- Step 7: Write first tests (1-2 hours)
-- Step 8: Update __init__.py exports (30 mins)
+- Step 8: Write first tests (1-2 hours)
 
 Future enhancements:
 - Parquet export for data lake
