@@ -70,3 +70,18 @@ Thumbs.db
 # Project specific
 *.RData
 *.rds
+
+# Development/documentation files (not for version control)
+MIGRATION_*.md
+REFACTORING_*.md
+BREATHE_LONDON_*.md
+OPENAQ_*.md
+PHILOSOPHY.md
+TEST_UPDATE_SUMMARY.md
+example_*.py
+demo_*.py
+test_*.py
+scripts/
+*.bak
+*_old.py
+test_output.txt
