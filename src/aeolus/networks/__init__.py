@@ -15,21 +15,28 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-Data sources for Aeolus.
+Network Data Sources.
 
-This package contains modules for fetching and normalising data from various
-air quality monitoring networks. Each source module registers itself with the
-global registry when imported.
+Networks are discrete monitoring networks operated by organizations:
+- AURN (UK Automatic Urban and Rural Network)
+- SAQN (Scottish Air Quality Network)
+- WAQN (Wales Air Quality Network)
+- NI (Northern Ireland Air Quality Network)
+- Breathe London (London sensor network)
+- And more...
 
-Available sources are registered automatically when this package is imported.
+Networks have finite numbers of monitoring sites that can be listed completely.
+
+Usage:
+    >>> import aeolus
+    >>>
+    >>> # Get all sites in a network
+    >>> sites = aeolus.networks.get_metadata("AURN")
+    >>>
+    >>> # Download data
+    >>> data = aeolus.networks.download("AURN", ["MY1"], start, end)
 """
 
-# Import source modules to trigger their registration
-# As we add more sources, import them here
-from . import (
-    breathe_london,  # noqa: F401
-    openaq,  # noqa: F401
-    regulatory,  # noqa: F401
-)
+from .api import download, get_metadata, list_networks
 
-__all__ = ["regulatory", "openaq", "breathe_london"]
+__all__ = ["get_metadata", "download", "list_networks"]

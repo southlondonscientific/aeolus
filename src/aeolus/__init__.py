@@ -15,56 +15,68 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-Aeolus: Download and standardise UK air quality data.
+Aeolus: Download and standardise air quality data.
 
-This package provides a simple interface for downloading air quality data
-from multiple UK monitoring networks.
+This package provides a unified interface for downloading air quality data
+from networks and portals worldwide.
+
+Organization:
+    - Networks: Discrete monitoring networks (AURN, Breathe London, etc.)
+    - Portals: Global data platforms (OpenAQ, PurpleAir, etc.)
 
 Quick Start:
     >>> import aeolus
     >>> from datetime import datetime
     >>>
-    >>> # List available data sources
+    >>> # List all sources
     >>> sources = aeolus.list_sources()
     >>>
-    >>> # Get site metadata
-    >>> sites = aeolus.get_metadata("AURN")
+    >>> # Networks - Get metadata and download
+    >>> sites = aeolus.networks.get_metadata("AURN")
+    >>> data = aeolus.networks.download("AURN", ["MY1"], start, end)
     >>>
-    >>> # Download data
+    >>> # Portals - Search and download
+    >>> locations = aeolus.portals.find_sites("OpenAQ", country="GB")
+    >>> data = aeolus.portals.download("OpenAQ", ["2178"], start, end)
+    >>>
+    >>> # Convenience: Top-level download (single source)
+    >>> data = aeolus.download("AURN", ["MY1"], start, end)
+    >>>
+    >>> # Multiple sources with explicit mapping
     >>> data = aeolus.download(
-    ...     sources=["AURN"],
-    ...     sites=["MY1"],
-    ...     start_date=datetime(2024, 1, 1),
-    ...     end_date=datetime(2024, 1, 31)
+    ...     {"AURN": ["MY1"], "OpenAQ": ["2178"]},
+    ...     start_date=start,
+    ...     end_date=end
     ... )
 
-Main Functions:
-    - list_sources(): List all available data sources
-    - get_metadata(): Get site metadata from a source
-    - download(): Download air quality data
-    - get_sites(): Alias for get_metadata()
-    - fetch(): Alias for download()
+Submodules:
+    - aeolus.networks: Discrete monitoring networks
+    - aeolus.portals: Global data portals
+    - aeolus.transforms: Data transformation functions
 
 Supported Networks:
-    - AURN (Automatic Urban and Rural Network)
+    - AURN (UK Automatic Urban and Rural Network)
     - SAQN (Scottish Air Quality Network)
     - WAQN (Wales Air Quality Network)
     - NI (Northern Ireland Air Quality Network)
-    - AQE (Air Quality England)
-    - LOCAL (Local Monitoring and Management networks)
+    - Breathe London (London sensor network)
+    - And more...
+
+Supported Portals:
+    - OpenAQ (Global air quality data platform)
 
 For more details, see: https://github.com/southlondonscientific/aeolus
 """
 
-__version__ = "0.1.1a"
+__version__ = "0.2.0"
+
+# Import submodules for networks and portals
+from . import networks, portals, transforms
 
 # Import the clean public API
 from .api import (
     download,
-    download_all_sites,
     fetch,
-    get_metadata,
-    get_sites,
     get_source_info,
     list_sources,
 )
@@ -91,13 +103,14 @@ from .meteorology import get_meteo_data
 __all__ = [
     # Version
     "__version__",
-    # New clean API (recommended)
+    # Submodules
+    "networks",
+    "portals",
+    "transforms",
+    # Top-level API (recommended)
     "list_sources",
-    "get_metadata",
     "download",
     "get_source_info",
-    "download_all_sites",
-    "get_sites",
     "fetch",
     # Old API (backwards compatibility - deprecated)
     "get_network_metadata",

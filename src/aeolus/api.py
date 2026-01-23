@@ -15,11 +15,15 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-Clean, user-friendly public API for Aeolus.
+Public API for Aeolus.
 
-This module provides simple functions for downloading and working with
-UK air quality data. It abstracts away the internal registry and source
-structure, giving users a straightforward interface.
+This module provides the top-level convenience functions for downloading
+air quality data. It intelligently routes requests to the appropriate
+submodules (networks or portals) based on source type.
+
+For more control, use submodules directly:
+    - aeolus.networks for discrete monitoring networks
+    - aeolus.portals for global data portals
 
 Basic usage:
     >>> import aeolus
@@ -27,15 +31,17 @@ Basic usage:
     >>> # See what's available
     >>> sources = aeolus.list_sources()
     >>>
-    >>> # Get site metadata
-    >>> sites = aeolus.get_metadata("AURN")
+    >>> # Single source download
+    >>> data = aeolus.download("AURN", ["MY1"], start_date, end_date)
     >>>
-    >>> # Download data
+    >>> # Multiple sources with explicit mapping
     >>> data = aeolus.download(
-    ...     sources=["AURN"],
-    ...     sites=["MY1"],
-    ...     start_date=datetime(2024, 1, 1),
-    ...     end_date=datetime(2024, 1, 31)
+    ...     {
+    ...         "AURN": ["MY1", "MY2"],
+    ...         "OpenAQ": ["2178"]
+    ...     },
+    ...     start_date=start_date,
+    ...     end_date=end_date
     ... )
 """
 
@@ -52,7 +58,7 @@ from .registry import list_sources as _list_sources
 
 def list_sources() -> list[str]:
     """
-    List all available data sources.
+    List all available data sources (networks and portals).
 
     Returns:
         list[str]: List of registered source names
@@ -60,145 +66,216 @@ def list_sources() -> list[str]:
     Example:
         >>> sources = aeolus.list_sources()
         >>> print(sources)
-        ['AQE', 'AURN', 'LMAM', 'LOCAL', 'NI', 'SAQD', 'SAQN', 'WAQN']
+        ['AURN', 'SAQN', 'BREATHE_LONDON', 'OPENAQ', ...]
     """
     return _list_sources()
 
 
-def get_metadata(source: str, **filters) -> pd.DataFrame:
-    """
-    Get site metadata from a data source.
-
-    Args:
-        source: Name of the data source (e.g., "AURN", "SAQN")
-        **filters: Source-specific filters (currently not implemented for most sources)
-
-    Returns:
-        pd.DataFrame: Site metadata with columns:
-            - site_code: Unique site identifier
-            - site_name: Human-readable site name
-            - latitude: Site latitude (decimal degrees)
-            - longitude: Site longitude (decimal degrees)
-            - source_network: Name of the source network
-            - location_type: Type of location (e.g., "Urban Background")
-            - owner: Organization operating the site
-
-    Raises:
-        ValueError: If source is not registered
-
-    Example:
-        >>> metadata = aeolus.get_metadata("AURN")
-        >>> print(f"Found {len(metadata)} sites")
-        >>> print(metadata.head())
-    """
-    source_obj = get_source(source)
-    if source_obj is None:
-        available = ", ".join(list_sources())
-        raise ValueError(f"Source '{source}' not found. Available sources: {available}")
-
-    fetch_metadata = source_obj["fetch_metadata"]
-    return fetch_metadata(**filters)
-
-
 def download(
-    sources: list[str] | str,
-    sites: list[str],
-    start_date: datetime,
-    end_date: datetime,
+    sources: str | dict[str, list[str]],
+    sites: list[str] | None = None,
+    start_date: datetime = None,
+    end_date: datetime = None,
     combine: bool = True,
 ) -> pd.DataFrame | dict[str, pd.DataFrame]:
     """
-    Download air quality data from one or more sources.
+    Download air quality data with smart routing to networks/portals.
 
-    This is the main function for downloading data. It handles multiple sources
-    and sites, returning a standardized DataFrame.
+    This is the main convenience function for downloading data. It automatically
+    routes requests to the appropriate submodule (networks or portals) based on
+    source type.
+
+    Single Source (Simple):
+        Pass source name and site list:
+        >>> data = aeolus.download("AURN", ["MY1", "MY2"], start, end)
+        >>> data = aeolus.download("OpenAQ", ["2178"], start, end)
+
+    Multiple Sources (Explicit Mapping):
+        Pass dict mapping source names to their site lists:
+        >>> data = aeolus.download(
+        ...     {
+        ...         "AURN": ["MY1", "MY2"],
+        ...         "OpenAQ": ["2178", "2179"]
+        ...     },
+        ...     start_date=start,
+        ...     end_date=end
+        ... )
 
     Args:
-        sources: Source name(s) to download from (e.g., "AURN" or ["AURN", "SAQN"])
-        sites: List of site codes to download (e.g., ["MY1", "BX1"])
+        sources: Single source name OR dict of {source: [sites]}
+        sites: Site IDs (only when sources is a string)
         start_date: Start of date range (inclusive)
         end_date: End of date range (inclusive)
-        combine: If True, combine all sources into one DataFrame.
-                 If False, return dict with source names as keys.
+        combine: If True, combine into single DataFrame (default True)
 
     Returns:
-        pd.DataFrame | dict[str, pd.DataFrame]: Air quality data with columns:
-            - site_code: Site identifier
-            - date_time: Measurement timestamp
-            - measurand: Pollutant/parameter measured (e.g., "NO2", "PM2.5")
-            - value: Measured value
-            - units: Units of measurement (e.g., "ug/m3")
-            - source_network: Name of source network
-            - ratification: Ratification status
-            - created_at: When record was created
+        DataFrame (if combine=True) or dict of DataFrames (if combine=False)
 
     Raises:
-        ValueError: If any source is not registered
+        ValueError: If sources/sites format is invalid or source not found
+        TypeError: If sources is not str or dict
 
-    Example:
+    Note:
+        For fine control, use submodules directly:
+        >>> aurn = aeolus.networks.download("AURN", ["MY1"], start, end)
+        >>> openaq = aeolus.portals.download("OpenAQ", ["2178"], start, end)
+
+    Examples:
         >>> from datetime import datetime
         >>>
-        >>> # Download from single source
+        >>> # Single network
         >>> data = aeolus.download(
-        ...     sources="AURN",
-        ...     sites=["MY1"],
-        ...     start_date=datetime(2024, 1, 1),
-        ...     end_date=datetime(2024, 1, 31)
+        ...     "AURN",
+        ...     ["MY1", "MY2"],
+        ...     datetime(2024, 1, 1),
+        ...     datetime(2024, 1, 31)
         ... )
         >>>
-        >>> # Download from multiple sources
+        >>> # Single portal
         >>> data = aeolus.download(
-        ...     sources=["AURN", "SAQN"],
-        ...     sites=["MY1", "ED3"],
+        ...     "OpenAQ",
+        ...     ["2178"],
+        ...     datetime(2024, 1, 1),
+        ...     datetime(2024, 1, 31)
+        ... )
+        >>>
+        >>> # Multiple sources with explicit mapping
+        >>> data = aeolus.download(
+        ...     {
+        ...         "AURN": ["MY1"],
+        ...         "OpenAQ": ["2178"],
+        ...         "BREATHE_LONDON": ["BL0001"]
+        ...     },
         ...     start_date=datetime(2024, 1, 1),
         ...     end_date=datetime(2024, 1, 31)
         ... )
         >>>
         >>> # Get separate DataFrames per source
         >>> data_by_source = aeolus.download(
-        ...     sources=["AURN", "SAQN"],
-        ...     sites=["MY1", "ED3"],
+        ...     {"AURN": ["MY1"], "OpenAQ": ["2178"]},
         ...     start_date=datetime(2024, 1, 1),
         ...     end_date=datetime(2024, 1, 31),
         ...     combine=False
         ... )
-        >>> print(data_by_source.keys())  # dict_keys(['AURN', 'SAQN'])
     """
-    # Normalize sources to list
-    if isinstance(sources, str):
-        sources = [sources]
+    # Validate required parameters
+    if start_date is None or end_date is None:
+        raise ValueError("start_date and end_date are required")
 
-    # Validate all sources exist
-    for source in sources:
-        if not source_exists(source):
-            available = ", ".join(list_sources())
+    # Case 1: Single source (string) - simple case
+    if isinstance(sources, str):
+        if sites is None:
             raise ValueError(
-                f"Source '{source}' not found. Available sources: {available}"
+                "sites parameter required when sources is a string.\n\n"
+                "Usage:\n"
+                "  aeolus.download('AURN', ['MY1', 'MY2'], start_date, end_date)"
             )
 
-    # Download from each source
-    results = {}
-    for source in sources:
-        source_obj = get_source(source)
-        fetch_data = source_obj["fetch_data"]
+        # Route to appropriate submodule
+        source_spec = get_source(sources)
+        if not source_spec:
+            available = ", ".join(list_sources())
+            raise ValueError(
+                f"Unknown source: {sources}\nAvailable sources: {available}"
+            )
 
-        try:
-            df = fetch_data(sites, start_date, end_date)
-            if not df.empty:
-                results[source] = df
-        except Exception as e:
-            # Log warning but continue with other sources
-            import warnings
+        source_type = source_spec.get("type", "network")
 
-            warnings.warn(f"Failed to download from {source}: {e}", UserWarning)
+        if source_type == "network":
+            from .networks import download as network_download
 
-    # Return based on combine parameter
-    if combine:
-        if not results:
-            return pd.DataFrame()
-        return pd.concat(results.values(), ignore_index=True)
+            return network_download(sources, sites, start_date, end_date)
+        elif source_type == "portal":
+            from .portals import download as portal_download
+
+            return portal_download(sources, sites, start_date, end_date)
+        else:
+            raise ValueError(f"Unknown source type: {source_type}")
+
+    # Case 2: Multiple sources (dict) - explicit mapping
+    elif isinstance(sources, dict):
+        if sites is not None:
+            raise ValueError(
+                "When sources is a dict, sites are specified within the dict.\n"
+                "Do not pass sites parameter separately.\n\n"
+                "Example:\n"
+                "  aeolus.download(\n"
+                "      {'AURN': ['MY1'], 'OpenAQ': ['2178']},\n"
+                "      start_date=start,\n"
+                "      end_date=end\n"
+                "  )"
+            )
+
+        all_data = {}
+
+        for source_name, source_sites in sources.items():
+            source_spec = get_source(source_name)
+            if not source_spec:
+                import warnings
+
+                warnings.warn(f"Unknown source '{source_name}', skipping", UserWarning)
+                continue
+
+            source_type = source_spec.get("type", "network")
+
+            try:
+                if source_type == "network":
+                    from .networks import download as network_download
+
+                    data = network_download(
+                        source_name, source_sites, start_date, end_date
+                    )
+                elif source_type == "portal":
+                    from .portals import download as portal_download
+
+                    data = portal_download(
+                        source_name, source_sites, start_date, end_date
+                    )
+                else:
+                    raise ValueError(f"Unknown source type: {source_type}")
+
+                all_data[source_name] = data
+
+            except Exception as e:
+                import warnings
+
+                warnings.warn(
+                    f"Failed to download from {source_name}: {e}", UserWarning
+                )
+                all_data[source_name] = pd.DataFrame()
+
+        # Combine results
+        if combine:
+            non_empty = [df for df in all_data.values() if not df.empty]
+            if non_empty:
+                return pd.concat(non_empty, ignore_index=True)
+            else:
+                return pd.DataFrame()
+        else:
+            return all_data
+
+    # Case 3: List of sources (old multi-source pattern) - reject with helpful error
+    elif isinstance(sources, list):
+        raise ValueError(
+            "Multiple sources require explicit site mapping.\n\n"
+            "Use dict format:\n"
+            "  aeolus.download({\n"
+            "      'AURN': ['MY1', 'MY2'],\n"
+            "      'OpenAQ': ['2178', '2179']\n"
+            "  }, start_date, end_date)\n\n"
+            "Or call submodules separately:\n"
+            "  aurn = aeolus.networks.download('AURN', ['MY1'], start, end)\n"
+            "  openaq = aeolus.portals.download('OpenAQ', ['2178'], start, end)\n"
+            "  combined = pd.concat([aurn, openaq])"
+        )
+
     else:
-        return results
+        raise TypeError(
+            f"sources must be str or dict, got {type(sources).__name__}\n\n"
+            "Valid formats:\n"
+            "  - String: aeolus.download('AURN', ['MY1'], start, end)\n"
+            "  - Dict: aeolus.download({'AURN': ['MY1']}, start_date=start, end_date=end)"
+        )
 
 
 def get_source_info(source: str) -> dict[str, Any]:
@@ -211,6 +288,7 @@ def get_source_info(source: str) -> dict[str, Any]:
     Returns:
         dict: Dictionary with source information:
             - name: Display name of the source
+            - type: "network" or "portal"
             - requires_api_key: Whether an API key is needed
 
     Raises:
@@ -219,7 +297,11 @@ def get_source_info(source: str) -> dict[str, Any]:
     Example:
         >>> info = aeolus.get_source_info("AURN")
         >>> print(info)
-        {'name': 'AURN', 'requires_api_key': False}
+        {'name': 'AURN', 'type': 'network', 'requires_api_key': False}
+        >>>
+        >>> info = aeolus.get_source_info("OpenAQ")
+        >>> print(info)
+        {'name': 'OpenAQ', 'type': 'portal', 'requires_api_key': True}
     """
     source_obj = get_source(source)
     if source_obj is None:
@@ -228,93 +310,17 @@ def get_source_info(source: str) -> dict[str, Any]:
 
     return {
         "name": source_obj["name"],
+        "type": source_obj.get("type", "network"),
         "requires_api_key": source_obj["requires_api_key"],
     }
 
 
-def download_all_sites(
-    source: str,
-    start_date: datetime,
-    end_date: datetime,
-    location_types: list[str] | None = None,
-) -> pd.DataFrame:
-    """
-    Download data for all sites from a source (optionally filtered by location type).
-
-    This is a convenience function that first fetches metadata to get all site codes,
-    then downloads data for all of them. Use with caution for large date ranges.
-
-    Args:
-        source: Name of the data source
-        start_date: Start of date range
-        end_date: End of date range
-        location_types: Optional list of location types to filter by
-                       (e.g., ["Urban Background", "Roadside"])
-
-    Returns:
-        pd.DataFrame: Combined data for all sites
-
-    Warning:
-        This can result in very large downloads. Consider using smaller date
-        ranges or filtering by location_type.
-
-    Example:
-        >>> # Download all urban background sites
-        >>> data = aeolus.download_all_sites(
-        ...     source="AURN",
-        ...     start_date=datetime(2024, 1, 1),
-        ...     end_date=datetime(2024, 1, 7),
-        ...     location_types=["Urban Background"]
-        ... )
-    """
-    # Get all site metadata
-    metadata = get_metadata(source)
-
-    # Filter by location type if specified
-    if location_types is not None:
-        if "location_type" in metadata.columns:
-            metadata = metadata[metadata["location_type"].isin(location_types)]
-        else:
-            import warnings
-
-            warnings.warn(
-                f"location_type column not found in {source} metadata. "
-                "Downloading all sites.",
-                UserWarning,
-            )
-
-    # Get list of site codes
-    sites = metadata["site_code"].unique().tolist()
-
-    # Download data for all sites
-    return download(
-        sources=source, sites=sites, start_date=start_date, end_date=end_date
-    )
-
-
-# Convenience function aliases for common operations
-def get_sites(source: str, **filters) -> pd.DataFrame:
-    """
-    Alias for get_metadata(). Get site information from a data source.
-
-    Args:
-        source: Name of the data source
-        **filters: Source-specific filters
-
-    Returns:
-        pd.DataFrame: Site metadata
-
-    Example:
-        >>> sites = aeolus.get_sites("AURN")
-    """
-    return get_metadata(source, **filters)
-
-
+# Convenience function aliases for backward compatibility
 def fetch(
-    sources: list[str] | str,
-    sites: list[str],
-    start_date: datetime,
-    end_date: datetime,
+    sources: str | dict[str, list[str]],
+    sites: list[str] | None = None,
+    start_date: datetime = None,
+    end_date: datetime = None,
     **kwargs,
 ) -> pd.DataFrame:
     """
@@ -322,7 +328,7 @@ def fetch(
 
     Args:
         sources: Source name(s) to download from
-        sites: List of site codes
+        sites: List of site codes (when sources is a string)
         start_date: Start of date range
         end_date: End of date range
         **kwargs: Additional arguments passed to download()
@@ -332,10 +338,10 @@ def fetch(
 
     Example:
         >>> data = aeolus.fetch(
-        ...     sources="AURN",
-        ...     sites=["MY1"],
-        ...     start_date=datetime(2024, 1, 1),
-        ...     end_date=datetime(2024, 1, 31)
+        ...     "AURN",
+        ...     ["MY1"],
+        ...     datetime(2024, 1, 1),
+        ...     datetime(2024, 1, 31)
         ... )
     """
     return download(sources, sites, start_date, end_date, **kwargs)

@@ -48,6 +48,9 @@ from .types import SourceSpec
 # The global registry - just a dictionary mapping names to SourceSpecs
 _SOURCES: Dict[str, SourceSpec] = {}
 
+# Export for submodules to access
+SOURCES = _SOURCES
+
 
 def register_source(name: str, spec: SourceSpec) -> None:
     """
@@ -77,7 +80,7 @@ def register_source(name: str, spec: SourceSpec) -> None:
         warnings.warn(
             f"Source '{normalized_name}' is already registered and will be replaced",
             UserWarning,
-            stacklevel=2
+            stacklevel=2,
         )
 
     _SOURCES[normalized_name] = spec
@@ -177,10 +180,7 @@ def get_source_info(name: str) -> dict[str, str | bool] | None:
     if source is None:
         return None
 
-    return {
-        "name": source["name"],
-        "requires_api_key": source["requires_api_key"]
-    }
+    return {"name": source["name"], "requires_api_key": source["requires_api_key"]}
 
 
 def clear_registry() -> None:
