@@ -1,6 +1,6 @@
 # Aeolus
 
-*Download, standardise and store air quality data from UK monitoring networks.*
+*An opinionated toolkit for air quality data science.*
 
 ## Features
 
@@ -60,13 +60,13 @@ Currently, Aeolus supports downloading data from the following networks:
 - **LOCAL** (Local regulatory networks in England)
 - **Breathe London** (requires API key: `BL_API_KEY`)
 
-### Global Networks
+### Global Sources
 - **OpenAQ** (Global air quality data platform - 100+ countries)
   - Requires free API key: `OPENAQ_API_KEY`
   - Get your key at: https://openaq.org/
   - Find location IDs at: https://explore.openaq.org/
 
-Data from regulatory networks is sourced via the [OpenAir project](https://davidcarslaw.github.io/openair/) (using RData files provided by each regulatory network). My thanks to David Carslaw and all other contributors (see Carslaw & Ropkins, 2012 for further information).
+Data from UK regulatory networks is sourced via the [OpenAir project](https://davidcarslaw.github.io/openair/) (using RData files provided by each regulatory network). My thanks to David Carslaw and all other contributors (see Carslaw & Ropkins, 2012 for further information).
 
 Data from Breathe London is licensed under the Open Government Licence v3.0. For further information, see https://www.breathelondon.org.
 
@@ -74,18 +74,15 @@ Data from Breathe London is licensed under the Open Government Licence v3.0. For
 
 ### API Keys
 
-Some data sources require API keys. Copy `.env.example` to `.env` and add your keys:
-
-```bash
-cp .env.example .env
-# Edit .env and add your API keys
-```
-
-Required for:
+Some data sources require API keys:
 - **OpenAQ**: Get free key at https://openaq.org/ (required for global data)
 - **Breathe London**: Get key at https://www.breathelondon.org/developers (optional)
 
-The `.env` file is git-ignored for security.
+Set the API keys in your environment variables:
+```bash
+export OPENAQ_API_KEY=your_openaq_api_key
+export BL_API_KEY=your_breathe_london_api_key
+```
 
 ## Usage Examples
 
@@ -125,13 +122,6 @@ data = aeolus.download(
 # Data is automatically combined into one DataFrame
 print(data['source_network'].unique())  # ['AURN', 'SAQN']
 
-# Can also combine UK and global sources
-data = aeolus.download(
-    sources=["AURN", "OpenAQ"],
-    sites=["MY1", "2178"],
-    start_date=datetime(2024, 1, 1),
-    end_date=datetime(2024, 1, 31)
-)
 ```
 
 ### Get Separate DataFrames per Source
@@ -153,7 +143,7 @@ for source, df in data_by_source.items():
 
 ### Filter and Transform Data
 
-Aeolus provides composable transformation functions:
+Aeolus provides composable transformation functions comparable to tidyverse:
 
 ```python
 from aeolus.transforms import pipe, filter_rows, select_columns, sort_values
