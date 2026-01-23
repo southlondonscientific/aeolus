@@ -314,6 +314,7 @@ def make_data_fetcher(network_name: str) -> DataFetcher:
 register_source(
     "AURN",
     {
+        "type": "network",
         "name": "AURN",
         "fetch_metadata": make_metadata_fetcher("aurn"),
         "fetch_data": make_data_fetcher("aurn"),
@@ -326,6 +327,7 @@ register_source(
 register_source(
     "SAQN",
     {
+        "type": "network",
         "name": "SAQN",
         "fetch_metadata": make_metadata_fetcher("saqn"),
         "fetch_data": make_data_fetcher("saqn"),
@@ -338,6 +340,7 @@ register_source(
 register_source(
     "SAQD",
     {
+        "type": "network",
         "name": "SAQD",
         "fetch_metadata": make_metadata_fetcher("saqd"),
         "fetch_data": make_data_fetcher("saqd"),
@@ -350,6 +353,7 @@ register_source(
 register_source(
     "NI",
     {
+        "type": "network",
         "name": "NI",
         "fetch_metadata": make_metadata_fetcher("ni"),
         "fetch_data": make_data_fetcher("ni"),
@@ -359,9 +363,11 @@ register_source(
 )
 
 # Register WAQN (Wales Air Quality Network)
+# Register WAQN (Wales)
 register_source(
     "WAQN",
     {
+        "type": "network",
         "name": "WAQN",
         "fetch_metadata": make_metadata_fetcher("waqn"),
         "fetch_data": make_data_fetcher("waqn"),
@@ -374,6 +380,7 @@ register_source(
 register_source(
     "AQE",
     {
+        "type": "network",
         "name": "AQE",
         "fetch_metadata": make_metadata_fetcher("aqe"),
         "fetch_data": make_data_fetcher("aqe"),
@@ -383,21 +390,25 @@ register_source(
 )
 
 # Register Local (Local Monitoring and Management)
+# Register LOCAL (Local authority networks)
 register_source(
     "LOCAL",
     {
-        "name": "Local",
+        "type": "network",
+        "name": "LOCAL",
         "fetch_metadata": make_metadata_fetcher("local"),
         "fetch_data": make_data_fetcher("local"),
-        "normalise": normalise_regulatory_data("Local"),
+        "normalise": normalise_regulatory_data("LOCAL"),
         "requires_api_key": False,
     },
 )
 
 # Register LMAM (alias for Local)
+# Register LMAM (London Air Quality Network)
 register_source(
     "LMAM",
     {
+        "type": "network",
         "name": "LMAM",
         "fetch_metadata": make_metadata_fetcher("lmam"),
         "fetch_data": make_data_fetcher("lmam"),
