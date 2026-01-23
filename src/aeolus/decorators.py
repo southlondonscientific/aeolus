@@ -33,6 +33,7 @@ from tenacity import (
     after_log,
     before_sleep_log,
     retry,
+    retry_if_exception,
     retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
@@ -96,10 +97,7 @@ def with_retry(
             retry=(
                 retry_if_exception_type(requests.exceptions.ConnectionError)
                 | retry_if_exception_type(requests.exceptions.Timeout)
-                | retry_if_exception_type(
-                    (requests.exceptions.HTTPError,),
-                )
-                & retry_if_exception_type(should_retry_http_error)
+                | retry_if_exception(should_retry_http_error)
             ),
             # Stop after max_attempts
             stop=stop_after_attempt(max_attempts),
