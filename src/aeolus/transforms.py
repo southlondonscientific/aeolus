@@ -90,8 +90,10 @@ def compose(*functions: Transformer) -> Transformer:
         ... )
         >>> df_normalised = normalise_aurn(df_raw)
     """
+
     def composed(df: pd.DataFrame) -> pd.DataFrame:
         return pipe(df, *functions)
+
     return composed
 
 
@@ -109,8 +111,10 @@ def rename_columns(mapping: dict[str, str]) -> Transformer:
         >>> transform = rename_columns({"site": "site_code", "date": "date_time"})
         >>> df_renamed = transform(df)
     """
+
     def transform(df: pd.DataFrame) -> pd.DataFrame:
         return df.rename(columns=mapping)
+
     return transform
 
 
@@ -139,11 +143,13 @@ def add_column(name: str, value: Any | Callable[[pd.DataFrame], Any]) -> Transfo
         >>> # Current timestamp
         >>> transform3 = add_column("created_at", lambda df: datetime.now())
     """
+
     def transform(df: pd.DataFrame) -> pd.DataFrame:
         if callable(value):
             return df.assign(**{name: value(df)})
         else:
             return df.assign(**{name: value})
+
     return transform
 
 
@@ -164,11 +170,13 @@ def drop_columns(*columns: str) -> Transformer:
         >>> transform = drop_columns("temp_col", "unused_col", "debug_info")
         >>> df_cleaned = transform(df)
     """
+
     def transform(df: pd.DataFrame) -> pd.DataFrame:
         cols_to_drop = [col for col in columns if col in df.columns]
         if not cols_to_drop:
             return df
         return df.drop(columns=cols_to_drop)
+
     return transform
 
 
@@ -194,8 +202,10 @@ def convert_timestamps(column: str, **kwargs) -> Transformer:
         >>> # Parse formatted strings
         >>> transform2 = convert_timestamps("date_time", format="%Y-%m-%d %H:%M:%S")
     """
+
     def transform(df: pd.DataFrame) -> pd.DataFrame:
         return df.assign(**{column: pd.to_datetime(df[column], **kwargs)})
+
     return transform
 
 
@@ -216,8 +226,10 @@ def filter_rows(predicate: Callable[[pd.DataFrame], pd.Series]) -> Transformer:
         >>> # Keep only NO2 measurements
         >>> transform2 = filter_rows(lambda df: df["measurand"] == "NO2")
     """
+
     def transform(df: pd.DataFrame) -> pd.DataFrame:
         return df[predicate(df)]
+
     return transform
 
 
@@ -225,7 +237,7 @@ def melt_measurands(
     id_vars: list[str],
     measurands: list[str] | None = None,
     var_name: str = "measurand",
-    value_name: str = "value"
+    value_name: str = "value",
 ) -> Transformer:
     """
     Return a function that melts wide data to long format.
@@ -251,6 +263,7 @@ def melt_measurands(
         ... )
         >>> df_long = transform(df_wide)
     """
+
     def transform(df: pd.DataFrame) -> pd.DataFrame:
         value_vars = measurands
         if value_vars is None:
@@ -268,12 +281,15 @@ def melt_measurands(
             id_vars=id_vars,
             value_vars=value_vars,
             var_name=var_name,
-            value_name=value_name
+            value_name=value_name,
         )
+
     return transform
 
 
-def drop_duplicates(subset: list[str] | None = None, keep: str = "first") -> Transformer:
+def drop_duplicates(
+    subset: list[str] | None = None, keep: str = "first"
+) -> Transformer:
     """
     Return a function that drops duplicate rows from a DataFrame.
 
@@ -290,8 +306,10 @@ def drop_duplicates(subset: list[str] | None = None, keep: str = "first") -> Tra
         >>> transform = drop_duplicates(subset=["site_code", "date_time", "measurand"])
         >>> df_deduped = transform(df)
     """
+
     def transform(df: pd.DataFrame) -> pd.DataFrame:
         return df.drop_duplicates(subset=subset, keep=keep)
+
     return transform
 
 
@@ -309,8 +327,10 @@ def reset_index(drop: bool = True) -> Transformer:
         >>> transform = reset_index()
         >>> df_reset = transform(df)
     """
+
     def transform(df: pd.DataFrame) -> pd.DataFrame:
         return df.reset_index(drop=drop)
+
     return transform
 
 
@@ -332,12 +352,16 @@ def sort_values(by: str | list[str], ascending: bool = True) -> Transformer:
         >>> # Sort by site, then date
         >>> transform2 = sort_values(["site_code", "date_time"])
     """
+
     def transform(df: pd.DataFrame) -> pd.DataFrame:
         return df.sort_values(by=by, ascending=ascending)
+
     return transform
 
 
-def fillna(value: Any | dict[str, Any] | None = None, method: str | None = None) -> Transformer:
+def fillna(
+    value: Any | dict[str, Any] | None = None, method: str | None = None
+) -> Transformer:
     """
     Return a function that fills NA/NaN values in a DataFrame.
 
@@ -355,10 +379,12 @@ def fillna(value: Any | dict[str, Any] | None = None, method: str | None = None)
         >>> # Fill different columns with different values
         >>> transform2 = fillna({"value": 0, "ratification": "Unknown"})
     """
+
     def transform(df: pd.DataFrame) -> pd.DataFrame:
         if method is not None:
             return df.fillna(method=method)
         return df.fillna(value)
+
     return transform
 
 
@@ -379,9 +405,11 @@ def select_columns(*columns: str) -> Transformer:
         >>> transform = select_columns("site_code", "date_time", "measurand", "value")
         >>> df_subset = transform(df)
     """
+
     def transform(df: pd.DataFrame) -> pd.DataFrame:
         cols_to_select = [col for col in columns if col in df.columns]
         return df[cols_to_select]
+
     return transform
 
 
@@ -404,6 +432,37 @@ def apply_function(func: Callable[[pd.DataFrame], pd.DataFrame]) -> Transformer:
         ...     lambda df: df[df["value"] > 0]
         ... )
     """
+
     def transform(df: pd.DataFrame) -> pd.DataFrame:
         return func(df)
+
+    return transform
+
+
+def categorise_columns(*columns: str) -> Transformer:
+    """
+    Convert specified columns to categorical dtype for memory efficiency.
+
+    Categorical columns store each unique value once and use integer codes
+    for references, dramatically reducing memory for columns with repeated
+    string values (e.g., site_name, measurand, units).
+
+    Args:
+        *columns: Column names to convert to categorical
+
+    Returns:
+        Transformer: Function that converts columns to categorical
+
+    Example:
+        >>> transform = categorise_columns("site_name", "measurand", "units")
+        >>> df = transform(df)  # Reduces memory usage significantly
+    """
+
+    def transform(df: pd.DataFrame) -> pd.DataFrame:
+        df = df.copy()
+        for col in columns:
+            if col in df.columns:
+                df[col] = df[col].astype("category")
+        return df
+
     return transform

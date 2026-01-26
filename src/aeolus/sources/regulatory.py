@@ -53,6 +53,7 @@ from ..decorators import retry_on_network_error
 from ..registry import register_source
 from ..transforms import (
     add_column,
+    categorise_columns,
     compose,
     convert_timestamps,
     drop_columns,
@@ -224,6 +225,14 @@ def normalise_regulatory_data(network_name: str) -> Normaliser:
             add_column("ratification", "None"),
             add_column("units", "ug/m3"),
             add_column("created_at", lambda df: datetime.now()),
+            categorise_columns(
+                "site_name",
+                "site_code",
+                "measurand",
+                "source_network",
+                "ratification",
+                "units",
+            ),
         )(df)
 
     return normalise
