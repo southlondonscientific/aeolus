@@ -35,7 +35,13 @@ the `official_colours` parameter.
 Available functions:
     - plot_timeseries: Time series line chart with optional AQI bands
     - plot_aqi_card: Large AQI value display with colour background
-    - apply_style: Apply Aeolus visual style to matplotlib
+    - plot_aqi_comparison: Before/after AQI card comparison
+    - plot_distribution: Boxplots/violin plots by site, time period, etc.
+    - plot_diurnal: Hourly patterns (shows rush hour effects)
+    - plot_weekly: Day-of-week patterns (shows weekend effects)
+    - plot_monthly: Monthly/seasonal patterns
+    - plot_calendar: Calendar heatmap for a year
+    - apply_aeolus_style: Apply Aeolus visual style to matplotlib
 
 Colour palette:
     - theme.AEOLUS_6_BAND: Core 6-colour AQI palette
@@ -46,7 +52,12 @@ Colour palette:
 from .plots import (
     plot_aqi_card,
     plot_aqi_comparison,
+    plot_calendar,
+    plot_distribution,
+    plot_diurnal,
+    plot_monthly,
     plot_timeseries,
+    plot_weekly,
 )
 from .theme import (
     # Palette
@@ -78,6 +89,11 @@ __all__ = [
     "plot_timeseries",
     "plot_aqi_card",
     "plot_aqi_comparison",
+    "plot_distribution",
+    "plot_diurnal",
+    "plot_weekly",
+    "plot_monthly",
+    "plot_calendar",
     # Brand
     "SLS_YELLOW",
     "SLS_CHARCOAL",

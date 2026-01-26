@@ -869,6 +869,412 @@ class TestPlotAQIComparison:
 # =============================================================================
 
 
+# =============================================================================
+# Distribution Plot Tests
+# =============================================================================
+
+
+class TestPlotDistribution:
+    """Tests for plot_distribution function."""
+
+    @pytest.fixture
+    def sample_data(self):
+        """Create sample data for distribution plots spanning a full year."""
+        dates = pd.date_range("2024-01-01", periods=8760, freq="h")  # Full year
+        data = []
+        for dt in dates:
+            data.append(
+                {
+                    "date_time": dt,
+                    "measurand": "NO2",
+                    "value": np.random.uniform(20, 80),
+                    "units": "ug/m3",
+                    "site_name": "Test Site",
+                }
+            )
+        return pd.DataFrame(data)
+
+    def test_returns_figure(self, sample_data):
+        """Test that plot_distribution returns a Figure."""
+        from aeolus.viz import plot_distribution
+
+        fig = plot_distribution(sample_data, "NO2", group_by="month")
+
+        assert isinstance(fig, plt.Figure)
+        plt.close(fig)
+
+    def test_boxplot_style(self, sample_data):
+        """Test boxplot style."""
+        from aeolus.viz import plot_distribution
+
+        fig = plot_distribution(sample_data, "NO2", group_by="weekday", style="box")
+
+        assert isinstance(fig, plt.Figure)
+        plt.close(fig)
+
+    def test_violin_style(self, sample_data):
+        """Test violin style."""
+        from aeolus.viz import plot_distribution
+
+        fig = plot_distribution(sample_data, "NO2", group_by="hour", style="violin")
+
+        assert isinstance(fig, plt.Figure)
+        plt.close(fig)
+
+    def test_both_style(self, sample_data):
+        """Test combined box and violin style."""
+        from aeolus.viz import plot_distribution
+
+        fig = plot_distribution(sample_data, "NO2", group_by="weekday", style="both")
+
+        assert isinstance(fig, plt.Figure)
+        plt.close(fig)
+
+    def test_group_by_month(self, sample_data):
+        """Test grouping by month."""
+        from aeolus.viz import plot_distribution
+
+        fig = plot_distribution(sample_data, "NO2", group_by="month")
+
+        ax = fig.axes[0]
+        # Should have tick labels for months present in data
+        assert len(ax.get_xticklabels()) > 0
+        plt.close(fig)
+
+    def test_group_by_weekday(self, sample_data):
+        """Test grouping by weekday."""
+        from aeolus.viz import plot_distribution
+
+        fig = plot_distribution(sample_data, "NO2", group_by="weekday")
+
+        ax = fig.axes[0]
+        labels = [t.get_text() for t in ax.get_xticklabels()]
+        assert "Mon" in labels
+        assert "Sun" in labels
+        plt.close(fig)
+
+    def test_group_by_hour(self, sample_data):
+        """Test grouping by hour."""
+        from aeolus.viz import plot_distribution
+
+        fig = plot_distribution(sample_data, "NO2", group_by="hour")
+
+        ax = fig.axes[0]
+        assert len(ax.get_xticklabels()) == 24
+        plt.close(fig)
+
+    def test_show_points(self, sample_data):
+        """Test showing individual points."""
+        from aeolus.viz import plot_distribution
+
+        fig = plot_distribution(
+            sample_data, "NO2", group_by="weekday", show_points=True
+        )
+
+        assert isinstance(fig, plt.Figure)
+        plt.close(fig)
+
+    def test_show_mean(self, sample_data):
+        """Test showing mean markers."""
+        from aeolus.viz import plot_distribution
+
+        fig = plot_distribution(sample_data, "NO2", group_by="weekday", show_mean=True)
+
+        ax = fig.axes[0]
+        # Should have legend with "Mean"
+        legend_texts = [t.get_text() for t in ax.get_legend().get_texts()]
+        assert "Mean" in legend_texts
+        plt.close(fig)
+
+    def test_raises_on_missing_pollutant(self, sample_data):
+        """Test error for missing pollutant."""
+        from aeolus.viz import plot_distribution
+
+        with pytest.raises(ValueError, match="No data found"):
+            plot_distribution(sample_data, "O3", group_by="month")
+
+
+# =============================================================================
+# Temporal Pattern Plot Tests
+# =============================================================================
+
+
+class TestPlotDiurnal:
+    """Tests for plot_diurnal function."""
+
+    @pytest.fixture
+    def sample_data(self):
+        """Create sample data with hourly variation."""
+        dates = pd.date_range("2024-01-01", periods=500, freq="h")
+        data = []
+        for dt in dates:
+            # Simulate diurnal pattern
+            hour = dt.hour
+            base = 40 + 20 * np.sin((hour - 8) * np.pi / 12)  # Peak around 8am
+            data.append(
+                {
+                    "date_time": dt,
+                    "measurand": "NO2",
+                    "value": base + np.random.uniform(-5, 5),
+                    "units": "ug/m3",
+                }
+            )
+            # O3 has opposite pattern (peaks in afternoon)
+            o3_base = 50 + 30 * np.sin((hour - 14) * np.pi / 12)
+            data.append(
+                {
+                    "date_time": dt,
+                    "measurand": "O3",
+                    "value": max(0, o3_base + np.random.uniform(-5, 5)),
+                    "units": "ug/m3",
+                }
+            )
+        return pd.DataFrame(data)
+
+    def test_returns_figure(self, sample_data):
+        """Test that plot_diurnal returns a Figure."""
+        from aeolus.viz import plot_diurnal
+
+        fig = plot_diurnal(sample_data, pollutants=["NO2"])
+
+        assert isinstance(fig, plt.Figure)
+        plt.close(fig)
+
+    def test_multiple_pollutants(self, sample_data):
+        """Test plotting multiple pollutants."""
+        from aeolus.viz import plot_diurnal
+
+        fig = plot_diurnal(sample_data, pollutants=["NO2", "O3"])
+
+        ax = fig.axes[0]
+        # Should have legend entries for both
+        legend_texts = [t.get_text() for t in ax.get_legend().get_texts()]
+        assert "NO2" in legend_texts
+        assert "O3" in legend_texts
+        plt.close(fig)
+
+    def test_show_ci(self, sample_data):
+        """Test showing confidence interval."""
+        from aeolus.viz import plot_diurnal
+
+        fig = plot_diurnal(sample_data, pollutants=["NO2"], show_ci=True)
+
+        assert isinstance(fig, plt.Figure)
+        plt.close(fig)
+
+    def test_show_range(self, sample_data):
+        """Test showing min-max range."""
+        from aeolus.viz import plot_diurnal
+
+        fig = plot_diurnal(
+            sample_data, pollutants=["NO2"], show_range=True, show_ci=False
+        )
+
+        assert isinstance(fig, plt.Figure)
+        plt.close(fig)
+
+    def test_x_axis_hours(self, sample_data):
+        """Test that x-axis shows hours."""
+        from aeolus.viz import plot_diurnal
+
+        fig = plot_diurnal(sample_data, pollutants=["NO2"])
+
+        ax = fig.axes[0]
+        labels = [t.get_text() for t in ax.get_xticklabels()]
+        assert "00:00" in labels
+        plt.close(fig)
+
+
+class TestPlotWeekly:
+    """Tests for plot_weekly function."""
+
+    @pytest.fixture
+    def sample_data(self):
+        """Create sample data spanning multiple weeks."""
+        dates = pd.date_range("2024-01-01", periods=500, freq="h")
+        data = []
+        for dt in dates:
+            # Lower on weekends
+            weekend_factor = 0.7 if dt.dayofweek >= 5 else 1.0
+            data.append(
+                {
+                    "date_time": dt,
+                    "measurand": "NO2",
+                    "value": 50 * weekend_factor + np.random.uniform(-10, 10),
+                    "units": "ug/m3",
+                }
+            )
+        return pd.DataFrame(data)
+
+    def test_returns_figure(self, sample_data):
+        """Test that plot_weekly returns a Figure."""
+        from aeolus.viz import plot_weekly
+
+        fig = plot_weekly(sample_data, pollutants=["NO2"])
+
+        assert isinstance(fig, plt.Figure)
+        plt.close(fig)
+
+    def test_day_labels(self, sample_data):
+        """Test that day labels are correct."""
+        from aeolus.viz import plot_weekly
+
+        fig = plot_weekly(sample_data, pollutants=["NO2"])
+
+        ax = fig.axes[0]
+        labels = [t.get_text() for t in ax.get_xticklabels()]
+        assert labels == ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        plt.close(fig)
+
+    def test_show_ci(self, sample_data):
+        """Test showing confidence intervals."""
+        from aeolus.viz import plot_weekly
+
+        fig = plot_weekly(sample_data, pollutants=["NO2"], show_ci=True)
+
+        assert isinstance(fig, plt.Figure)
+        plt.close(fig)
+
+
+class TestPlotMonthly:
+    """Tests for plot_monthly function."""
+
+    @pytest.fixture
+    def sample_data(self):
+        """Create sample data spanning a full year."""
+        dates = pd.date_range("2024-01-01", periods=8760, freq="h")  # Full year
+        data = []
+        for dt in dates:
+            # Seasonal variation - higher in winter
+            month = dt.month
+            seasonal = 50 + 20 * np.cos((month - 1) * np.pi / 6)
+            data.append(
+                {
+                    "date_time": dt,
+                    "measurand": "NO2",
+                    "value": seasonal + np.random.uniform(-10, 10),
+                    "units": "ug/m3",
+                }
+            )
+        return pd.DataFrame(data)
+
+    def test_returns_figure(self, sample_data):
+        """Test that plot_monthly returns a Figure."""
+        from aeolus.viz import plot_monthly
+
+        fig = plot_monthly(sample_data, pollutants=["NO2"])
+
+        assert isinstance(fig, plt.Figure)
+        plt.close(fig)
+
+    def test_bar_style(self, sample_data):
+        """Test bar chart style."""
+        from aeolus.viz import plot_monthly
+
+        fig = plot_monthly(sample_data, pollutants=["NO2"], style="bar")
+
+        assert isinstance(fig, plt.Figure)
+        plt.close(fig)
+
+    def test_line_style(self, sample_data):
+        """Test line chart style."""
+        from aeolus.viz import plot_monthly
+
+        fig = plot_monthly(sample_data, pollutants=["NO2"], style="line")
+
+        assert isinstance(fig, plt.Figure)
+        plt.close(fig)
+
+    def test_month_labels(self, sample_data):
+        """Test that month labels are correct."""
+        from aeolus.viz import plot_monthly
+
+        fig = plot_monthly(sample_data, pollutants=["NO2"])
+
+        ax = fig.axes[0]
+        labels = [t.get_text() for t in ax.get_xticklabels()]
+        assert "Jan" in labels
+        assert "Dec" in labels
+        plt.close(fig)
+
+
+class TestPlotCalendar:
+    """Tests for plot_calendar function."""
+
+    @pytest.fixture
+    def sample_data(self):
+        """Create sample data for a full year."""
+        dates = pd.date_range("2023-01-01", "2023-12-31", freq="h")
+        data = []
+        for dt in dates:
+            data.append(
+                {
+                    "date_time": dt,
+                    "measurand": "PM2.5",
+                    "value": np.random.uniform(10, 50),
+                    "units": "ug/m3",
+                }
+            )
+        return pd.DataFrame(data)
+
+    def test_returns_figure(self, sample_data):
+        """Test that plot_calendar returns a Figure."""
+        from aeolus.viz import plot_calendar
+
+        fig = plot_calendar(sample_data, "PM2.5", year=2023)
+
+        assert isinstance(fig, plt.Figure)
+        plt.close(fig)
+
+    def test_auto_year(self, sample_data):
+        """Test automatic year detection."""
+        from aeolus.viz import plot_calendar
+
+        fig = plot_calendar(sample_data, "PM2.5")
+
+        ax = fig.axes[0]
+        assert "2023" in ax.get_title()
+        plt.close(fig)
+
+    def test_custom_cmap(self, sample_data):
+        """Test custom colormap."""
+        from aeolus.viz import plot_calendar
+
+        fig = plot_calendar(sample_data, "PM2.5", cmap="Blues")
+
+        assert isinstance(fig, plt.Figure)
+        plt.close(fig)
+
+    def test_has_colorbar(self, sample_data):
+        """Test that colorbar is present."""
+        from aeolus.viz import plot_calendar
+
+        fig = plot_calendar(sample_data, "PM2.5")
+
+        # Should have 2 axes (main + colorbar)
+        assert len(fig.axes) == 2
+        plt.close(fig)
+
+    def test_raises_on_missing_pollutant(self, sample_data):
+        """Test error for missing pollutant."""
+        from aeolus.viz import plot_calendar
+
+        with pytest.raises(ValueError, match="No data found"):
+            plot_calendar(sample_data, "O3")
+
+    def test_raises_on_missing_year(self, sample_data):
+        """Test error for missing year."""
+        from aeolus.viz import plot_calendar
+
+        with pytest.raises(ValueError, match="No data found for year"):
+            plot_calendar(sample_data, "PM2.5", year=2020)
+
+
+# =============================================================================
+# Integration Tests
+# =============================================================================
+
+
 class TestVisualisationIntegration:
     """Integration tests for the visualisation module."""
 
