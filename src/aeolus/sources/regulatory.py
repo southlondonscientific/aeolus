@@ -219,7 +219,6 @@ def normalise_regulatory_data(network_name: str) -> Normaliser:
                     "date": "date_time",
                 }
             ),
-            drop_columns("site_name"),  # We typically don't need this in data
             convert_timestamps("date_time", unit="s"),
             add_column("source_network", network_name.upper()),
             add_column("ratification", "None"),
