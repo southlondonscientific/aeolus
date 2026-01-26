@@ -57,6 +57,7 @@ from .base import (
     AQIResult,
     IndexInfo,
     ensure_ugm3,
+    ensure_ugm3_array,
     get_available_pollutants,
     standardise_pollutant,
     validate_data,
@@ -242,22 +243,19 @@ def aqi_summary(
     for (site, period, pollutant), group in df.groupby(
         ["site_code", "period", "pollutant_std"], observed=True
     ):
-        # Convert units if needed
-        values = []
-        for _, row in group.iterrows():
-            if pd.notna(row["value"]):
-                val = ensure_ugm3(
-                    row["value"],
-                    pollutant,
-                    row["units"],
-                    warn=False,  # Suppress per-row warnings
-                )
-                values.append(val)
+        # Convert units to µg/m³ (vectorized)
+        values_ugm3 = ensure_ugm3_array(
+            group["value"].values,
+            pollutant,
+            group["units"],
+        )
 
-        if not values:
+        # Filter out NaN values
+        valid_mask = ~pd.isna(values_ugm3)
+        values_series = pd.Series(values_ugm3[valid_mask])
+
+        if len(values_series) == 0:
             continue
-
-        values_series = pd.Series(values)
 
         # Calculate statistics
         stats = {
@@ -275,12 +273,12 @@ def aqi_summary(
         # Calculate coverage
         if freq is not None:
             expected_hours = _get_expected_hours(freq)
-            stats["coverage"] = len(values) / expected_hours
+            stats["coverage"] = len(values_series) / expected_hours
         else:
             # For "all" period, calculate based on date range
             date_range = df["date_time"].max() - df["date_time"].min()
             expected_hours = max(1, date_range.total_seconds() / 3600)
-            stats["coverage"] = len(values) / expected_hours
+            stats["coverage"] = len(values_series) / expected_hours
 
         # Calculate AQI using the appropriate statistic for the index
         aqi_result = _calculate_pollutant_aqi(
@@ -381,7 +379,10 @@ def aqi_timeseries(
     df["pollutant_std"] = df["measurand"].apply(standardise_pollutant)
     df = df.sort_values(["site_code", "pollutant_std", "date_time"])
 
-    results = []
+    # Check if index module has vectorized calculate_array function
+    has_vectorized = hasattr(index_module, "calculate_array")
+
+    result_dfs = []
 
     for (site, pollutant), group in df.groupby(
         ["site_code", "pollutant_std"], observed=True
@@ -399,12 +400,11 @@ def aqi_timeseries(
         # Set datetime index for rolling
         group = group.set_index("date_time").sort_index()
 
-        # Convert values to µg/m³
-        group["value_ugm3"] = group.apply(
-            lambda row: ensure_ugm3(row["value"], pollutant, row["units"], warn=False)
-            if pd.notna(row["value"])
-            else None,
-            axis=1,
+        # Convert values to µg/m³ (vectorized)
+        group["value_ugm3"] = ensure_ugm3_array(
+            group["value"].values,
+            pollutant,
+            group["units"],
         )
 
         # Calculate rolling average
@@ -417,31 +417,51 @@ def aqi_timeseries(
             .mean()
         )
 
-        # Calculate AQI for each row with valid rolling avg
-        for dt, row in group.iterrows():
-            if pd.isna(row["rolling_avg"]):
-                aqi_val, aqi_cat = None, None
-            else:
-                try:
-                    result = index_module.calculate(row["rolling_avg"], pollutant)
-                    aqi_val, aqi_cat = result.value, result.category
-                except Exception:
-                    aqi_val, aqi_cat = None, None
+        # Calculate AQI - use vectorized if available
+        if has_vectorized:
+            # Vectorized calculation (much faster)
+            rolling_values = group["rolling_avg"].values
+            aqi_values, aqi_categories = index_module.calculate_array(
+                rolling_values, pollutant
+            )
+        else:
+            # Fallback to scalar calculation
+            aqi_values = []
+            aqi_categories = []
+            for val in group["rolling_avg"].values:
+                if pd.isna(val):
+                    aqi_values.append(None)
+                    aqi_categories.append(None)
+                else:
+                    try:
+                        result = index_module.calculate(val, pollutant)
+                        aqi_values.append(result.value)
+                        aqi_categories.append(result.category)
+                    except Exception:
+                        aqi_values.append(None)
+                        aqi_categories.append(None)
 
-            row_data = {
+        # Build result DataFrame for this group
+        group_result = pd.DataFrame(
+            {
                 "site_code": site,
-                "date_time": dt,
+                "date_time": group.index,
                 "pollutant": pollutant,
-                "value": row["value_ugm3"],
-                "aqi_value": aqi_val,
-                "aqi_category": aqi_cat,
+                "value": group["value_ugm3"].values,
+                "aqi_value": aqi_values,
+                "aqi_category": aqi_categories,
             }
-            if include_rolling:
-                row_data["rolling_avg"] = row["rolling_avg"]
+        )
 
-            results.append(row_data)
+        if include_rolling:
+            group_result["rolling_avg"] = group["rolling_avg"].values
 
-    return pd.DataFrame(results)
+        result_dfs.append(group_result)
+
+    if not result_dfs:
+        return pd.DataFrame()
+
+    return pd.concat(result_dfs, ignore_index=True)
 
 
 def aqi_check_who(

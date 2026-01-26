@@ -315,3 +315,59 @@ def get_averaging_period(pollutant: str) -> str:
         Averaging period string (e.g., "8h", "24h", "1h", "15min")
     """
     return AVERAGING_PERIODS.get(pollutant, "1h")
+
+
+def calculate_array(
+    concentrations: "np.ndarray",
+    pollutant: str,
+) -> tuple["np.ndarray", "np.ndarray"]:
+    """
+    Vectorized UK DAQI calculation for an array of concentrations.
+
+    This is much faster than calling calculate() in a loop.
+
+    Args:
+        concentrations: Array of pollutant concentrations in µg/m³
+        pollutant: Pollutant name (O3, NO2, SO2, PM2.5, PM10)
+
+    Returns:
+        Tuple of (aqi_values, categories) arrays.
+        aqi_values contains NaN where concentration is invalid.
+        categories contains category strings (or None where invalid).
+    """
+    import numpy as np
+
+    from ..base import calculate_aqi_from_breakpoints_array
+
+    if pollutant not in BREAKPOINTS:
+        raise ValueError(
+            f"Pollutant '{pollutant}' not supported by UK DAQI. "
+            f"Supported: {list(BREAKPOINTS.keys())}"
+        )
+
+    # Round concentrations as per DAQI specification
+    concentrations_rounded = np.round(concentrations)
+
+    # Get breakpoints for this pollutant
+    breakpoints = BREAKPOINTS[pollutant]
+
+    # Calculate AQI values and category indices
+    aqi_values, category_indices = calculate_aqi_from_breakpoints_array(
+        concentrations_rounded, breakpoints
+    )
+
+    # Map category indices to category names
+    categories = np.array([None] * len(concentrations), dtype=object)
+    for i, bp in enumerate(breakpoints):
+        mask = category_indices == i
+        categories[mask] = bp["category"]
+
+    # Handle out-of-range (very high concentrations) -> Very High
+    out_of_range = category_indices == -1
+    if np.any(out_of_range):
+        # Check if it's because concentration is too high (not NaN)
+        high_mask = out_of_range & ~np.isnan(concentrations)
+        aqi_values[high_mask] = 10
+        categories[high_mask] = "Very High"
+
+    return aqi_values, categories

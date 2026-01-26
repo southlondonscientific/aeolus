@@ -355,6 +355,119 @@ def calculate_aqi_from_breakpoints(
     return None
 
 
+def calculate_aqi_from_breakpoints_array(
+    concentrations: "np.ndarray",
+    breakpoints: list[Breakpoint],
+) -> tuple["np.ndarray", "np.ndarray"]:
+    """
+    Vectorized AQI calculation for an array of concentrations.
+
+    This is much faster than calling calculate_aqi_from_breakpoints() in a loop.
+
+    Args:
+        concentrations: Array of pollutant concentrations
+        breakpoints: List of breakpoint definitions, sorted by concentration
+
+    Returns:
+        Tuple of (aqi_values, category_indices) arrays.
+        aqi_values contains NaN where concentration is out of range.
+        category_indices is an integer index into breakpoints (or -1 if out of range).
+    """
+    import numpy as np
+
+    n = len(concentrations)
+    aqi_values = np.full(n, np.nan)
+    category_indices = np.full(n, -1, dtype=np.int32)
+
+    # Extract breakpoint arrays for vectorized operations
+    low_concs = np.array([bp["low_conc"] for bp in breakpoints])
+    high_concs = np.array([bp["high_conc"] for bp in breakpoints])
+    low_aqis = np.array([bp["low_aqi"] for bp in breakpoints])
+    high_aqis = np.array([bp["high_aqi"] for bp in breakpoints])
+
+    # For each breakpoint range, find matching concentrations
+    for i, (low_c, high_c, low_a, high_a) in enumerate(
+        zip(low_concs, high_concs, low_aqis, high_aqis)
+    ):
+        # Find concentrations in this range
+        mask = (concentrations >= low_c) & (concentrations <= high_c)
+
+        if not np.any(mask):
+            continue
+
+        # Linear interpolation
+        conc_range = high_c - low_c
+        if conc_range == 0:
+            aqi_values[mask] = low_a
+        else:
+            aqi_range = high_a - low_a
+            aqi_values[mask] = (aqi_range / conc_range) * (
+                concentrations[mask] - low_c
+            ) + low_a
+
+        category_indices[mask] = i
+
+    return np.round(aqi_values), category_indices
+
+
+def ensure_ugm3_array(
+    concentrations: "np.ndarray",
+    pollutant: str,
+    units: "pd.Series",
+) -> "np.ndarray":
+    """
+    Vectorized unit conversion to µg/m³.
+
+    Args:
+        concentrations: Array of concentration values
+        pollutant: Pollutant name (same for all values)
+        units: Series of unit strings (same length as concentrations)
+
+    Returns:
+        Array of concentrations in µg/m³
+    """
+    import numpy as np
+
+    result = concentrations.copy()
+
+    # Get unique units to minimize work
+    unique_units = units.unique()
+
+    for unit in unique_units:
+        if pd.isna(unit):
+            continue
+
+        unit_lower = str(unit).lower().strip()
+        mask = (units == unit).values
+
+        # Already in µg/m³
+        if unit_lower in ("ug/m3", "µg/m³", "ugm3", "µg/m3", "ug/m³"):
+            continue
+
+        # mg/m³ -> µg/m³
+        if unit_lower in ("mg/m3", "mg/m³", "mgm3"):
+            result[mask] = concentrations[mask] * 1000
+            continue
+
+        # ppb -> µg/m³
+        if unit_lower == "ppb":
+            pollutant_upper = pollutant.upper()
+            if pollutant_upper in MOLECULAR_WEIGHTS:
+                mw = MOLECULAR_WEIGHTS[pollutant_upper]
+                result[mask] = concentrations[mask] * (mw / MOLAR_VOLUME)
+            continue
+
+        # ppm -> µg/m³ (ppm = 1000 ppb)
+        if unit_lower == "ppm":
+            pollutant_upper = pollutant.upper()
+            if pollutant_upper in MOLECULAR_WEIGHTS:
+                mw = MOLECULAR_WEIGHTS[pollutant_upper]
+                result[mask] = concentrations[mask] * 1000 * (mw / MOLAR_VOLUME)
+            continue
+
+    return result
+
+
 # =============================================================================
 # Data Validation
 # =============================================================================
