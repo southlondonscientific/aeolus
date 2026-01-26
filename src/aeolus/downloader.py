@@ -61,6 +61,7 @@ TODO: Add support for downloading data from the following additional sources:
 """
 
 import os
+import warnings
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from logging import warning
@@ -71,6 +72,17 @@ import pandas as pd
 import rdata
 import requests
 from requests.sessions import Request
+
+
+def _deprecation_warning(func_name: str, replacement: str) -> None:
+    """Issue a deprecation warning for old API functions."""
+    warnings.warn(
+        f"{func_name}() is deprecated and will be removed in v0.3.0. "
+        f"Use {replacement} instead.",
+        DeprecationWarning,
+        stacklevel=3,
+    )
+
 
 # Base URLs for metadata
 metadata_urls = {
@@ -144,6 +156,10 @@ aurn_measurands = [
 def get_network_metadata(network: str) -> pd.DataFrame:
     """
     Get metadata for a regulatory network (e.g. AURN, SAQN, WAQN).
+
+    .. deprecated:: 0.2.0
+        Use :func:`aeolus.networks.get_metadata` instead.
+
     This function retrieves metadata from a predefined URL based on the network name,
     including site names, codes, coordinates, and other relevant information. Data is
     drawn from Rdata files provided by the Openair project.
@@ -165,6 +181,7 @@ def get_network_metadata(network: str) -> pd.DataFrame:
     data is provided by Ricardo through the Openair project. For Breathe London data, consult
     https://www.breathe-london.org.uk/data/.
     """
+    _deprecation_warning("get_network_metadata", "aeolus.networks.get_metadata()")
     network_url = metadata_urls[network.lower()]
 
     response = requests.get(network_url)
@@ -208,6 +225,9 @@ def multiple_download_regulatory_data(
     """
     Download data for multiple regulatory network sites and years.
 
+    .. deprecated:: 0.2.0
+        Use :func:`aeolus.download` or :func:`aeolus.networks.download` instead.
+
     Args:
         site (str): The code of the regulatory network site as a string.
         year (int): The year of the data as an integer.
@@ -218,6 +238,7 @@ def multiple_download_regulatory_data(
         pd.DataFrame: Data for the specified regulatory network site and year.
 
     """
+    _deprecation_warning("multiple_download_regulatory_data", "aeolus.download()")
     if type(sites) == str:
         sites = [sites]
     if type(years) == int:
@@ -243,6 +264,10 @@ def download_regulatory_data(
 ) -> pd.DataFrame:
     """
     Download data for a regulatory network site and year.
+
+    .. deprecated:: 0.2.0
+        Use :func:`aeolus.download` or :func:`aeolus.networks.download` instead.
+
     This function retrieves data from a predefined URL based on the network name,
     site code, and year. Data is drawn from Rdata files provided by the Openair project
     and Ricardo. To download data for multiple sites and years, use the
@@ -258,6 +283,7 @@ def download_regulatory_data(
         pd.DataFrame: Data for the specified regulatory network site and year.
 
     """
+    _deprecation_warning("download_regulatory_data", "aeolus.download()")
     try:
         url_base = base_urls[network.lower()]
     except KeyError:
@@ -332,6 +358,9 @@ def get_breathe_london_metadata(
     """
     Get site metadata from Breathe London API.
 
+    .. deprecated:: 0.2.0
+        Use :func:`aeolus.networks.get_metadata("BREATHE_LONDON")` instead.
+
     Returns:
         pd.DataFrame: Site metadata. All Breathe London metadata is preserved,
         but several are renamed to match the format of other metadata sources.
@@ -353,6 +382,9 @@ def get_breathe_london_metadata(
 
     """
 
+    _deprecation_warning(
+        "get_breathe_london_metadata", "aeolus.networks.get_metadata('BREATHE_LONDON')"
+    )
     # All three of latitude, longitude, and radius_km must be provided if any of them are provided
     if any([latitude, longitude, radius_km]) and not all(
         [latitude, longitude, radius_km]
@@ -407,9 +439,13 @@ def download_breathe_london_data(
     radius_km=None,
 ) -> pd.DataFrame:
     """
-    Download air quality data from Breathe London API. All parameters are
-    optional, but if any of latitude, longitude, or radius_km are provided,
-    they must all be provided.
+    Download air quality data from Breathe London API.
+
+    .. deprecated:: 0.2.0
+        Use :func:`aeolus.download("BREATHE_LONDON", ...)` instead.
+
+    All parameters are optional, but if any of latitude, longitude, or radius_km
+    are provided, they must all be provided.
 
     Note: all Breathe London functions require the BL_API_KEY environment
     variable to be set. To get an api key, visit breathelondon.org/developers.
@@ -429,6 +465,7 @@ def download_breathe_london_data(
     Returns:
         pd.DataFrame: Air quality data.
     """
+    _deprecation_warning("download_breathe_london_data", "aeolus.download()")
     params = {
         "SiteCode": site,
         "Borough": borough,
