@@ -240,7 +240,7 @@ def aqi_summary(
     results = []
 
     for (site, period, pollutant), group in df.groupby(
-        ["site_code", "period", "pollutant_std"]
+        ["site_code", "period", "pollutant_std"], observed=True
     ):
         # Convert units if needed
         values = []
@@ -383,7 +383,9 @@ def aqi_timeseries(
 
     results = []
 
-    for (site, pollutant), group in df.groupby(["site_code", "pollutant_std"]):
+    for (site, pollutant), group in df.groupby(
+        ["site_code", "pollutant_std"], observed=True
+    ):
         if pollutant is None:
             continue
 
@@ -483,7 +485,9 @@ def aqi_check_who(
 
     results = []
 
-    for (site, pollutant), group in df.groupby(["site_code", "pollutant_std"]):
+    for (site, pollutant), group in df.groupby(
+        ["site_code", "pollutant_std"], observed=True
+    ):
         if pollutant is None or pollutant not in who.GUIDELINES:
             continue
 
@@ -617,7 +621,7 @@ def _add_overall_aqi(df: pd.DataFrame) -> pd.DataFrame:
     """Add overall AQI rows for each site/period."""
     overall_rows = []
 
-    for (site, period), group in df.groupby(["site_code", "period"]):
+    for (site, period), group in df.groupby(["site_code", "period"], observed=True):
         # Overall AQI is the maximum across pollutants
         valid = group[group["aqi_value"].notna()]
         if valid.empty:
@@ -676,7 +680,9 @@ def _to_wide_format(df: pd.DataFrame) -> pd.DataFrame:
     # Create wide columns for each pollutant
     wide_data = []
 
-    for (site, period), group in pollutants.groupby(["site_code", "period"]):
+    for (site, period), group in pollutants.groupby(
+        ["site_code", "period"], observed=True
+    ):
         row = {"site_code": site, "period": period}
 
         for _, poll_row in group.iterrows():

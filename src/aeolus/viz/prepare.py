@@ -328,6 +328,7 @@ def prepare_timeseries(
         columns="measurand",
         values="value",
         aggfunc="mean",  # Handle any duplicates
+        observed=True,  # Only include observed categories
     ).reset_index()
 
     wide = wide.sort_values("date_time")
