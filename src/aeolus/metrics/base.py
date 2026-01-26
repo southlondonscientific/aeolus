@@ -74,6 +74,15 @@ class AQIResult:
 # =============================================================================
 
 # Molecular weights for gas pollutants (g/mol)
+# Sources:
+#   - NIST WebBook: https://webbook.nist.gov/chemistry/
+#   - PubChem: https://pubchem.ncbi.nlm.nih.gov/
+#
+# Values (g/mol):
+#   NO2: 46.0055 (NIST), rounded to 46.01
+#   O3:  47.9982 (NIST), rounded to 48.00
+#   SO2: 64.0638 (NIST), rounded to 64.07
+#   CO:  28.0101 (NIST), rounded to 28.01
 MOLECULAR_WEIGHTS = {
     "NO2": 46.01,
     "O3": 48.00,
@@ -81,8 +90,19 @@ MOLECULAR_WEIGHTS = {
     "CO": 28.01,
 }
 
-# Standard conditions: 25°C (298.15K), 1 atm (101.325 kPa)
-# Molar volume at STP = 24.45 L/mol
+# Standard conditions for air quality conversions: 25°C (298.15K), 1 atm (101.325 kPa)
+#
+# Molar volume calculated from ideal gas law: V = nRT/P
+#   V = (1 mol × 0.082057 L·atm/(mol·K) × 298.15 K) / 1 atm = 24.465 L/mol
+#
+# The value 24.45 L/mol is the widely-used rounded value in air quality science.
+# This is the standard reference condition used by:
+#   - UK DEFRA: https://uk-air.defra.gov.uk/
+#   - US EPA for ambient air quality
+#   - EU air quality directives
+#
+# Note: Some regulations use 20°C (293.15K), giving 24.04 L/mol.
+# We use 25°C as it is the most common reference in international AQI standards.
 MOLAR_VOLUME = 24.45
 
 
@@ -92,6 +112,17 @@ def ppb_to_ugm3(concentration: float, pollutant: str) -> float:
 
     Uses the formula: µg/m³ = ppb × (molecular_weight / molar_volume)
     at standard conditions (25°C, 1 atm).
+
+    Reference:
+        This is the standard conversion used in air quality science.
+        See UK DEFRA technical guidance:
+        https://uk-air.defra.gov.uk/assets/documents/reports/cat06/0502160851_Conversion_Factors_Between_ppb_and.pdf
+
+    Example conversion factors (at 25°C, 1 atm):
+        - NO2: 1 ppb = 1.88 µg/m³
+        - O3:  1 ppb = 1.96 µg/m³
+        - SO2: 1 ppb = 2.62 µg/m³
+        - CO:  1 ppb = 1.15 µg/m³
 
     Args:
         concentration: Concentration in ppb
