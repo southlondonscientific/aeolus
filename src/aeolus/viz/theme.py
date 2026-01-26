@@ -429,6 +429,55 @@ COLOUR_TEXT = SLS_CHARCOAL
 COLOUR_GUIDELINE = "#DC2626"  # Red for threshold/guideline lines
 
 
+# =============================================================================
+# Aeolus Colormap (for heatmaps and continuous scales)
+# =============================================================================
+
+# Cache for the colormap
+_aeolus_cmap = None
+
+
+def get_aeolus_cmap():
+    """
+    Get the Aeolus colormap for heatmaps and continuous colour scales.
+
+    This creates a smooth gradient through the Aeolus AQI palette colours:
+    Emerald (good) → Yellow (moderate) → Orange → Red → Purple (hazardous)
+
+    The colormap is registered with matplotlib as "aeolus" on first call.
+
+    Returns:
+        matplotlib LinearSegmentedColormap
+    """
+    global _aeolus_cmap
+
+    if _aeolus_cmap is not None:
+        return _aeolus_cmap
+
+    from matplotlib.colors import LinearSegmentedColormap
+
+    # Define colours from good (low) to hazardous (high)
+    # Using our Aeolus 6-band palette
+    colours = [
+        "#10B981",  # Emerald (good)
+        "#84CC16",  # Lime (transitional)
+        "#F7B500",  # SLS Yellow (moderate)
+        "#F97316",  # Orange (unhealthy sensitive)
+        "#EF4444",  # Red (unhealthy)
+        "#BE185D",  # Magenta (very unhealthy)
+        "#6B21A8",  # Purple (hazardous)
+    ]
+
+    _aeolus_cmap = LinearSegmentedColormap.from_list("aeolus", colours, N=256)
+
+    # Register with matplotlib so it can be used by name
+    import matplotlib.pyplot as plt
+
+    plt.colormaps.register(_aeolus_cmap, name="aeolus", force=True)
+
+    return _aeolus_cmap
+
+
 def apply_aeolus_style():
     """
     Apply the Aeolus visual style to matplotlib.

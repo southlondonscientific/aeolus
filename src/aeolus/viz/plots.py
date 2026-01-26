@@ -45,6 +45,7 @@ from .theme import (
     SLS_CHARCOAL,
     SLS_LIGHT_GREY,
     apply_aeolus_style,
+    get_aeolus_cmap,
     get_pollutant_colour,
     needs_dark_text,
 )
@@ -519,23 +520,36 @@ def plot_distribution(
     positions = np.arange(len(groups))
 
     if style in ("box", "both"):
+        # Refined boxplot styling - slimmer boxes, subtle outliers
+        flierprops = dict(
+            marker="o",
+            markerfacecolor="none",
+            markeredgecolor=SLS_LIGHT_GREY,
+            markeredgewidth=0.5,
+            markersize=3,
+            alpha=0.6,
+        )
         bp = ax.boxplot(
             plot_data,
             positions=positions,
-            widths=0.6 if style == "box" else 0.3,
+            widths=0.5 if style == "box" else 0.25,
             patch_artist=True,
             showfliers=not show_points,  # Hide outliers if showing all points
+            flierprops=flierprops,
         )
-        # Style the boxes
+        # Style the boxes - lighter fill, thinner lines
         for patch in bp["boxes"]:
             patch.set_facecolor(colour)
-            patch.set_alpha(0.6 if style == "both" else 0.8)
+            patch.set_alpha(0.5 if style == "both" else 0.65)
+            patch.set_linewidth(LINE_WIDTH_THIN)
+            patch.set_edgecolor(colour)
         for element in ["whiskers", "caps"]:
             for line in bp[element]:
-                line.set_color(SLS_CHARCOAL)
+                line.set_color(colour)
+                line.set_linewidth(LINE_WIDTH_THIN)
         for median in bp["medians"]:
-            median.set_color(SLS_CHARCOAL)
-            median.set_linewidth(2)
+            median.set_color("white")
+            median.set_linewidth(LINE_WIDTH_MEDIUM)
 
     if style in ("violin", "both"):
         # Filter out empty arrays for violin plot
@@ -1059,7 +1073,7 @@ def plot_calendar(
     data: pd.DataFrame,
     pollutant: str,
     year: int | None = None,
-    cmap: str = "YlOrRd",
+    cmap: str | None = None,
     title: str | None = None,
     figsize: tuple[float, float] | None = None,
     apply_style: bool = True,
@@ -1074,7 +1088,8 @@ def plot_calendar(
         data: DataFrame from aeolus.download()
         pollutant: Pollutant to display
         year: Year to display (default: most recent in data)
-        cmap: Matplotlib colormap name
+        cmap: Matplotlib colormap name (default: "aeolus" palette).
+              Use any matplotlib colormap name to override.
         title: Plot title
         figsize: Figure size (default auto-calculated)
         apply_style: Apply Aeolus matplotlib style
@@ -1088,6 +1103,10 @@ def plot_calendar(
     """
     if apply_style:
         apply_aeolus_style()
+
+    # Use Aeolus colormap by default
+    if cmap is None:
+        cmap = get_aeolus_cmap()
 
     df = data[data["measurand"] == pollutant].copy()
     if df.empty:
