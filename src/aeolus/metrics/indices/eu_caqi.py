@@ -49,6 +49,8 @@ ROADSIDE_INFO: IndexInfo = {
         "Requires NO2 and PM data. Uses a 1-6 scale from Good to Extremely Poor."
     ),
     "url": "https://airindex.eea.europa.eu/AQI/index.html",
+    "source": "CITEAIR Project - Common Air Quality Index (CAQI)",
+    "version": "2014 (updated with PM2.5)",
 }
 
 BACKGROUND_INFO: IndexInfo = {
@@ -63,6 +65,8 @@ BACKGROUND_INFO: IndexInfo = {
         "Requires NO2, O3, and PM data. Uses a 1-6 scale from Good to Extremely Poor."
     ),
     "url": "https://airindex.eea.europa.eu/AQI/index.html",
+    "source": "CITEAIR Project - Common Air Quality Index (CAQI)",
+    "version": "2014 (updated with PM2.5)",
 }
 
 # Register both indices
@@ -116,6 +120,19 @@ HEALTH_MESSAGES = {
 
 # =============================================================================
 # Breakpoints
+# =============================================================================
+#
+# Source: CITEAIR Project - Common Air Quality Index
+# URL: https://www.europarl.europa.eu/meetdocs/2004_2009/documents/dv/citeair_/citeair_en.pdf
+#
+# Academic reference:
+# Van den Elshout, S., Barber, K., & Léger, K. (2014). "CAQI Common Air Quality
+# Index—Update with PM2.5 and sensitivity analysis." Science of The Total
+# Environment, 488-489, 461-468. https://doi.org/10.1016/j.scitotenv.2013.10.060
+#
+# Version: 2014 (PM2.5 update)
+# Note: The EU also has a newer European Air Quality Index (EAQI) from 2017
+# which differs from CAQI. We implement the more widely-documented CAQI.
 # =============================================================================
 
 # All pollutants use hourly averages

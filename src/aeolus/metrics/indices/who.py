@@ -63,6 +63,8 @@ INDEX_INFO: IndexInfo = {
         "improvement."
     ),
     "url": "https://www.who.int/publications/i/item/9789240034228",
+    "source": "WHO Global Air Quality Guidelines (ISBN 978-92-4-003422-8)",
+    "version": "September 22, 2021 (significantly stricter than 2005)",
 }
 
 # Register this index
@@ -94,6 +96,22 @@ class GuidelineResult:
 
 # =============================================================================
 # Guideline Values (WHO 2021)
+# =============================================================================
+#
+# Source: WHO Global Air Quality Guidelines
+# ISBN: 978-92-4-003422-8
+# URL: https://www.who.int/publications/i/item/9789240034228
+# Direct PDF: https://iris.who.int/bitstream/handle/10665/345334/9789240034433-eng.pdf
+#
+# Version: September 22, 2021
+#
+# Key changes from 2005 guidelines:
+# - PM2.5 annual: 5 µg/m³ (was 10)
+# - PM2.5 24-hour: 15 µg/m³ (was 25)
+# - NO2 annual: 10 µg/m³ (was 40)
+# - NO2 24-hour: 25 µg/m³ (new)
+#
+# Note: These are not legally binding standards but evidence-based recommendations.
 # =============================================================================
 
 # All values in µg/m³ except CO which is in mg/m³

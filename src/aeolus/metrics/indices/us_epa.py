@@ -61,6 +61,8 @@ INDEX_INFO: IndexInfo = {
         "Updated in May 2024 with stricter PM2.5 standards."
     ),
     "url": "https://www.airnow.gov/aqi/aqi-basics/",
+    "source": "40 CFR Part 58, Appendix G - Uniform Air Quality Index (AQI) and Daily Reporting",
+    "version": "May 6, 2024 (PM2.5 breakpoints revised)",
 }
 
 # Register this index
@@ -113,7 +115,22 @@ HEALTH_MESSAGES = {
 
 
 # =============================================================================
-# Breakpoints (Updated May 2024)
+# Breakpoints
+# =============================================================================
+#
+# Source: 40 CFR Part 58, Appendix G
+# URL: https://www.ecfr.gov/current/title-40/chapter-I/subchapter-C/part-58/appendix-Appendix%20G%20to%20Part%2058
+#
+# Version: May 6, 2024 (effective date of PM2.5 revisions)
+#
+# PM2.5 breakpoints were revised in the February 2024 final rule:
+# - Federal Register: 89 FR 16202 (February 7, 2024)
+# - Previous "Good" was 0-12.0, now 0-9.0 µg/m³
+# - See: https://www.epa.gov/system/files/documents/2024-02/pm-naaqs-air-quality-index-fact-sheet.pdf
+#
+# NowCast algorithm documented in:
+# - https://www.epa.gov/sites/default/files/2018-01/documents/nowcastfactsheet.pdf
+# - https://forum.airnowtech.org/t/the-nowcast-for-pm2-5-and-pm10/172
 # =============================================================================
 
 # Averaging periods for each pollutant

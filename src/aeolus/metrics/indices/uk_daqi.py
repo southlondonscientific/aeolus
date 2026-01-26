@@ -54,6 +54,8 @@ INDEX_INFO: IndexInfo = {
         "and Very High (10)."
     ),
     "url": "https://uk-air.defra.gov.uk/air-pollution/daqi",
+    "source": "DEFRA/COMEAP - Update on Implementation of the Daily Air Quality Index (April 2013)",
+    "version": "April 2013 (current)",
 }
 
 # Register this index
@@ -66,7 +68,7 @@ register_index("UK_DAQI", INDEX_INFO)
 
 # Colors from UK-AIR official styling
 COLORS = {
-    1: "#9CFF9C",   # Light green
+    1: "#9CFF9C",  # Light green
     1: "#9CFF9C",  # Light green
     2: "#31FF00",  # Green
     3: "#31CF00",  # Dark green
@@ -116,6 +118,16 @@ HEALTH_MESSAGES = {
 
 # =============================================================================
 # Breakpoints
+# =============================================================================
+#
+# Source: DEFRA "Update on Implementation of the Daily Air Quality Index"
+# URL: https://uk-air.defra.gov.uk/assets/documents/reports/cat14/
+#      1304251155_Update_on_Implementation_of_the_DAQI_April_2013_Final.pdf
+#
+# Version: April 2013 (current as of January 2025)
+# Note: UK DAQI is under review and breakpoints may change. Check DEFRA for updates.
+#
+# All concentrations in µg/m³. Values are rounded to nearest integer before lookup.
 # =============================================================================
 
 # Averaging periods for each pollutant
@@ -239,6 +251,7 @@ BREAKPOINTS = {
 # =============================================================================
 # Calculation Functions
 # =============================================================================
+
 
 def calculate(
     concentration: float,

@@ -60,6 +60,8 @@ INDEX_INFO: IndexInfo = {
         "AQI is the maximum sub-index across all measured pollutants."
     ),
     "url": "https://cpcb.nic.in/National-Air-Quality-Index/",
+    "source": "Central Pollution Control Board (CPCB) / IIT Kanpur",
+    "version": "October 17, 2014 (initial launch)",
 }
 
 # Register this index
@@ -113,6 +115,19 @@ HEALTH_MESSAGES = {
 
 # =============================================================================
 # Breakpoints
+# =============================================================================
+#
+# Source: Central Pollution Control Board (CPCB)
+# URL: https://cpcb.nic.in/National-Air-Quality-Index/
+# Technical development: IIT Kanpur with CPCB expert committee
+#
+# Version: October 17, 2014 (launched under Swachh Bharat Abhiyan)
+# Press release: https://www.pib.gov.in/newsite/printrelease.aspx?relid=110654
+#
+# Unique features:
+# - Includes NH3 (ammonia) and Pb (lead) unlike most other AQI systems
+# - O3 uses 8-hour average for AQI 0-300, switches to 1-hour for higher
+# - CO uses mg/m³ (not µg/m³)
 # =============================================================================
 
 AVERAGING_PERIODS = {

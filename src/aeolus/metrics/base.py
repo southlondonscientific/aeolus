@@ -54,6 +54,8 @@ class IndexInfo(TypedDict):
     pollutants: list[str]  # Supported pollutants
     description: str  # Brief description
     url: str  # Reference URL
+    source: str  # Authoritative source document/regulation
+    version: str  # Version identifier with effective date
 
 
 @dataclass

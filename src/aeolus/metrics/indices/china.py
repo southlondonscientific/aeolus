@@ -55,6 +55,8 @@ INDEX_INFO: IndexInfo = {
         "The overall AQI is the maximum sub-index across all pollutants."
     ),
     "url": "https://aqihub.info/indices/china",
+    "source": "HJ 633-2012 Technical Regulation on Ambient Air Quality Index (Trial)",
+    "version": "January 1, 2016 (nationwide implementation)",
 }
 
 # Register this index
@@ -118,6 +120,15 @@ HEALTH_MESSAGES = {
 
 # =============================================================================
 # Breakpoints
+# =============================================================================
+#
+# Source: HJ 633-2012 Technical Regulation on Ambient Air Quality Index (Trial)
+# Related standard: GB 3095-2012 Ambient Air Quality Standards
+#
+# Version: January 1, 2016 (nationwide implementation)
+# Note: This replaced the previous Air Pollution Index (API) system.
+#
+# CO uses mg/m³ (not µg/m³) per Chinese standard.
 # =============================================================================
 
 AVERAGING_PERIODS = {
