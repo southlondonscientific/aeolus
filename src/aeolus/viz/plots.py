@@ -51,6 +51,33 @@ from .theme import (
 )
 
 # =============================================================================
+# Helper Functions
+# =============================================================================
+
+
+def _get_site_label(data: pd.DataFrame) -> str | None:
+    """
+    Extract a site label from the data for use in titles.
+
+    Returns:
+        Site name if single site, "N sites" if multiple, None if no site info
+    """
+    if "site_name" in data.columns:
+        sites = data["site_name"].dropna().unique()
+        if len(sites) == 1:
+            return str(sites[0])
+        elif len(sites) > 1:
+            return f"{len(sites)} sites"
+    elif "site_code" in data.columns:
+        sites = data["site_code"].dropna().unique()
+        if len(sites) == 1:
+            return str(sites[0])
+        elif len(sites) > 1:
+            return f"{len(sites)} sites"
+    return None
+
+
+# =============================================================================
 # Time Series Plot
 # =============================================================================
 
@@ -622,7 +649,11 @@ def plot_distribution(
     if title:
         ax.set_title(title)
     else:
-        ax.set_title(f"{pollutant} Distribution by {x_label}")
+        site_label = _get_site_label(data)
+        if site_label:
+            ax.set_title(f"{pollutant} Distribution by {x_label} - {site_label}")
+        else:
+            ax.set_title(f"{pollutant} Distribution by {x_label}")
 
     if show_mean:
         ax.legend(loc="upper right", framealpha=0.9)
@@ -767,7 +798,11 @@ def plot_diurnal(
     if title:
         ax.set_title(title)
     else:
-        ax.set_title("Diurnal Pattern")
+        site_label = _get_site_label(data)
+        if site_label:
+            ax.set_title(f"Diurnal Pattern - {site_label}")
+        else:
+            ax.set_title("Diurnal Pattern")
 
     ax.legend(loc="upper right", framealpha=0.9)
     ax.set_xlim(-0.5, 23.5)
@@ -887,7 +922,11 @@ def plot_weekly(
     if title:
         ax.set_title(title)
     else:
-        ax.set_title("Weekly Pattern")
+        site_label = _get_site_label(data)
+        if site_label:
+            ax.set_title(f"Weekly Pattern - {site_label}")
+        else:
+            ax.set_title("Weekly Pattern")
 
     ax.legend(loc="upper right", framealpha=0.9)
 
@@ -1052,7 +1091,11 @@ def plot_monthly(
     if title:
         ax.set_title(title)
     else:
-        ax.set_title("Monthly/Seasonal Pattern")
+        site_label = _get_site_label(data)
+        if site_label:
+            ax.set_title(f"Seasonal Pattern - {site_label}")
+        else:
+            ax.set_title("Seasonal Pattern")
 
     ax.legend(loc="upper right", framealpha=0.9)
 
@@ -1194,7 +1237,11 @@ def plot_calendar(
     if title:
         ax.set_title(title)
     else:
-        ax.set_title(f"{pollutant} Daily Average - {year}")
+        site_label = _get_site_label(data)
+        if site_label:
+            ax.set_title(f"{pollutant} Daily Average ({year}) - {site_label}")
+        else:
+            ax.set_title(f"{pollutant} Daily Average - {year}")
 
     plt.tight_layout()
 
