@@ -1,5 +1,31 @@
 # Aeolus Changelog
 
+## [Unreleased] - v0.3.0
+
+### Added
+
+- **Air Quality Index calculations** (`aeolus.metrics` module)
+  - UK DAQI (Daily Air Quality Index, 1-10 scale)
+  - US EPA AQI (0-500 scale, with NowCast algorithm)
+  - China AQI (0-500 scale)
+  - WHO 2021 Guidelines checker (AQG and interim targets IT-1 to IT-4)
+  - EU CAQI (roadside and background variants, 1-6 scale)
+  - India NAQI (0-500 scale)
+  
+- **Summary functions**
+  - `metrics.aqi_summary()`: Calculate AQI summaries with flexible aggregation (daily, weekly, monthly, yearly)
+  - `metrics.aqi_timeseries()`: Calculate AQI time series with proper rolling averages
+  - `metrics.aqi_check_who()`: Check compliance against WHO guidelines and interim targets
+  
+- **Utilities**
+  - Automatic unit conversion (ppb ↔ µg/m³) with warnings
+  - Pollutant name standardisation (e.g., "ozone" → "O3")
+  - Coverage tracking for data quality assessment
+
+- **80 new tests** for the metrics module (282 total tests, 68% coverage)
+
+---
+
 ## [0.2.0] - January 2026
 
 ### New Architecture

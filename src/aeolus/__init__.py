@@ -70,8 +70,8 @@ For more details, see: https://github.com/southlondonscientific/aeolus
 
 __version__ = "0.2.0"
 
-# Import submodules for networks and portals
-from . import networks, portals, transforms
+# Import submodules for networks, portals, metrics
+from . import metrics, networks, portals, transforms
 
 # Import the clean public API
 from .api import (
@@ -110,6 +110,7 @@ __all__ = [
     # Version
     "__version__",
     # Submodules
+    "metrics",
     "networks",
     "portals",
     "transforms",

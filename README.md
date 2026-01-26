@@ -287,6 +287,84 @@ data = aeolus.download("AURN", ["MY1"], start_date, end_date)
 data.to_csv("marylebone_road_2024.csv", index=False)
 ```
 
+## Air Quality Indices
+
+Aeolus includes a comprehensive `metrics` module for calculating air quality indices from downloaded data.
+
+### Supported Indices
+
+| Index | Country/Region | Scale | Description |
+|-------|----------------|-------|-------------|
+| **UK_DAQI** | UK | 1-10 | Daily Air Quality Index |
+| **US_EPA** | USA | 0-500 | EPA AQI with NowCast |
+| **CHINA** | China | 0-500 | China AQI |
+| **WHO** | Global | Pass/Fail | WHO 2021 Guidelines |
+| **EU_CAQI_ROADSIDE** | EU | 1-6 | European AQI (traffic) |
+| **EU_CAQI_BACKGROUND** | EU | 1-6 | European AQI (background) |
+| **INDIA_NAQI** | India | 0-500 | National AQI |
+
+### Quick Example
+
+```python
+import aeolus
+from aeolus import metrics
+from datetime import datetime
+
+# Download data
+data = aeolus.download(
+    "AURN", 
+    sites=["MY1"], 
+    start_date=datetime(2024, 1, 1), 
+    end_date=datetime(2024, 12, 31)
+)
+
+# Calculate UK DAQI summary
+summary = metrics.aqi_summary(data, index="UK_DAQI")
+print(summary)
+
+# Monthly breakdown
+monthly = metrics.aqi_summary(data, index="UK_DAQI", freq="M")
+
+# Check WHO guideline compliance
+compliance = metrics.aqi_check_who(data)
+print(compliance[["pollutant", "meets_guideline", "exceedance_ratio"]])
+```
+
+### Summary Options
+
+```python
+# Get overall AQI only (no per-pollutant breakdown)
+simple = metrics.aqi_summary(data, index="UK_DAQI", overall_only=True)
+
+# Wide format output (one row per period)
+wide = metrics.aqi_summary(data, index="UK_DAQI", freq="M", format="wide")
+
+# Different aggregation frequencies
+daily = metrics.aqi_summary(data, index="UK_DAQI", freq="D")
+weekly = metrics.aqi_summary(data, index="UK_DAQI", freq="W")
+monthly = metrics.aqi_summary(data, index="UK_DAQI", freq="M")
+yearly = metrics.aqi_summary(data, index="UK_DAQI", freq="Y")
+```
+
+### WHO Guidelines
+
+The WHO module checks compliance against the 2021 Air Quality Guidelines and interim targets:
+
+```python
+from aeolus import metrics
+
+# Check against the AQG (strictest target)
+compliance = metrics.aqi_check_who(data, target="AQG")
+
+# Check against interim targets for progressive improvement
+it1 = metrics.aqi_check_who(data, target="IT-1")  # Least strict
+it4 = metrics.aqi_check_who(data, target="IT-4")  # More strict
+```
+
+### Unit Conversion
+
+The metrics module automatically converts units where needed (e.g., ppb to µg/m³) and warns you when conversions are applied.
+
 ## Acknowledgements
 
 Aeolus wouldn't be possible without the work of many organisations and individuals:

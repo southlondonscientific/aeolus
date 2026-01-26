@@ -12,6 +12,7 @@ Requirements:
 Run with: python demo_openaq.py
 """
 
+import logging
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -22,6 +23,11 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 import pandas as pd
 
 import aeolus
+
+# Configure logging to see what's happening
+logging.basicConfig(
+    level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 
 
 def print_section(title: str):
@@ -90,13 +96,13 @@ def demo_2_test_basic_download():
 
     # Try several locations - some should have data
     test_locations = [
-        ("2178", "Example location 1"),
-        ("8118", "Example location 2"),
+        ("2708", "Example location 1"),
+        ("3272", "Example location 2"),
         ("3", "Example location 3"),
     ]
 
-    start = datetime(2024, 1, 1)
-    end = datetime(2024, 1, 2)
+    start = datetime(2025, 12, 1)
+    end = datetime(2025, 12, 2)
 
     for location_id, description in test_locations:
         print(f"\nTrying location {location_id} ({description})...")
