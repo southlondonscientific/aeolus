@@ -80,8 +80,9 @@ PHILOSOPHY.md
 TEST_UPDATE_SUMMARY.md
 example_*.py
 demo_*.py
-test_*.py
+/test_*.py
 scripts/
 *.bak
 *_old.py
 test_output.txt
+.dev_notes.local
