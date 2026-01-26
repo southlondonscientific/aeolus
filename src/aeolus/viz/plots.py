@@ -43,45 +43,11 @@ from .theme import (
     LINE_WIDTH_MEDIUM,
     LINE_WIDTH_THIN,
     SLS_CHARCOAL,
+    SLS_LIGHT_GREY,
     apply_aeolus_style,
+    get_pollutant_colour,
     needs_dark_text,
 )
-
-# =============================================================================
-# Pollutant Colours (for multi-line plots)
-# =============================================================================
-
-# Distinct colours for different pollutants when plotting multiple
-POLLUTANT_COLOURS = {
-    "NO2": "#3B82F6",  # Blue
-    "PM2.5": "#8B5CF6",  # Purple
-    "PM10": "#A855F7",  # Lighter purple
-    "O3": "#06B6D4",  # Cyan
-    "SO2": "#F59E0B",  # Amber
-    "CO": "#6B7280",  # Grey
-    "NH3": "#10B981",  # Green
-    "Pb": "#EF4444",  # Red
-}
-
-# Fallback colours for unknown pollutants
-FALLBACK_COLOURS = [
-    "#3B82F6",
-    "#8B5CF6",
-    "#06B6D4",
-    "#F59E0B",
-    "#EF4444",
-    "#10B981",
-    "#6366F1",
-    "#EC4899",
-]
-
-
-def _get_pollutant_colour(pollutant: str, index: int = 0) -> str:
-    """Get a colour for a pollutant, with fallback."""
-    if pollutant in POLLUTANT_COLOURS:
-        return POLLUTANT_COLOURS[pollutant]
-    return FALLBACK_COLOURS[index % len(FALLBACK_COLOURS)]
-
 
 # =============================================================================
 # Time Series Plot
@@ -161,7 +127,7 @@ def plot_timeseries(
         if pollutant not in spec.data.columns:
             continue
 
-        colour = _get_pollutant_colour(pollutant, i)
+        colour = get_pollutant_colour(pollutant, i)
         (line,) = ax.plot(
             spec.data["date_time"],
             spec.data[pollutant],
@@ -210,7 +176,7 @@ def plot_timeseries(
             xytext=(-5, 5),
             textcoords="offset points",
             fontsize=7,
-            color="#999999",
+            color=SLS_LIGHT_GREY,
             ha="right",
             va="bottom",
         )
@@ -547,7 +513,7 @@ def plot_distribution(
         fig = ax.figure
 
     # Get colour for this pollutant
-    colour = _get_pollutant_colour(pollutant)
+    colour = get_pollutant_colour(pollutant)
 
     # Plot based on style
     positions = np.arange(len(groups))
@@ -724,7 +690,7 @@ def plot_diurnal(
 
     for i, pollutant in enumerate(pollutants):
         p_data = df[df["measurand"] == pollutant]
-        colour = _get_pollutant_colour(pollutant, i)
+        colour = get_pollutant_colour(pollutant, i)
 
         # Calculate statistics by hour
         hourly = p_data.groupby("hour")["value"].agg(
@@ -861,7 +827,7 @@ def plot_weekly(
 
     for i, pollutant in enumerate(pollutants):
         p_data = df[df["measurand"] == pollutant]
-        colour = _get_pollutant_colour(pollutant, i)
+        colour = get_pollutant_colour(pollutant, i)
 
         daily = p_data.groupby("weekday")["value"].agg(["mean", "std", "count"])
 
@@ -995,7 +961,7 @@ def plot_monthly(
 
         for i, pollutant in enumerate(pollutants):
             p_data = df[df["measurand"] == pollutant]
-            colour = _get_pollutant_colour(pollutant, i)
+            colour = get_pollutant_colour(pollutant, i)
 
             monthly = p_data.groupby("month")["value"].agg(["mean", "std", "count"])
 
@@ -1026,7 +992,7 @@ def plot_monthly(
     else:  # line style
         for i, pollutant in enumerate(pollutants):
             p_data = df[df["measurand"] == pollutant]
-            colour = _get_pollutant_colour(pollutant, i)
+            colour = get_pollutant_colour(pollutant, i)
 
             monthly = p_data.groupby("month")["value"].agg(["mean", "std", "count"])
 

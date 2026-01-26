@@ -98,6 +98,64 @@ def get_font_family() -> str:
 # South London Scientific brand colours
 SLS_YELLOW = "#F7B500"
 SLS_CHARCOAL = "#4A4A4A"
+SLS_LIGHT_GREY = "#9CA3AF"  # For secondary text, annotations
+
+# =============================================================================
+# Pollutant Colours (for multi-line/multi-pollutant plots)
+# =============================================================================
+
+# These are designed to be distinct and harmonious with the Aeolus AQI palette
+# while being colourblind-friendly for common pollutant comparisons
+POLLUTANT_COLOURS = {
+    "NO2": "#3B82F6",  # Blue - nitrogen dioxide (traffic marker)
+    "PM2.5": "#8B5CF6",  # Purple - fine particles
+    "PM10": "#A855F7",  # Lighter purple - coarse particles
+    "O3": "#06B6D4",  # Cyan - ozone (distinct from NO2)
+    "SO2": "#F59E0B",  # Amber - sulphur dioxide
+    "CO": "#6B7280",  # Grey - carbon monoxide
+    "NH3": "#10B981",  # Emerald - ammonia (matches "good" in AQI)
+    "Pb": "#EF4444",  # Red - lead (hazard association)
+    "NOX": "#1D4ED8",  # Darker blue - total NOx
+    "NO": "#60A5FA",  # Lighter blue - nitric oxide
+    "BENZENE": "#EC4899",  # Pink - benzene
+    "TOLUENE": "#F472B6",  # Lighter pink - toluene
+}
+
+# Fallback sequence for unknown pollutants (cycles through)
+POLLUTANT_FALLBACK_COLOURS = [
+    "#3B82F6",  # Blue
+    "#8B5CF6",  # Purple
+    "#06B6D4",  # Cyan
+    "#F59E0B",  # Amber
+    "#EF4444",  # Red
+    "#10B981",  # Emerald
+    "#6366F1",  # Indigo
+    "#EC4899",  # Pink
+]
+
+
+def get_pollutant_colour(pollutant: str, index: int = 0) -> str:
+    """
+    Get a colour for a pollutant.
+
+    Args:
+        pollutant: Pollutant name (e.g., "NO2", "PM2.5")
+        index: Fallback index if pollutant not in palette
+
+    Returns:
+        Hex colour code
+    """
+    # Try exact match first
+    if pollutant in POLLUTANT_COLOURS:
+        return POLLUTANT_COLOURS[pollutant]
+
+    # Try uppercase
+    if pollutant.upper() in POLLUTANT_COLOURS:
+        return POLLUTANT_COLOURS[pollutant.upper()]
+
+    # Fallback to sequence
+    return POLLUTANT_FALLBACK_COLOURS[index % len(POLLUTANT_FALLBACK_COLOURS)]
+
 
 # =============================================================================
 # Aeolus AQI Palette (Option A - Vibrant)
