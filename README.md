@@ -2,11 +2,11 @@
 
 *An opinionated Python toolkit for air quality data analysis.*
 
-Aeolus provides a simple, unified interface for downloading and working with air quality data from multiple sources. It's opinionated — we've made decisions about data formats, column names, and workflows so you don't have to. Whether you're analysing local monitoring networks or exploring global datasets, Aeolus handles the data retrieval and standardisation so you can focus on your research.
+Aeolus provides a simple, unified, opinionated workflow for downloading and working with air quality data from multiple sources.
 
 Aeolus distinguishes between two types of data source:
 
-- **Networks** are discrete monitoring networks with a known set of sites (e.g. the UK's AURN, or Breathe London). You can list all sites and download data directly.
+- **Networks** are discrete monitoring networks with a known set of sites (e.g. the UK's AURN/SAQN or Breathe London). You can list all sites and download data directly.
 - **Portals** are global data aggregators (e.g. OpenAQ). With hundreds of thousands of sites worldwide, you search first, then download.
 
 ## Installation
