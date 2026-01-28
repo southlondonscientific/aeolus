@@ -86,3 +86,4 @@ scripts/
 *_old.py
 test_output.txt
 .dev_notes.local
+site/

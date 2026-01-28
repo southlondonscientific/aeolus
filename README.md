@@ -91,22 +91,41 @@ data = aeolus.download(
 
 **Requires API key:** Set `BL_API_KEY` in your environment. Get a free key at [breathelondon.org/developers](https://www.breathelondon.org/developers).
 
+### AirQo (Africa)
+
+Air quality monitoring network focused on African cities, operated by Makerere University. Provides PM2.5 and PM10 data from 200+ low-cost sensors across 16+ cities.
+
+```python
+# Get AirQo site metadata
+sites = aeolus.networks.get_metadata("AIRQO")
+
+# Filter to a specific country
+uganda_sites = sites[sites["country"] == "Uganda"]
+
+# Download data
+data = aeolus.download(
+    "AIRQO",
+    sites=uganda_sites["site_code"].head(5).tolist(),
+    start_date=datetime(2024, 1, 1),
+    end_date=datetime(2024, 1, 31)
+)
+```
+
+**Requires API key:** Set `AIRQO_API_TOKEN` in your environment. Get a free token at [analytics.airqo.net](https://analytics.airqo.net/).
+
 ### OpenAQ
 
 Global air quality portal aggregating measurements from 100+ countries.
 
 ```python
 # Search for monitoring locations
-locations = aeolus.portals.find_sites(
-    "OpenAQ",
-    country="GB",
-    parameter="pm25"
-)
+locations = aeolus.portals.find_sites("OpenAQ", country="GB")
 
 # Download data using location IDs
-data = aeolus.download(
+location_ids = locations["location_id"].head(5).tolist()
+data = aeolus.portals.download(
     "OpenAQ",
-    sites=locations["location_id"].head(5).tolist(),
+    location_ids=location_ids,
     start_date=datetime(2024, 1, 1),
     end_date=datetime(2024, 1, 31)
 )
@@ -176,6 +195,9 @@ OPENAQ_API_KEY=your_key_here
 
 # Required for Breathe London
 BL_API_KEY=your_key_here
+
+# Required for AirQo
+AIRQO_API_TOKEN=your_token_here
 ```
 
 ### Using with dotenv
@@ -194,7 +216,7 @@ import aeolus
 
 ```python
 # Download data (smart routing to appropriate source)
-aeolus.download(source, sites, start_date, end_date)
+aeolus.download(sources, sites, start_date, end_date)
 
 # List all available sources
 aeolus.list_sources()
@@ -224,7 +246,8 @@ aeolus.portals.list_portals()
 
 # Search for monitoring locations (filters required)
 aeolus.portals.find_sites("OpenAQ", country="GB")
-aeolus.portals.find_sites("OpenAQ", coordinates=(51.5, -0.1), radius=10000)
+aeolus.portals.find_sites("OpenAQ", city="London")
+aeolus.portals.find_sites("OpenAQ", bbox=(51.28, -0.51, 51.69, 0.34))  # London bounding box
 
 # Download data
 aeolus.portals.download("OpenAQ", location_ids, start_date, end_date)
@@ -372,6 +395,7 @@ Aeolus wouldn't be possible without the work of many organisations and individua
 **Data Providers**
 - [OpenAQ](https://openaq.org/) — For building an open, global air quality data portal and API
 - [Breathe London](https://www.breathelondon.org/) — Imperial College London's Environmental Research Group, for high-density monitoring data across London (Open Government Licence v3.0)
+- [AirQo](https://airqo.net/) — Makerere University's air quality monitoring network, bridging the data gap in African cities
 - UK regulatory bodies (DEFRA, SEPA, Natural Resources Wales, DAERA) — For maintaining reference-grade monitoring networks
 
 **Software**
