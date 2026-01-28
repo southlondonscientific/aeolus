@@ -87,3 +87,4 @@ scripts/
 test_output.txt
 .dev_notes.local
 site/
+uv.lock
