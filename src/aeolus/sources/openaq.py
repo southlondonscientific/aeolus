@@ -15,31 +15,26 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
+OpenAQ data source using the official OpenAQ Python SDK.
+
 This module provides data fetchers for OpenAQ, a global air quality data
 platform aggregating data from over 100 countries.
 
-OpenAQ provides access to both government monitoring stations and low-cost
-sensor networks worldwide.
-
-API Documentation: https://docs.openaq.org/
+SDK Documentation: https://python.openaq.org/
 Data Platform: https://openaq.org/
 """
 
+import logging
 import os
-import warnings
 from datetime import datetime
-from logging import warning
-from typing import Any
 
 import pandas as pd
-import requests
+from openaq import OpenAQ
 
-from ..decorators import retry_on_network_error
 from ..registry import register_source
-from ..transforms import add_column, compose, rename_columns, select_columns
+from ..transforms import add_column, compose, select_columns
 
-# Configuration
-OPENAQ_API_BASE = "https://api.openaq.org/v3"
+logger = logging.getLogger(__name__)
 
 # Parameter name standardization
 # Maps OpenAQ parameter names to Aeolus standard names
@@ -50,171 +45,149 @@ PARAMETER_MAP = {
     "o3": "O3",
     "so2": "SO2",
     "co": "CO",
-    "bc": "BC",  # Black Carbon
+    "bc": "BC",
     "no": "NO",
     "nox": "NOX",
     "pm1": "PM1",
-    "ch4": "CH4",  # Methane
-    "um003": "PM0.3",
-    "um005": "PM0.5",
-    "um010": "PM1.0",
-    "um025": "PM2.5",
-    "um100": "PM10",
+    "ch4": "CH4",
 }
 
 
 # ============================================================================
-# LOW-LEVEL API FUNCTIONS
+# CLIENT MANAGEMENT
 # ============================================================================
 
 
-@retry_on_network_error
-def _call_openaq_api(endpoint: str, params: dict) -> dict:
-    """
-    Low-level OpenAQ API caller with authentication and error handling.
+_client = None
 
-    Args:
-        endpoint: API endpoint (e.g., "locations", "measurements")
-        params: Query parameters
+
+def _get_client() -> OpenAQ:
+    """
+    Get an OpenAQ client instance (reuses existing client).
+
+    Supports both OPENAQ_API_KEY (Aeolus convention) and OPENAQ-API-KEY (SDK convention).
 
     Returns:
-        dict: JSON response from API
+        OpenAQ: Configured client instance
 
     Raises:
-        requests.HTTPError: If API returns error status
+        ValueError: If no API key is found
     """
-    headers = {"Accept": "application/json"}
+    global _client
 
-    # API key is required for OpenAQ v3 - read at call time for testability
-    api_key = os.getenv("OPENAQ_API_KEY")
+    # Reuse existing client if available
+    if _client is not None:
+        return _client
+
+    # Support both env var conventions
+    api_key = os.getenv("OPENAQ_API_KEY") or os.getenv("OPENAQ-API-KEY")
+
     if not api_key:
         raise ValueError(
-            "OpenAQ API key required. Set OPENAQ_API_KEY in .env file. "
-            "Get free key at: https://openaq.org/"
+            "OpenAQ API key required. Set OPENAQ_API_KEY environment variable. "
+            "Get a free key at: https://openaq.org/"
         )
 
-    headers["X-API-Key"] = api_key
-
-    url = f"{OPENAQ_API_BASE}/{endpoint}"
-
-    response = requests.get(url, params=params, headers=headers, timeout=30)
-
-    # Handle rate limiting and errors
-    if response.status_code == 429:
-        raise requests.HTTPError(
-            "OpenAQ rate limit exceeded. "
-            "Try requesting less data or wait before retrying."
-        )
-
-    if response.status_code == 404:
-        # Location or data not found - this is common, not an error
-        return {"results": [], "meta": {"found": 0, "pages": 0}}
-
-    response.raise_for_status()
-    return response.json()
+    _client = OpenAQ(api_key=api_key)
+    return _client
 
 
-def _paginate_openaq(endpoint: str, params: dict, max_pages: int | None = None):
+# ============================================================================
+# METADATA FETCHER (Search)
+# ============================================================================
+
+
+def fetch_openaq_metadata(**filters) -> pd.DataFrame:
     """
-    Handle OpenAQ pagination automatically.
-
-    OpenAQ returns max 100 records per page. This generator yields all results
-    by automatically fetching subsequent pages.
+    Search for monitoring locations on OpenAQ.
 
     Args:
-        endpoint: API endpoint
-        params: Query parameters
-        max_pages: Maximum pages to fetch (None = all pages)
-
-    Yields:
-        Individual records from all pages
-    """
-    import logging
-
-    logger = logging.getLogger(__name__)
-
-    page = 1
-    fetched_pages = 0
-
-    while True:
-        # Add pagination params
-        params_with_page = {**params, "page": page, "limit": 100}
-
-        try:
-            data = _call_openaq_api(endpoint, params_with_page)
-            logger.debug(
-                f"Fetched page {page} from {endpoint}, got {len(data.get('results', []))} results"
-            )
-        except requests.HTTPError as e:
-            warning(f"Failed to fetch page {page} from OpenAQ: {e}")
-            break
-
-        # Check if we got results
-        if "results" not in data or not data["results"]:
-            break
-
-        # Yield all results from this page
-        yield from data["results"]
-
-        fetched_pages += 1
-
-        # Check if we should continue
-        meta = data.get("meta", {})
-        found = meta.get("found", 0)
-        limit = meta.get("limit", 100)
-
-        # Handle case where 'found' might be a string
-        try:
-            found_int = int(found) if found else 0
-        except (ValueError, TypeError):
-            logger.warning(
-                f"Could not convert 'found' to int: {found} (type: {type(found)})"
-            )
-            found_int = 0
-
-        # Handle case where 'limit' might be a string
-        try:
-            limit_int = int(limit) if limit else 100
-        except (ValueError, TypeError):
-            logger.warning(
-                f"Could not convert 'limit' to int: {limit} (type: {type(limit)})"
-            )
-            limit_int = 100
-
-        # Calculate total pages based on actual limit from API
-        total_pages = (found_int + limit_int - 1) // limit_int if limit_int > 0 else 1
-        logger.debug(
-            f"Page {page}/{total_pages}, found={found}, limit={limit}, fetched_pages={fetched_pages}"
-        )
-
-        if page >= total_pages:
-            break
-
-        if max_pages and fetched_pages >= max_pages:
-            break
-
-        page += 1
-
-
-def _get_sensors_for_location(location_id: int) -> list[dict]:
-    """
-    Get all sensors for a given location.
-
-    OpenAQ v3 requires fetching sensors first, then querying measurements
-    for each sensor.
-
-    Args:
-        location_id: OpenAQ location ID
+        **filters: Search filters passed to the SDK
+            - country: ISO country code (e.g., "GB", "US")
+            - bbox: Bounding box tuple (min_lon, min_lat, max_lon, max_lat)
+            - coordinates: Tuple of (latitude, longitude) for point search
+            - radius: Search radius in meters (use with coordinates)
+            - limit: Maximum results (default 100, max 1000)
 
     Returns:
-        list[dict]: List of sensor records with id, name, parameter info
+        pd.DataFrame: Location metadata with columns:
+            - location_id: OpenAQ location ID (use for download)
+            - location_name: Human-readable name
+            - latitude: Location latitude
+            - longitude: Location longitude
+            - country: Country code
+            - parameters: List of available pollutants
+            - source_network: Always "OpenAQ"
+
+    Example:
+        >>> locations = fetch_openaq_metadata(country="GB")
+        >>> locations = fetch_openaq_metadata(bbox=(-0.5, 51.3, 0.3, 51.7))
     """
-    try:
-        data = _call_openaq_api(f"locations/{location_id}/sensors", {})
-        return data.get("results", [])
-    except Exception as e:
-        warning(f"Failed to fetch sensors for location {location_id}: {e}")
-        return []
+    if not filters:
+        raise ValueError(
+            "OpenAQ requires search filters. Examples:\n"
+            "  fetch_openaq_metadata(country='GB')\n"
+            "  fetch_openaq_metadata(bbox=(-0.5, 51.3, 0.3, 51.7))"
+        )
+
+    client = _get_client()
+
+    # Map Aeolus filter names to SDK parameter names
+    sdk_params = {}
+
+    if "country" in filters:
+        sdk_params["iso"] = filters["country"]
+
+    if "bbox" in filters:
+        # SDK requires tuple, but accept list for convenience
+        bbox = filters["bbox"]
+        sdk_params["bbox"] = tuple(bbox) if isinstance(bbox, list) else bbox
+
+    if "coordinates" in filters:
+        sdk_params["coordinates"] = filters["coordinates"]
+
+    if "radius" in filters:
+        sdk_params["radius"] = filters["radius"]
+
+    sdk_params["limit"] = filters.get("limit", 100)
+
+    # Call SDK
+    response = client.locations.list(**sdk_params)
+
+    # Convert to DataFrame
+    if not response.results:
+        return pd.DataFrame(
+            columns=[
+                "location_id",
+                "location_name",
+                "latitude",
+                "longitude",
+                "country",
+                "parameters",
+                "source_network",
+            ]
+        )
+
+    records = []
+    for loc in response.results:
+        # Get parameter names from sensors
+        parameters = []
+        if hasattr(loc, "sensors") and loc.sensors:
+            parameters = [s.parameter.name for s in loc.sensors if s.parameter]
+
+        records.append(
+            {
+                "location_id": str(loc.id),
+                "location_name": loc.name,
+                "latitude": loc.coordinates.latitude if loc.coordinates else None,
+                "longitude": loc.coordinates.longitude if loc.coordinates else None,
+                "country": loc.country.code if loc.country else None,
+                "parameters": parameters,
+                "source_network": "OpenAQ",
+            }
+        )
+
+    return pd.DataFrame(records)
 
 
 # ============================================================================
@@ -228,349 +201,158 @@ def fetch_openaq_data(
     """
     Fetch air quality data from OpenAQ.
 
-    This function downloads data from OpenAQ's global air quality platform.
-    Data is automatically normalized to match Aeolus standard schema.
-
     Args:
         sites: List of OpenAQ location IDs as strings
-               Find IDs at: https://openaq.org/
         start_date: Start of date range (inclusive)
         end_date: End of date range (inclusive)
 
     Returns:
-        pd.DataFrame: Air quality data with standardized schema:
-            - site_code: OpenAQ location ID
-            - date_time: Measurement timestamp (end of averaging period)
-            - measurand: Pollutant measured (e.g., "NO2", "PM2.5")
-            - value: Measured value
-            - units: Units of measurement
-            - source_network: "OpenAQ"
-            - ratification: Data quality flag
-            - created_at: When record was fetched
-
-    Note:
-        - OpenAQ v3 API requires an API key (set OPENAQ_API_KEY in .env)
-        - Get free API key at: https://openaq.org/
-        - Returns hourly averages by default
-        - Automatically handles pagination
-        - Timestamps follow left-closed interval convention:
-          13:00 represents data from [12:00, 13:00)
-        - Location IDs can be found at: https://explore.openaq.org/
-        - OpenAQ v3 uses a two-step process: first get sensors, then measurements
+        pd.DataFrame: Air quality data with standardized schema
 
     Example:
-        >>> from datetime import datetime
         >>> data = fetch_openaq_data(
-        ...     sites=["2178"],  # London Marylebone Road
+        ...     sites=["2178"],
         ...     start_date=datetime(2024, 1, 1),
         ...     end_date=datetime(2024, 1, 31)
         ... )
     """
-    import logging
-
-    logger = logging.getLogger(__name__)
-
+    client = _get_client()
     all_measurements = []
 
     for location_id in sites:
         location_id_int = int(location_id)
+        logger.info(f"Fetching data for OpenAQ location {location_id}...")
 
-        # Step 1: Get all sensors for this location
-        logger.info(f"Fetching sensors for OpenAQ location {location_id}...")
-        sensors = _get_sensors_for_location(location_id_int)
+        # Step 1: Get sensors for this location
+        try:
+            sensors_response = client.locations.sensors(location_id_int)
+            sensors = sensors_response.results if sensors_response.results else []
+        except Exception as e:
+            logger.warning(f"Failed to get sensors for location {location_id}: {e}")
+            continue
 
         if not sensors:
-            warning(f"No sensors found for OpenAQ location {location_id}")
+            logger.warning(f"No sensors found for location {location_id}")
             continue
 
         logger.info(f"Found {len(sensors)} sensors for location {location_id}")
 
         # Step 2: Fetch measurements for each sensor
         for sensor in sensors:
-            sensor_id = sensor["id"]
-            parameter_name = sensor.get("parameter", {}).get("name", "unknown")
+            sensor_id = sensor.id
+            param_name = sensor.parameter.name if sensor.parameter else "unknown"
 
-            logger.debug(
-                f"Fetching data for sensor {sensor_id} (parameter: {parameter_name})"
-            )
-
-            # Parameters for OpenAQ API v3 sensor measurements endpoint
-            params = {
-                "datetime_from": start_date.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "datetime_to": end_date.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            }
+            logger.debug(f"Fetching data for sensor {sensor_id} ({param_name})")
 
             try:
-                # Fetch all pages for this sensor
-                endpoint = f"sensors/{sensor_id}/hours"  # Use hourly aggregated data
-                measurements = list(_paginate_openaq(endpoint, params))
-
-                logger.debug(
-                    f"Sensor {sensor_id}: fetched {len(measurements)} measurements"
+                measurements = client.measurements.list(
+                    sensors_id=sensor_id,
+                    datetime_from=start_date,
+                    datetime_to=end_date,
+                    limit=1000,
                 )
 
-                if measurements:
-                    # Extract only needed fields to avoid nested object issues
-                    for m in measurements:
-                        # Skip measurements with no value
-                        if m.get("value") is None:
-                            continue
+                if measurements.results:
+                    for m in measurements.results:
+                        all_measurements.append(
+                            {
+                                "location_id": location_id,
+                                "sensor_id": sensor_id,
+                                "parameter": param_name,
+                                "value": m.value,
+                                "datetime": m.period.datetime_to.utc
+                                if m.period and m.period.datetime_to
+                                else None,
+                                "units": sensor.parameter.units
+                                if sensor.parameter
+                                else "",
+                            }
+                        )
 
-                        # Extract the essential fields we need
-                        clean_measurement = {
-                            "locations_id": location_id_int,
-                            "value": m.get("value"),
-                            "parameter": sensor.get("parameter", {}),
-                            "period": m.get("period", {}),
-                        }
-                        all_measurements.append(clean_measurement)
+                    logger.debug(
+                        f"Sensor {sensor_id}: fetched {len(measurements.results)} measurements"
+                    )
 
             except Exception as e:
-                warning(f"Failed to fetch data for sensor {sensor_id}: {e}")
-                import traceback
-
-                logger.debug(f"Full traceback: {traceback.format_exc()}")
+                logger.warning(f"Failed to fetch data for sensor {sensor_id}: {e}")
                 continue
 
     if not all_measurements:
-        # Return empty DataFrame with correct schema
-        logger.warning(
-            f"No measurements found for any location. Total sites tried: {len(sites)}"
-        )
-        return pd.DataFrame(
-            columns=[
-                "site_code",
-                "date_time",
-                "measurand",
-                "value",
-                "units",
-                "source_network",
-                "ratification",
-                "created_at",
-            ]
-        )
+        logger.warning("No measurements found for any location")
+        return _empty_dataframe()
 
     # Convert to DataFrame and normalize
-    logger.info(f"Total measurements collected: {len(all_measurements)}")
-
-    # Debug: show structure of first measurement
-    if all_measurements:
-        logger.debug(f"Sample measurement keys: {all_measurements[0].keys()}")
-        logger.debug(f"Sample locations_id: {all_measurements[0].get('locations_id')}")
-        logger.debug(f"Sample value: {all_measurements[0].get('value')}")
-        logger.debug(
-            f"Sample parameter type: {type(all_measurements[0].get('parameter'))}"
-        )
-        logger.debug(f"Sample parameter: {all_measurements[0].get('parameter')}")
-        logger.debug(f"Sample period type: {type(all_measurements[0].get('period'))}")
-        logger.debug(
-            f"Sample period keys: {all_measurements[0].get('period', {}).keys() if isinstance(all_measurements[0].get('period'), dict) else 'NOT A DICT'}"
-        )
-
     df = pd.DataFrame(all_measurements)
-    logger.debug(f"Raw DataFrame columns: {df.columns.tolist()}")
-    logger.debug(f"Raw DataFrame shape: {df.shape}")
+    logger.info(f"Total measurements collected: {len(df)}")
 
-    # Debug: show data types
-    logger.debug(f"DataFrame dtypes:\n{df.dtypes}")
-
-    # Debug: Check for any list columns
-    logger.debug(f"Type of df.columns: {type(df.columns)}")
-    logger.debug(f"df.columns as list: {list(df.columns)}")
-
-    for col in df.columns:
-        logger.debug(f"Examining column: {col} (type: {type(col)})")
-        sample_val = df[col].iloc[0] if len(df) > 0 else None
-        logger.debug(
-            f"Column '{col}' sample type: {type(sample_val)}, value: {str(sample_val)[:100]}"
-        )
-
-    try:
-        # Apply normalization pipeline
-        normalizer = create_openaq_normalizer()
-        normalized = normalizer(df)
-        logger.info(f"Normalized DataFrame shape: {normalized.shape}")
-        return normalized
-    except Exception as e:
-        logger.error(f"Error during normalization: {e}")
-        import traceback
-
-        logger.error(f"Full traceback: {traceback.format_exc()}")
-        # Show problematic data
-        if not df.empty:
-            logger.error(f"DataFrame columns: {df.columns.tolist()}")
-            logger.error(f"DataFrame shape: {df.shape}")
-            logger.error(f"Column types: {[(col, type(col)) for col in df.columns]}")
-            try:
-                logger.debug(f"First row:\n{df.iloc[0]}")
-                logger.debug(f"First row dtypes:\n{df.iloc[0].apply(type)}")
-            except Exception as e2:
-                logger.error(f"Could not display first row: {e2}")
-        raise
+    return _normalize(df)
 
 
 # ============================================================================
-# SCHEMA NORMALIZATION
+# NORMALIZATION
 # ============================================================================
 
 
-def create_openaq_normalizer():
-    """
-    Create normalization pipeline for OpenAQ data.
-
-    Transforms OpenAQ's native schema into Aeolus standard schema.
-
-    Returns:
-        Normaliser: Composed transformation pipeline
-    """
-
-    def extract_fields(df: pd.DataFrame) -> pd.DataFrame:
-        """Extract nested fields from OpenAQ response."""
-        import logging
-
-        logger = logging.getLogger(__name__)
-
-        # Extract location ID
-        df["site_code"] = df["locations_id"].astype(str)
-
-        # Extract timestamp from period.datetimeTo.utc
-        def extract_timestamp(period):
-            if not isinstance(period, dict):
-                return None
-            datetime_to = period.get("datetimeTo")
-            if not isinstance(datetime_to, dict):
-                return None
-            return datetime_to.get("utc")
-
-        df["date_time"] = df["period"].apply(extract_timestamp)
-
-        # Extract units from parameter.units BEFORE converting parameter to string
-        def extract_units(param):
-            if isinstance(param, dict):
-                return param.get("units", "")
-            return ""
-
-        df["units"] = df["parameter"].apply(extract_units)
-
-        # Extract parameter name from parameter.name (converts to string)
-        def extract_param_name(param):
-            if isinstance(param, dict):
-                return param.get("name", "unknown")
-            return str(param)
-
-        df["parameter"] = df["parameter"].apply(extract_param_name)
-
-        return df
-
-    def standardize_parameter(df: pd.DataFrame) -> pd.DataFrame:
-        """Standardize parameter names to Aeolus conventions."""
-        # Ensure parameter is string
-        df["parameter"] = df["parameter"].astype(str)
-
-        # Map to standard names (parameter is already a string from extract_fields)
-        df["measurand"] = df["parameter"].str.lower().map(PARAMETER_MAP)
-
-        # If parameter not in map, use uppercase version
-        mask = df["measurand"].isna()
-        df.loc[mask, "measurand"] = df.loc[mask, "parameter"].str.upper()
-
-        return df
-
-    def add_quality_flag(df: pd.DataFrame) -> pd.DataFrame:
-        """Extract data quality information."""
-        # OpenAQ v3 hourly data doesn't have isValid, use a default
-        # Could check flagInfo.hasFlags in the future
-        df["ratification"] = "Unvalidated"
-        return df
-
-    def clean_units(df: pd.DataFrame) -> pd.DataFrame:
-        """Standardize units format."""
-        # OpenAQ uses µg/m³, we use ug/m3 for ASCII compatibility
-        unit_map = {
-            "µg/m³": "ug/m3",
-            "μg/m³": "ug/m3",
-            "micrograms/m3": "ug/m3",
-            "ppm": "ppm",
-            "ppb": "ppb",
-        }
-
-        df["units"] = df["units"].replace(unit_map)
-        return df
-
-    def drop_complex_columns(df: pd.DataFrame) -> pd.DataFrame:
-        """Drop any columns with complex nested objects before final selection."""
-        import logging
-
-        logger = logging.getLogger(__name__)
-
-        # Keep only simple columns
-        columns_to_keep = [
+def _empty_dataframe() -> pd.DataFrame:
+    """Return empty DataFrame with standard schema."""
+    return pd.DataFrame(
+        columns=[
             "site_code",
             "date_time",
             "measurand",
             "value",
             "units",
-            "parameter",
-            "locations_id",
-            "ratification",
             "source_network",
+            "ratification",
             "created_at",
         ]
-
-        # Only keep columns that exist and are in our whitelist
-        keep_cols = [col for col in df.columns if col in columns_to_keep]
-        logger.debug(f"Columns before drop: {df.columns.tolist()}")
-        logger.debug(f"Keeping columns: {keep_cols}")
-
-        return df[keep_cols]
-
-    # Compose the full pipeline
-    return compose(
-        extract_fields,
-        standardize_parameter,
-        add_quality_flag,
-        clean_units,
-        lambda df: df.assign(
-            date_time=pd.to_datetime(df["date_time"], errors="coerce")
-        ),
-        lambda df: df.dropna(
-            subset=["date_time", "value", "measurand"]
-        ),  # Drop rows with missing essential data
-        add_column("source_network", "OpenAQ"),
-        add_column("created_at", datetime.now()),  # Use static value, not lambda
-        drop_complex_columns,  # Drop any remaining complex columns
-        select_columns(
-            "site_code",
-            "date_time",
-            "measurand",
-            "value",
-            "units",
-            "source_network",
-            "ratification",
-            "created_at",
-        ),
     )
 
 
-# ============================================================================
-# METADATA FETCHER (Basic Implementation)
-# ============================================================================
+def _normalize(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalize OpenAQ data to Aeolus standard schema."""
 
+    # Rename columns
+    df = df.rename(
+        columns={
+            "location_id": "site_code",
+            "datetime": "date_time",
+        }
+    )
 
-def fetch_openaq_metadata(**filters) -> pd.DataFrame:
-    """
-    Fetch site metadata from OpenAQ.
+    # Standardize parameter names
+    df["measurand"] = df["parameter"].str.lower().map(PARAMETER_MAP)
+    mask = df["measurand"].isna()
+    df.loc[mask, "measurand"] = df.loc[mask, "parameter"].str.upper()
 
-    This is a basic implementation. For now, returns empty DataFrame.
-    Use https://openaq.org/ to find location IDs.
+    # Convert datetime
+    df["date_time"] = pd.to_datetime(df["date_time"], errors="coerce")
 
-    Future enhancement: Implement full search functionality.
+    # Standardize units
+    unit_map = {"µg/m³": "ug/m3", "μg/m³": "ug/m3"}
+    df["units"] = df["units"].replace(unit_map)
 
-    Returns:
-        pd.DataFrame: Empty DataFrame (for now)
-    """
-    # TODO: Implement when adding search functionality
-    return pd.DataFrame()
+    # Add standard columns
+    df["source_network"] = "OpenAQ"
+    df["ratification"] = "Unvalidated"
+    df["created_at"] = datetime.now()
+
+    # Drop rows with missing essential data
+    df = df.dropna(subset=["date_time", "value", "measurand"])
+
+    # Select final columns
+    return df[
+        [
+            "site_code",
+            "date_time",
+            "measurand",
+            "value",
+            "units",
+            "source_network",
+            "ratification",
+            "created_at",
+        ]
+    ]
 
 
 # ============================================================================
@@ -582,10 +364,10 @@ register_source(
     {
         "type": "portal",
         "name": "OpenAQ",
-        "search": fetch_openaq_metadata,  # Portal search function
-        "fetch_metadata": fetch_openaq_metadata,  # Keep for backward compatibility
+        "search": fetch_openaq_metadata,
+        "fetch_metadata": fetch_openaq_metadata,
         "fetch_data": fetch_openaq_data,
-        "normalise": create_openaq_normalizer(),
-        "requires_api_key": True,  # OpenAQ v3 API requires authentication
+        "normalise": lambda df: df,  # Normalization happens in fetch_openaq_data
+        "requires_api_key": True,
     },
 )

@@ -1,6 +1,6 @@
 [project]
 name = "aeolus_aq"
-version = "0.2.0"
+version = "0.2.1"
 authors = [
   { name="Ruaraidh Dobson", email="ruaraidh.dobson@gmail.com" },
 ]
@@ -9,11 +9,13 @@ air quality networks and standardising them into a common pandas DataFrame forma
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "openaq>=0.7.0",
     "pandas>=2.3.3",
     "rdata>=0.11",
     "requests>=2.32.5",
     "sqlmodel>=0.0.27",
     "tenacity>=8.2.0",
+    "matplotlib>=3.7.0",
 ]
 license = "GPL-3.0-or-later"
 license-files = ["LICEN[CS]E*"]
@@ -28,6 +30,11 @@ dev = [
     "pytest-mock>=3.11.1",
     "responses>=0.23.0",
     "freezegun>=1.2.2",
+]
+docs = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.5.0",
+    "mkdocstrings[python]>=0.24.0",
 ]
 
 [tool.pytest.ini_options]
