@@ -26,7 +26,9 @@ source .venv/bin/activate
 - `OPENAQ_API_KEY` - Required for OpenAQ data
 - `BL_API_KEY` - Required for Breathe London data
 - `AIRQO_API_KEY` - Required for AirQo data
-- AURN and SAQN sources do not require API keys
+- `PURPLEAIR_API_KEY` - Required for PurpleAir data
+- `AIRNOW_API_KEY` - Required for EPA AirNow data
+- AURN, SAQN, and Sensor.Community do not require API keys
 
 ## Project Structure
 
@@ -41,7 +43,10 @@ src/aeolus/
 │   ├── regulatory.py    # UK AURN and SAQN networks
 │   ├── openaq.py        # OpenAQ global data
 │   ├── breathe_london.py # Breathe London network
-│   └── airqo.py         # AirQo African network
+│   ├── airqo.py         # AirQo African network
+│   ├── purpleair.py     # PurpleAir global sensors
+│   ├── sensor_community.py # Sensor.Community citizen science
+│   └── airnow.py        # EPA AirNow US network
 ├── metrics/             # Air quality metrics calculations
 └── viz/                 # Visualization utilities
 ```
@@ -55,6 +60,9 @@ src/aeolus/
 | OpenAQ | Yes | Global (100+ countries) |
 | Breathe London | Yes | London low-cost sensors |
 | AirQo | Yes | African cities (200+ sensors) |
+| PurpleAir | Yes | Global low-cost sensors (30,000+) |
+| Sensor.Community | No | Global citizen science (35,000+) |
+| AirNow | Yes | USA, Canada, Mexico (real-time) |
 
 ## Standard Data Schema
 
@@ -124,6 +132,10 @@ Tests use `pytest` with `responses` for mocking HTTP calls. Test files mirror so
 - `tests/test_regulatory.py` - AURN/SAQN tests
 - `tests/test_openaq.py` - OpenAQ tests
 - `tests/test_airqo.py` - AirQo tests
+- `tests/test_breathe_london.py` - Breathe London tests
+- `tests/test_purpleair.py` - PurpleAir tests
+- `tests/test_sensor_community.py` - Sensor.Community tests
+- `tests/test_airnow.py` - EPA AirNow tests
 
 Mock API responses are defined as pytest fixtures within each test file.
 

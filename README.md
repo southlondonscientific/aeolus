@@ -149,28 +149,19 @@ data = aeolus.download(
 Global citizen science network (formerly luftdaten.info) with 35,000+ low-cost sensors worldwide. Provides PM2.5, PM10, temperature, humidity, and pressure data. No API key required.
 
 ```python
-# Get real-time data from UK sensors
-data = aeolus.download(
-    "SENSOR_COMMUNITY",
-    country="GB",
-    sensor_type="SDS011"  # PM sensors
-)
-
-# Get historical data (from archive)
-from datetime import datetime
-data = aeolus.download(
-    "SENSOR_COMMUNITY",
-    start_date=datetime(2024, 1, 1),
-    end_date=datetime(2024, 1, 7),
-    sensor_type="SDS011",
-    country="GB"
-)
-
-# Get sensors in a geographic area (50km radius around London)
+# Find sensors in a geographic area
 from aeolus.sources.sensor_community import fetch_sensor_community_metadata
+
 sites = fetch_sensor_community_metadata(
-    area=(51.5074, -0.1278, 50),  # lat, lon, radius_km
-    sensor_type="SDS011"
+    area=(51.5074, -0.1278, 50)  # lat, lon, radius_km
+)
+
+# Download data using the standard interface
+data = aeolus.download(
+    "SENSOR_COMMUNITY",
+    sites=sites["site_code"].head(5).tolist(),
+    start_date=datetime(2024, 1, 1),
+    end_date=datetime(2024, 1, 7)
 )
 ```
 
@@ -187,6 +178,39 @@ set_rate_limiting(enabled=False)
 ```
 
 **Note:** Data is marked as `Unvalidated` since this is citizen science data without formal QA/QC processes.
+
+### EPA AirNow (USA)
+
+Real-time air quality data from the US EPA's AirNow system, covering the United States, Canada, and parts of Mexico. Provides O3, PM2.5, PM10, NO2, SO2, and CO data from thousands of monitoring stations.
+
+```python
+# Get current air quality at a location
+from aeolus.sources.airnow import fetch_airnow_current
+
+current = fetch_airnow_current(
+    latitude=34.05,
+    longitude=-118.24,
+    distance=25  # miles
+)
+
+# Find monitoring sites in a bounding box
+sites = aeolus.networks.get_metadata(
+    "AIRNOW",
+    bounding_box=(-118.5, 33.7, -117.5, 34.3)  # LA area
+)
+
+# Download historical data (up to ~45 days)
+data = aeolus.download(
+    "AIRNOW",
+    sites=sites["site_code"].head(3).tolist(),
+    start_date=datetime(2024, 1, 1),
+    end_date=datetime(2024, 1, 7)
+)
+```
+
+**Requires API key:** Set `AIRNOW_API_KEY` in your environment. Get a free key at [docs.airnowapi.org](https://docs.airnowapi.org/account/request/).
+
+**Note:** AirNow provides provisional (real-time) data with approximately 45 days of history. For verified historical data going back years, use EPA AQS (via pyaqsapi or OpenAQ).
 
 ### OpenAQ
 
@@ -276,6 +300,9 @@ AIRQO_API_KEY=your_key_here
 
 # Required for PurpleAir
 PURPLEAIR_API_KEY=your_key_here
+
+# Required for EPA AirNow
+AIRNOW_API_KEY=your_key_here
 ```
 
 ### Using with dotenv
@@ -480,6 +507,7 @@ Aeolus wouldn't be possible without the work of many organisations and individua
 - [AirQo](https://airqo.net/) — Makerere University's air quality monitoring network for African cities
 - [PurpleAir](https://www.purpleair.com/) — Global network of low-cost sensors
 - [Sensor.Community](https://sensor.community/) — Global citizen science sensor network (formerly luftdaten.info)
+- [EPA AirNow](https://www.airnow.gov/) — US Environmental Protection Agency real-time air quality data
 - UK regulatory bodies (DEFRA, SEPA, Natural Resources Wales, DAERA) — Reference-grade monitoring networks
 
 **Standards and Methodologies**
