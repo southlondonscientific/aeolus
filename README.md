@@ -113,37 +113,6 @@ data = aeolus.download(
 
 **Requires API key:** Set `AIRQO_API_KEY` in your environment. Get a free key at [analytics.airqo.net](https://analytics.airqo.net/).
 
-### PurpleAir (Global)
-
-Global network of 30,000+ low-cost air quality sensors, popular with researchers and citizen scientists. PurpleAir sensors use dual laser counters for improved accuracy and measure PM1, PM2.5, PM10, temperature, humidity, and pressure.
-
-```python
-# Get PurpleAir sensors in a bounding box (e.g., London)
-sites = aeolus.networks.get_metadata(
-    "PURPLEAIR",
-    nwlat=51.7, nwlng=-0.5,
-    selat=51.3, selng=0.3,
-    location_type=0  # 0 = outdoor only
-)
-
-# Download data from specific sensors
-data = aeolus.download(
-    "PURPLEAIR",
-    sites=["131075", "131076"],  # Sensor indices from map.purpleair.com
-    start_date=datetime(2024, 1, 1),
-    end_date=datetime(2024, 1, 31)
-)
-```
-
-**Requires API key:** Set `PURPLEAIR_API_KEY` in your environment. Get a free key (includes 1M API points) at [develop.purpleair.com](https://develop.purpleair.com/).
-
-**Note:** PurpleAir sensors have dual laser counters (A and B channels). Aeolus automatically applies literature-based QA/QC and flags data quality:
-- `Validated`: Both channels agree (±10 µg/m³ for low concentrations, ±10% for high)
-- `Channel Disagreement`: Both channels valid but disagree beyond thresholds
-- `Single Channel (A/B)`: Only one channel had valid data
-- `Below Detection Limit`: Value below 0.3 µg/m³ (sensor noise floor)
-- `Sensor Saturation`: Value above 1000 µg/m³
-
 ### Sensor.Community (Global)
 
 Global citizen science network (formerly luftdaten.info) with 35,000+ low-cost sensors worldwide. Provides PM2.5, PM10, temperature, humidity, and pressure data. No API key required.
@@ -231,6 +200,37 @@ data = aeolus.portals.download(
 ```
 
 **Requires API key:** Set `OPENAQ_API_KEY` in your environment. Get a free key at [openaq.org](https://openaq.org/).
+
+### PurpleAir (Global)
+
+Global network of 30,000+ low-cost air quality sensors, popular with researchers and citizen scientists. PurpleAir sensors use dual laser counters for improved accuracy and measure PM1, PM2.5, PM10, temperature, humidity, and pressure.
+
+```python
+# Search for PurpleAir sensors in a bounding box (e.g., London)
+sites = aeolus.portals.find_sites(
+    "PURPLEAIR",
+    nwlat=51.7, nwlng=-0.5,
+    selat=51.3, selng=0.3,
+    location_type=0  # 0 = outdoor only
+)
+
+# Download data from specific sensors
+data = aeolus.portals.download(
+    "PURPLEAIR",
+    sites=["131075", "131076"],  # Sensor indices from map.purpleair.com
+    start_date=datetime(2024, 1, 1),
+    end_date=datetime(2024, 1, 31)
+)
+```
+
+**Requires API key:** Set `PURPLEAIR_API_KEY` in your environment. Get a free key (includes 1M API points) at [develop.purpleair.com](https://develop.purpleair.com/).
+
+**Note:** PurpleAir sensors have dual laser counters (A and B channels). Aeolus automatically applies literature-based QA/QC and flags data quality:
+- `Validated`: Both channels agree (±10 µg/m³ for low concentrations, ±10% for high)
+- `Channel Disagreement`: Both channels valid but disagree beyond thresholds
+- `Single Channel (A/B)`: Only one channel had valid data
+- `Below Detection Limit`: Value below 0.3 µg/m³ (sensor noise floor)
+- `Sensor Saturation`: Value above 1000 µg/m³
 
 ## Working with the Data
 
@@ -343,7 +343,7 @@ aeolus.networks.get_metadata("AURN")
 aeolus.networks.download("AURN", ["MY1"], start_date, end_date)
 ```
 
-### Portals (OpenAQ)
+### Portals (OpenAQ, PurpleAir)
 
 ```python
 # List available portals  
@@ -352,10 +352,11 @@ aeolus.portals.list_portals()
 # Search for monitoring locations (filters required)
 aeolus.portals.find_sites("OpenAQ", country="GB")
 aeolus.portals.find_sites("OpenAQ", city="London")
-aeolus.portals.find_sites("OpenAQ", bbox=(51.28, -0.51, 51.69, 0.34))  # London bounding box
+aeolus.portals.find_sites("PURPLEAIR", nwlat=51.7, nwlng=-0.5, selat=51.3, selng=0.3)
 
 # Download data
 aeolus.portals.download("OpenAQ", location_ids, start_date, end_date)
+aeolus.portals.download("PURPLEAIR", sensor_indices, start_date, end_date)
 ```
 
 ## Examples

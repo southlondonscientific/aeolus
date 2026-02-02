@@ -34,7 +34,7 @@ export PURPLEAIR_API_KEY=your_key_here
 import aeolus
 
 # Get outdoor sensors in a bounding box (London example)
-sites = aeolus.networks.get_metadata(
+sites = aeolus.portals.find_sites(
     "PURPLEAIR",
     nwlat=51.7, nwlng=-0.5,
     selat=51.3, selng=0.3,
@@ -112,7 +112,7 @@ import aeolus
 from datetime import datetime
 
 # Find sensors in London
-sites = aeolus.networks.get_metadata(
+sites = aeolus.portals.find_sites(
     "PURPLEAIR",
     nwlat=51.7, nwlng=-0.5,
     selat=51.3, selng=0.3,
