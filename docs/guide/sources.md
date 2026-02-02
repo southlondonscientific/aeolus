@@ -51,7 +51,9 @@ Northern Ireland monitoring network.
 - **Data quality**: Ratified
 - **API key**: Not required
 
-## Global Platforms
+## Global Portals
+
+Portals aggregate data from multiple sources worldwide. Due to their scale (hundreds of thousands of sites), you search for sites first, then download.
 
 ### OpenAQ
 
@@ -62,7 +64,18 @@ A global open data platform aggregating air quality data from government agencie
 - **API key**: Required
 - **Documentation**: [OpenAQ](../sources/openaq.md)
 
-## Low-Cost Sensor Networks
+### PurpleAir
+
+Global network of 30,000+ low-cost air quality sensors, popular with researchers and citizen scientists.
+
+- **Coverage**: Global (primarily USA, Europe, Australia)
+- **Data quality**: Indicative (dual laser counters with QA/QC)
+- **API key**: Required
+- **Documentation**: [PurpleAir](../sources/purpleair.md)
+
+## Networks
+
+Networks are discrete monitoring systems with a known, manageable set of sites.
 
 ### Breathe London
 
@@ -82,12 +95,34 @@ Low-cost sensor network monitoring air quality in African cities.
 - **API key**: Required
 - **Documentation**: [AirQo](../sources/airqo.md)
 
+### EPA AirNow
+
+Real-time air quality data from the US EPA's AirNow system.
+
+- **Coverage**: USA, Canada, Mexico
+- **Data quality**: Provisional (real-time, not yet verified)
+- **API key**: Required
+- **History**: ~45 days (for long-term data, use EPA AQS via OpenAQ)
+- **Documentation**: [EPA AirNow](../sources/airnow.md)
+
+### Sensor.Community
+
+Global citizen science network (formerly luftdaten.info) with 35,000+ low-cost sensors.
+
+- **Coverage**: Global (primarily Europe)
+- **Data quality**: Unvalidated (citizen science)
+- **API key**: Not required
+- **Documentation**: [Sensor.Community](../sources/sensor-community.md)
+
 ## Comparing Sources
 
-| Source | Coverage | Quality | Real-time | Historical |
-|--------|----------|---------|-----------|------------|
-| AURN | UK | Reference | Yes | 1973+ |
-| SAQN | Scotland | Reference | Yes | 2000s+ |
-| OpenAQ | Global | Mixed | Yes | 2015+ |
-| Breathe London | London | Indicative | Yes | 2019+ |
-| AirQo | Africa | Indicative | Yes | 2020+ |
+| Source | Type | Coverage | Quality | Real-time | Historical |
+|--------|------|----------|---------|-----------|------------|
+| AURN | Network | UK | Reference | Yes | 1973+ |
+| SAQN | Network | Scotland | Reference | Yes | 2000s+ |
+| OpenAQ | Portal | Global | Mixed | Yes | 2015+ |
+| PurpleAir | Portal | Global | Indicative | Yes | 2017+ |
+| Breathe London | Network | London | Indicative | Yes | 2019+ |
+| AirQo | Network | Africa | Indicative | Yes | 2020+ |
+| EPA AirNow | Network | N. America | Provisional | Yes | ~45 days |
+| Sensor.Community | Network | Global | Unvalidated | Yes | 2015+ |

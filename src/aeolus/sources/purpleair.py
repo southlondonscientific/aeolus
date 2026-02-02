@@ -731,7 +731,7 @@ def _calculate_channel_value(
 register_source(
     "PURPLEAIR",
     {
-        "type": "network",
+        "type": "portal",
         "name": "PurpleAir",
         "fetch_metadata": fetch_purpleair_metadata,
         "fetch_data": fetch_purpleair_data,
