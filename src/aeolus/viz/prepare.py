@@ -371,11 +371,17 @@ def prepare_timeseries(
                     all_selected_times.update(p_df["date_time"].tolist())
                 else:
                     # Downsample this pollutant independently
+                    # Convert to int64 - pandas datetime64[us] gives microseconds
                     x = p_df["date_time"].astype(np.int64).values
                     y = p_df[p].values
 
                     x_down, _ = lttb_downsample(x, y, per_pollutant_target)
-                    all_selected_times.update(pd.to_datetime(x_down).tolist())
+                    # Convert back to timestamps using same unit as source dtype
+                    # datetime64[us] -> microseconds, datetime64[ns] -> nanoseconds
+                    dt_unit = str(p_df["date_time"].dtype).split("[")[1].rstrip("]")
+                    all_selected_times.update(
+                        pd.to_datetime(x_down, unit=dt_unit).tolist()
+                    )
 
             # Filter to union of all selected time points
             wide = wide[wide["date_time"].isin(all_selected_times)].copy()
