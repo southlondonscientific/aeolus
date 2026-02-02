@@ -77,6 +77,7 @@ nav:
       - Overview: guide/overview.md
       - Data Sources: guide/sources.md
       - Downloading Data: guide/downloading.md
+      - Data Quality (Ratification): guide/ratification.md
       - Metrics & Analysis: guide/metrics.md
       - Visualization: guide/visualization.md
   - Data Sources:

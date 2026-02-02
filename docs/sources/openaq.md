@@ -42,7 +42,7 @@ city_sites = aeolus.portals.find_sites("OpenAQ", city="London")
 
 ## Downloading Data
 
-Use `portals.download()` with `location_ids` (not `sites`):
+Use `portals.download()` with `location_ids`:
 
 ```python
 import aeolus

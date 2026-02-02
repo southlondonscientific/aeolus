@@ -8,7 +8,7 @@
 - **Sensor type**: Low-cost electrochemical and optical sensors
 - **Data quality**: Indicative (calibrated against reference monitors)
 - **API key**: Required
-- **Operator**: Environmental Defense Fund / Bloomberg Philanthropies
+- **Operator**: Vodafone/Airly
 
 ## Getting an API Key
 

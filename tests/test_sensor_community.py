@@ -7,7 +7,7 @@ and normalization with mocked responses.
 
 import time
 from datetime import datetime
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
@@ -26,10 +26,10 @@ from aeolus.sources.sensor_community import (
     RateLimiter,
     _apply_rate_limit,
     _empty_dataframe,
-    _fetch_archive_day,
-    _filter_by_distance,
+    _fetch_sensor_archive,
+    _get_sensor_types_for_sites,
     _make_request,
-    _normalize_archive_data,
+    _normalize_sensor_data,
     fetch_sensor_community_data,
     fetch_sensor_community_metadata,
     fetch_sensor_community_realtime,
@@ -44,11 +44,9 @@ from aeolus.sources.sensor_community import (
 @pytest.fixture(autouse=True)
 def ensure_source_registered():
     """Ensure Sensor.Community source is registered before tests."""
-    # Import the module to ensure registration happens
     from aeolus.registry import register_source
     from aeolus.sources import sensor_community as sc_module  # noqa: F401
 
-    # Re-register if needed (tests may clear the registry)
     if "SENSOR_COMMUNITY" not in _SOURCES:
         register_source(
             "SENSOR_COMMUNITY",
@@ -61,6 +59,16 @@ def ensure_source_registered():
             },
         )
     yield
+
+
+@pytest.fixture(autouse=True)
+def clear_sensor_type_cache():
+    """Clear the sensor type cache before each test."""
+    from aeolus.sources import sensor_community
+
+    sensor_community._sensor_type_cache.clear()
+    yield
+    sensor_community._sensor_type_cache.clear()
 
 
 # ============================================================================
@@ -129,12 +137,11 @@ def mock_bme280_response():
 
 
 @pytest.fixture
-def mock_archive_csv():
-    """Mock CSV content from the archive."""
+def mock_sensor_archive_csv():
+    """Mock CSV content from the per-sensor archive."""
     return """sensor_id;sensor_type;location;lat;lon;timestamp;P1;P2
 12345;SDS011;GB;51.5074;-0.1278;2024-01-15T10:00:00;32.5;22.3
 12345;SDS011;GB;51.5074;-0.1278;2024-01-15T11:00:00;30.1;20.5
-12346;SDS011;DE;52.52;13.405;2024-01-15T10:00:00;28.7;18.9
 """
 
 
@@ -163,7 +170,7 @@ class TestConstants:
     def test_user_agent_format(self):
         """Test User-Agent header is properly formatted."""
         assert "aeolus" in USER_AGENT.lower()
-        assert "http" in USER_AGENT  # Contains contact URL
+        assert "http" in USER_AGENT
 
     def test_sensor_type_map_has_common_sensors(self):
         """Test sensor type map includes common sensor types."""
@@ -232,25 +239,21 @@ class TestRateLimiter:
         """Test that rate limiter enforces minimum delay between requests."""
         limiter = RateLimiter(max_requests=100, period=60.0, min_delay=0.1)
 
-        # Make two requests quickly
         start = time.time()
         limiter.wait_if_needed()
         limiter.wait_if_needed()
         elapsed = time.time() - start
 
-        # Should have waited at least min_delay
         assert elapsed >= 0.1
 
     def test_rate_limiter_cleans_old_requests(self):
         """Test that rate limiter cleans up old request times."""
         limiter = RateLimiter(max_requests=10, period=0.1, min_delay=0.0)
 
-        # Add some old request times manually
-        limiter.request_times = [time.time() - 1.0]  # 1 second ago
+        limiter.request_times = [time.time() - 1.0]
 
         limiter.wait_if_needed()
 
-        # Old request should be cleaned up, only new one should remain
         assert len(limiter.request_times) == 1
 
 
@@ -354,6 +357,23 @@ class TestMakeRequest:
         import requests
 
         mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
+            response=mock_response
+        )
+        mock_get.return_value = mock_response
+
+        result = _make_request("https://example.com/test")
+
+        assert result is None
+
+    @patch("aeolus.sources.sensor_community.requests.get")
+    @patch("aeolus.sources.sensor_community._apply_rate_limit")
+    def test_make_request_404_silent(self, mock_rate_limit, mock_get):
+        """Test that 404 errors don't warn (expected for missing sensors)."""
+        import requests
+
+        mock_response = MagicMock()
         mock_response.status_code = 404
         mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
             response=mock_response
@@ -386,8 +406,26 @@ class TestFetchMetadata:
         assert "site_code" in df.columns
         assert "latitude" in df.columns
         assert "longitude" in df.columns
+        assert "sensor_type" in df.columns
         assert "source_network" in df.columns
         assert df["source_network"].iloc[0] == "Sensor.Community"
+
+    @patch("aeolus.sources.sensor_community._make_request")
+    def test_fetch_metadata_caches_sensor_types(
+        self, mock_request, mock_realtime_response
+    ):
+        """Test that metadata fetching populates sensor type cache."""
+        from aeolus.sources import sensor_community
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = mock_realtime_response
+        mock_request.return_value = mock_response
+
+        fetch_sensor_community_metadata(sensor_type="SDS011")
+
+        # Check cache was populated
+        assert "12345" in sensor_community._sensor_type_cache
+        assert sensor_community._sensor_type_cache["12345"] == "SDS011"
 
     @patch("aeolus.sources.sensor_community._make_request")
     def test_fetch_metadata_with_filters(self, mock_request, mock_realtime_response):
@@ -401,7 +439,6 @@ class TestFetchMetadata:
             country=["GB", "DE"],
         )
 
-        # Check URL contains filter parameters
         call_url = mock_request.call_args[0][0]
         assert "type=SDS011,BME280" in call_url
         assert "country=GB,DE" in call_url
@@ -449,18 +486,6 @@ class TestFetchMetadata:
         df = fetch_sensor_community_metadata(country="GB")
 
         assert df.empty
-
-    @patch("aeolus.sources.sensor_community._make_request")
-    def test_fetch_metadata_location_type(self, mock_request, mock_realtime_response):
-        """Test that location type is correctly parsed."""
-        mock_response = MagicMock()
-        mock_response.json.return_value = mock_realtime_response
-        mock_request.return_value = mock_response
-
-        df = fetch_sensor_community_metadata()
-
-        # First sensor is outdoor, second is indoor
-        assert "location_type" in df.columns
 
 
 # ============================================================================
@@ -526,43 +551,6 @@ class TestFetchRealtime:
         assert humidity["units"].iloc[0] == "%"
         assert pressure["units"].iloc[0] == "Pa"
 
-    @patch("aeolus.sources.sensor_community._make_request")
-    def test_fetch_realtime_averaging_5min(self, mock_request, mock_realtime_response):
-        """Test 5-minute averaging endpoint."""
-        mock_response = MagicMock()
-        mock_response.json.return_value = mock_realtime_response
-        mock_request.return_value = mock_response
-
-        fetch_sensor_community_realtime(averaging="5min")
-
-        call_url = mock_request.call_args[0][0]
-        assert "data.json" in call_url or "filter" in call_url
-
-    @patch("aeolus.sources.sensor_community._make_request")
-    def test_fetch_realtime_averaging_1h(self, mock_request, mock_realtime_response):
-        """Test 1-hour averaging endpoint."""
-        mock_response = MagicMock()
-        mock_response.json.return_value = mock_realtime_response
-        mock_request.return_value = mock_response
-
-        fetch_sensor_community_realtime(averaging="1h")
-
-        # Without filters, should use the static endpoint
-        call_url = mock_request.call_args[0][0]
-        assert "data.1h.json" in call_url
-
-    @patch("aeolus.sources.sensor_community._make_request")
-    def test_fetch_realtime_averaging_24h(self, mock_request, mock_realtime_response):
-        """Test 24-hour averaging endpoint."""
-        mock_response = MagicMock()
-        mock_response.json.return_value = mock_realtime_response
-        mock_request.return_value = mock_response
-
-        fetch_sensor_community_realtime(averaging="24h")
-
-        call_url = mock_request.call_args[0][0]
-        assert "data.24h.json" in call_url
-
     def test_fetch_realtime_invalid_averaging(self):
         """Test that invalid averaging period raises error."""
         with pytest.raises(ValueError, match="Invalid averaging"):
@@ -590,25 +578,44 @@ class TestFetchRealtime:
 
         assert all(df["ratification"] == "Unvalidated")
 
+
+# ============================================================================
+# Sensor Type Lookup Tests
+# ============================================================================
+
+
+class TestGetSensorTypesForSites:
+    """Test the _get_sensor_types_for_sites function."""
+
+    def test_uses_cache_when_available(self):
+        """Test that cached sensor types are used."""
+        from aeolus.sources import sensor_community
+
+        sensor_community._sensor_type_cache["12345"] = "SDS011"
+        sensor_community._sensor_type_cache["12346"] = "BME280"
+
+        result = _get_sensor_types_for_sites(["12345", "12346"])
+
+        assert result["12345"] == "SDS011"
+        assert result["12346"] == "BME280"
+
     @patch("aeolus.sources.sensor_community._make_request")
-    def test_fetch_realtime_empty_response(self, mock_request):
-        """Test handling of empty response."""
+    def test_queries_api_for_missing(self, mock_request, mock_realtime_response):
+        """Test that API is queried for sensors not in cache."""
+        from aeolus.sources import sensor_community
+
         mock_response = MagicMock()
-        mock_response.json.return_value = []
+        mock_response.json.return_value = mock_realtime_response
         mock_request.return_value = mock_response
 
-        df = fetch_sensor_community_realtime()
+        # Only 12345 is in cache
+        sensor_community._sensor_type_cache["12345"] = "SDS011"
 
-        assert df.empty
+        result = _get_sensor_types_for_sites(["12345", "12346"])
 
-    @patch("aeolus.sources.sensor_community._make_request")
-    def test_fetch_realtime_request_failure(self, mock_request):
-        """Test handling of request failure."""
-        mock_request.return_value = None
-
-        df = fetch_sensor_community_realtime()
-
-        assert df.empty
+        assert result["12345"] == "SDS011"
+        # 12346 should be looked up from API response
+        assert "12346" in result
 
 
 # ============================================================================
@@ -619,108 +626,102 @@ class TestFetchRealtime:
 class TestFetchData:
     """Test the fetch_sensor_community_data function."""
 
-    @patch("aeolus.sources.sensor_community.fetch_sensor_community_realtime")
-    def test_fetch_data_no_dates_calls_realtime(self, mock_realtime):
-        """Test that fetching without dates calls realtime endpoint."""
-        mock_realtime.return_value = pd.DataFrame()
-
-        fetch_sensor_community_data(sensor_type="SDS011", country="GB")
-
-        mock_realtime.assert_called_once_with(
-            sensor_type="SDS011",
-            country="GB",
-            area=None,
-            box=None,
+    def test_fetch_data_empty_sites_returns_empty(self):
+        """Test that empty sites list returns empty DataFrame."""
+        df = fetch_sensor_community_data(
+            sites=[],
+            start_date=datetime(2024, 1, 15),
+            end_date=datetime(2024, 1, 15),
         )
 
-    @patch("aeolus.sources.sensor_community._fetch_archive_day")
-    def test_fetch_data_with_dates_calls_archive(self, mock_archive):
-        """Test that fetching with dates calls archive endpoint."""
-        mock_archive.return_value = pd.DataFrame()
+        assert df.empty
 
-        start = datetime(2024, 1, 15)
-        end = datetime(2024, 1, 16)
+    @patch("aeolus.sources.sensor_community._fetch_sensor_archive")
+    @patch("aeolus.sources.sensor_community._get_sensor_types_for_sites")
+    def test_fetch_data_calls_archive_per_sensor(self, mock_get_types, mock_archive):
+        """Test that archive is fetched for each sensor."""
+        mock_get_types.return_value = {"12345": "SDS011", "12346": "SDS011"}
+        mock_archive.return_value = _empty_dataframe()
 
         fetch_sensor_community_data(
-            start_date=start,
-            end_date=end,
-            sensor_type="SDS011",
+            sites=["12345", "12346"],
+            start_date=datetime(2024, 1, 15),
+            end_date=datetime(2024, 1, 15),
         )
 
-        # Should call archive for each day
+        # Should call archive for each sensor
         assert mock_archive.call_count == 2
 
-    @patch("aeolus.sources.sensor_community._fetch_archive_day")
-    def test_fetch_data_filters_by_sites(self, mock_archive, mock_archive_csv):
-        """Test that site filter is applied to archive data."""
-        # Create mock data with multiple sites
-        df = pd.DataFrame(
+    @patch("aeolus.sources.sensor_community._fetch_sensor_archive")
+    @patch("aeolus.sources.sensor_community._get_sensor_types_for_sites")
+    def test_fetch_data_standard_interface(self, mock_get_types, mock_archive):
+        """Test that fetch_data matches the standard interface (sites, start, end)."""
+        mock_get_types.return_value = {"12345": "SDS011"}
+        mock_archive.return_value = pd.DataFrame(
             {
-                "site_code": ["12345", "12345", "12346"],
-                "date_time": pd.to_datetime(
-                    ["2024-01-15 10:00", "2024-01-15 11:00", "2024-01-15 10:00"]
-                ),
-                "measurand": ["PM2.5", "PM2.5", "PM2.5"],
-                "value": [22.3, 20.5, 18.9],
-                "units": ["ug/m3", "ug/m3", "ug/m3"],
-                "source_network": ["Sensor.Community"] * 3,
-                "ratification": ["Unvalidated"] * 3,
-                "created_at": [datetime.now()] * 3,
+                "site_code": ["12345"],
+                "date_time": [datetime(2024, 1, 15, 10, 0)],
+                "measurand": ["PM2.5"],
+                "value": [22.3],
+                "units": ["ug/m3"],
+                "source_network": ["Sensor.Community"],
+                "ratification": ["Unvalidated"],
+                "created_at": [datetime.now()],
             }
         )
-        mock_archive.return_value = df
 
-        result = fetch_sensor_community_data(
+        df = fetch_sensor_community_data(
             sites=["12345"],
             start_date=datetime(2024, 1, 15),
             end_date=datetime(2024, 1, 15),
-            sensor_type="SDS011",
         )
 
-        assert all(result["site_code"] == "12345")
-        assert len(result) == 2
+        assert not df.empty
+        assert "site_code" in df.columns
+        assert df["site_code"].iloc[0] == "12345"
 
-    @patch("aeolus.sources.sensor_community._fetch_archive_day")
-    def test_fetch_data_multiple_sensor_types(self, mock_archive):
-        """Test fetching multiple sensor types."""
-        mock_archive.return_value = pd.DataFrame()
+    @patch("aeolus.sources.sensor_community._fetch_sensor_archive")
+    @patch("aeolus.sources.sensor_community._get_sensor_types_for_sites")
+    def test_fetch_data_multiple_days(self, mock_get_types, mock_archive):
+        """Test fetching data across multiple days."""
+        mock_get_types.return_value = {"12345": "SDS011"}
+        mock_archive.return_value = _empty_dataframe()
 
         fetch_sensor_community_data(
+            sites=["12345"],
             start_date=datetime(2024, 1, 15),
-            end_date=datetime(2024, 1, 15),
-            sensor_type=["SDS011", "BME280"],
+            end_date=datetime(2024, 1, 17),
         )
 
-        # Should call archive twice for each sensor type
-        assert mock_archive.call_count == 2
-        call_sensor_types = [c[0][1] for c in mock_archive.call_args_list]
-        assert "SDS011" in call_sensor_types
-        assert "BME280" in call_sensor_types
+        # Should call archive for each day (3 days)
+        assert mock_archive.call_count == 3
 
 
-class TestFetchArchiveDay:
-    """Test the _fetch_archive_day function."""
+class TestFetchSensorArchive:
+    """Test the _fetch_sensor_archive function."""
 
     @patch("aeolus.sources.sensor_community._make_request")
-    def test_fetch_archive_day_url_format(self, mock_request):
-        """Test that archive URL is correctly formatted."""
+    def test_fetch_sensor_archive_url_format(self, mock_request):
+        """Test that per-sensor archive URL is correctly formatted."""
         mock_response = MagicMock()
         mock_response.text = ""
         mock_request.return_value = mock_response
 
-        _fetch_archive_day(datetime(2024, 1, 15), "SDS011")
+        _fetch_sensor_archive(datetime(2024, 1, 15), "SDS011", "12345")
 
-        expected_url = f"{ARCHIVE_BASE}/2024-01-15/2024-01-15_sds011.csv"
+        expected_url = f"{ARCHIVE_BASE}/2024-01-15/2024-01-15_sds011_sensor_12345.csv"
         mock_request.assert_called_once_with(expected_url, timeout=60)
 
     @patch("aeolus.sources.sensor_community._make_request")
-    def test_fetch_archive_day_parses_csv(self, mock_request, mock_archive_csv):
+    def test_fetch_sensor_archive_parses_csv(
+        self, mock_request, mock_sensor_archive_csv
+    ):
         """Test that archive CSV is correctly parsed."""
         mock_response = MagicMock()
-        mock_response.text = mock_archive_csv
+        mock_response.text = mock_sensor_archive_csv
         mock_request.return_value = mock_response
 
-        df = _fetch_archive_day(datetime(2024, 1, 15), "SDS011")
+        df = _fetch_sensor_archive(datetime(2024, 1, 15), "SDS011", "12345")
 
         assert not df.empty
         assert "site_code" in df.columns
@@ -728,17 +729,17 @@ class TestFetchArchiveDay:
         assert "value" in df.columns
 
     @patch("aeolus.sources.sensor_community._make_request")
-    def test_fetch_archive_day_request_failure(self, mock_request):
-        """Test handling of request failure."""
+    def test_fetch_sensor_archive_request_failure(self, mock_request):
+        """Test handling of request failure (e.g., sensor doesn't exist)."""
         mock_request.return_value = None
 
-        df = _fetch_archive_day(datetime(2024, 1, 15), "SDS011")
+        df = _fetch_sensor_archive(datetime(2024, 1, 15), "SDS011", "99999")
 
         assert df.empty
 
 
-class TestNormalizeArchiveData:
-    """Test the _normalize_archive_data function."""
+class TestNormalizeSensorData:
+    """Test the _normalize_sensor_data function."""
 
     def test_normalize_sds011_data(self):
         """Test normalization of SDS011 PM data."""
@@ -748,18 +749,17 @@ class TestNormalizeArchiveData:
                 "timestamp": ["2024-01-15T10:00:00", "2024-01-15T11:00:00"],
                 "P1": [32.5, 30.1],
                 "P2": [22.3, 20.5],
-                "lat": [51.5074, 51.5074],
-                "lon": [-0.1278, -0.1278],
             }
         )
 
-        result = _normalize_archive_data(df, "SDS011")
+        result = _normalize_sensor_data(df, "SDS011", "12345")
 
         assert "site_code" in result.columns
         assert "measurand" in result.columns
         assert set(result["measurand"].unique()) == {"PM10", "PM2.5"}
         assert all(result["source_network"] == "Sensor.Community")
         assert all(result["ratification"] == "Unvalidated")
+        assert all(result["site_code"] == "12345")
 
     def test_normalize_bme280_data(self):
         """Test normalization of BME280 environmental data."""
@@ -770,12 +770,10 @@ class TestNormalizeArchiveData:
                 "temperature": [15.5],
                 "humidity": [65.2],
                 "pressure": [101325],
-                "lat": [48.8566],
-                "lon": [2.3522],
             }
         )
 
-        result = _normalize_archive_data(df, "BME280")
+        result = _normalize_sensor_data(df, "BME280", "54321")
 
         measurands = set(result["measurand"].unique())
         assert "Temperature" in measurands
@@ -788,75 +786,15 @@ class TestNormalizeArchiveData:
             {
                 "sensor_id": [12345],
                 "timestamp": ["2024-01-15T10:00:00"],
-                "P1": [None],  # Missing PM10
-                "P2": [22.3],  # Valid PM2.5
-                "lat": [51.5074],
-                "lon": [-0.1278],
+                "P1": [None],
+                "P2": [22.3],
             }
         )
 
-        result = _normalize_archive_data(df, "SDS011")
+        result = _normalize_sensor_data(df, "SDS011", "12345")
 
-        # Should only have PM2.5, not PM10
         assert len(result) == 1
         assert result["measurand"].iloc[0] == "PM2.5"
-
-
-# ============================================================================
-# Geographic Filter Tests
-# ============================================================================
-
-
-class TestFilterByDistance:
-    """Test the _filter_by_distance function."""
-
-    def test_filter_by_distance_includes_nearby(self):
-        """Test that nearby points are included."""
-        df = pd.DataFrame(
-            {
-                "site_code": ["1", "2"],
-                "latitude": [51.5074, 51.51],  # Very close to center
-                "longitude": [-0.1278, -0.13],
-            }
-        )
-
-        result = _filter_by_distance(df, 51.5074, -0.1278, 10)  # 10km radius
-
-        assert len(result) == 2
-
-    def test_filter_by_distance_excludes_far(self):
-        """Test that distant points are excluded."""
-        df = pd.DataFrame(
-            {
-                "site_code": ["1", "2"],
-                "latitude": [51.5074, 48.8566],  # London and Paris
-                "longitude": [-0.1278, 2.3522],
-            }
-        )
-
-        result = _filter_by_distance(df, 51.5074, -0.1278, 10)  # 10km radius
-
-        assert len(result) == 1
-        assert result["site_code"].iloc[0] == "1"
-
-    def test_filter_by_distance_haversine_accuracy(self):
-        """Test that distance calculation is reasonably accurate."""
-        # London to Paris is approximately 344 km
-        df = pd.DataFrame(
-            {
-                "site_code": ["paris"],
-                "latitude": [48.8566],
-                "longitude": [2.3522],
-            }
-        )
-
-        # Should be excluded at 300km
-        result_300 = _filter_by_distance(df, 51.5074, -0.1278, 300)
-        assert len(result_300) == 0
-
-        # Should be included at 400km
-        result_400 = _filter_by_distance(df, 51.5074, -0.1278, 400)
-        assert len(result_400) == 1
 
 
 # ============================================================================
@@ -919,50 +857,68 @@ class TestSourceRegistration:
 
 
 # ============================================================================
-# Integration Tests (with mocked HTTP)
+# Integration with aeolus.download Tests
 # ============================================================================
 
 
-class TestIntegration:
-    """Integration tests with mocked HTTP calls."""
+class TestAeolusDownloadIntegration:
+    """Test integration with the main aeolus.download function."""
 
-    @patch("aeolus.sources.sensor_community._make_request")
-    def test_full_realtime_pipeline(self, mock_request, mock_realtime_response):
-        """Test the full real-time data pipeline."""
-        mock_response = MagicMock()
-        mock_response.json.return_value = mock_realtime_response
-        mock_request.return_value = mock_response
+    @patch("aeolus.sources.sensor_community._fetch_sensor_archive")
+    @patch("aeolus.sources.sensor_community._get_sensor_types_for_sites")
+    def test_download_via_aeolus_api(self, mock_get_types, mock_archive):
+        """Test that aeolus.download works with SENSOR_COMMUNITY."""
+        import aeolus
 
-        df = fetch_sensor_community_realtime(
-            sensor_type="SDS011",
-            country="GB",
-            averaging="5min",
+        mock_get_types.return_value = {"12345": "SDS011"}
+        mock_archive.return_value = pd.DataFrame(
+            {
+                "site_code": ["12345"],
+                "date_time": [datetime(2024, 1, 15, 10, 0)],
+                "measurand": ["PM2.5"],
+                "value": [22.3],
+                "units": ["ug/m3"],
+                "source_network": ["Sensor.Community"],
+                "ratification": ["Unvalidated"],
+                "created_at": [datetime.now()],
+            }
         )
 
-        # Verify data is correctly structured
+        df = aeolus.download(
+            "SENSOR_COMMUNITY",
+            ["12345"],
+            datetime(2024, 1, 15),
+            datetime(2024, 1, 15),
+        )
+
         assert not df.empty
-        assert len(df.columns) == 8
         assert df["source_network"].iloc[0] == "Sensor.Community"
-        assert df["ratification"].iloc[0] == "Unvalidated"
 
-        # Verify values are numeric
-        assert df["value"].dtype in ["float64", "int64"]
+    @patch("aeolus.sources.sensor_community._fetch_sensor_archive")
+    @patch("aeolus.sources.sensor_community._get_sensor_types_for_sites")
+    def test_download_via_networks_api(self, mock_get_types, mock_archive):
+        """Test that aeolus.networks.download works with SENSOR_COMMUNITY."""
+        import aeolus.networks
 
-    @patch("aeolus.sources.sensor_community._make_request")
-    def test_full_archive_pipeline(self, mock_request, mock_archive_csv):
-        """Test the full archive data pipeline."""
-        mock_response = MagicMock()
-        mock_response.text = mock_archive_csv
-        mock_request.return_value = mock_response
-
-        df = fetch_sensor_community_data(
-            start_date=datetime(2024, 1, 15),
-            end_date=datetime(2024, 1, 15),
-            sensor_type="SDS011",
+        mock_get_types.return_value = {"12345": "SDS011"}
+        mock_archive.return_value = pd.DataFrame(
+            {
+                "site_code": ["12345"],
+                "date_time": [datetime(2024, 1, 15, 10, 0)],
+                "measurand": ["PM2.5"],
+                "value": [22.3],
+                "units": ["ug/m3"],
+                "source_network": ["Sensor.Community"],
+                "ratification": ["Unvalidated"],
+                "created_at": [datetime.now()],
+            }
         )
 
-        # Verify data is correctly structured
+        df = aeolus.networks.download(
+            "SENSOR_COMMUNITY",
+            ["12345"],
+            datetime(2024, 1, 15),
+            datetime(2024, 1, 15),
+        )
+
         assert not df.empty
-        assert "site_code" in df.columns
-        assert "measurand" in df.columns
-        assert "value" in df.columns

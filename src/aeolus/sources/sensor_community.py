@@ -42,7 +42,6 @@ import pandas as pd
 import requests
 
 from ..registry import register_source
-from ..transforms import add_column, compose, select_columns
 
 logger = getLogger(__name__)
 
@@ -107,6 +106,9 @@ UNITS_MAP = {
     "Pressure": "Pa",
     "Pressure (Sea Level)": "Pa",
 }
+
+# Cache for sensor type lookups (sensor_id -> sensor_type)
+_sensor_type_cache: dict[str, str] = {}
 
 
 # ============================================================================
@@ -259,7 +261,9 @@ def _make_request(url: str, timeout: int = 30) -> requests.Response | None:
         warning(f"Request timed out: {url}")
         return None
     except requests.exceptions.HTTPError as e:
-        warning(f"HTTP error {e.response.status_code}: {url}")
+        # Don't warn for 404s on archive files - they're expected for some sensors
+        if e.response.status_code != 404:
+            warning(f"HTTP error {e.response.status_code}: {url}")
         return None
     except requests.exceptions.RequestException as e:
         warning(f"Request failed: {e}")
@@ -292,12 +296,12 @@ def fetch_sensor_community_metadata(
     Returns:
         pd.DataFrame: Sensor metadata with standardized schema:
             - site_code: Unique sensor ID (as string)
-            - site_name: Sensor location description (if available)
             - latitude: Sensor latitude
             - longitude: Sensor longitude
-            - source_network: "Sensor.Community"
-            - sensor_type: Type of sensor (e.g., "SDS011")
+            - sensor_type: Type of sensor (e.g., "SDS011") - used internally
             - location_type: "outdoor" or "indoor"
+            - country: Country code
+            - source_network: "Sensor.Community"
 
     Example:
         >>> # Get all PM sensors in the UK
@@ -311,6 +315,8 @@ def fetch_sensor_community_metadata(
         ...     area=(51.5074, -0.1278, 50)
         ... )
     """
+    global _sensor_type_cache
+
     # Build the filter query
     filters = []
 
@@ -365,12 +371,16 @@ def fetch_sensor_community_metadata(
 
         location = entry.get("location", {})
         sensor_info = entry.get("sensor", {})
+        sensor_type_name = sensor_info.get("sensor_type", {}).get("name", "Unknown")
+
+        # Cache the sensor type for later data fetching
+        _sensor_type_cache[sensor_id] = sensor_type_name
 
         sensors[sensor_id] = {
             "site_code": sensor_id,
             "latitude": location.get("latitude"),
             "longitude": location.get("longitude"),
-            "sensor_type": sensor_info.get("sensor_type", {}).get("name", "Unknown"),
+            "sensor_type": sensor_type_name,
             "location_type": "indoor" if location.get("indoor") == 1 else "outdoor",
             "country": location.get("country", ""),
             "source_network": "Sensor.Community",
@@ -389,7 +399,333 @@ def fetch_sensor_community_metadata(
 
 
 # ============================================================================
-# REAL-TIME DATA FETCHER
+# SENSOR TYPE LOOKUP
+# ============================================================================
+
+
+def _get_sensor_types_for_sites(site_ids: list[str]) -> dict[str, str]:
+    """
+    Get sensor types for a list of site IDs.
+
+    First checks the cache, then queries the API for any missing sensors.
+
+    Args:
+        site_ids: List of sensor IDs
+
+    Returns:
+        dict: Mapping of sensor_id -> sensor_type
+    """
+    global _sensor_type_cache
+
+    result = {}
+    missing = []
+
+    # Check cache first
+    for site_id in site_ids:
+        if site_id in _sensor_type_cache:
+            result[site_id] = _sensor_type_cache[site_id]
+        else:
+            missing.append(site_id)
+
+    # If all found in cache, return
+    if not missing:
+        return result
+
+    # Query the API to get sensor types for missing IDs
+    # We need to fetch current data to determine sensor types
+    logger.info(f"Looking up sensor types for {len(missing)} sensors...")
+
+    # Fetch all current sensor data (this gives us type info)
+    url = f"{DATA_API_BASE}/static/v2/data.json"
+    response = _make_request(url, timeout=60)
+
+    if response is not None:
+        try:
+            data = response.json()
+            for entry in data:
+                sensor_id = str(entry.get("sensor", {}).get("id", ""))
+                if sensor_id in missing:
+                    sensor_type = (
+                        entry.get("sensor", {})
+                        .get("sensor_type", {})
+                        .get("name", "Unknown")
+                    )
+                    result[sensor_id] = sensor_type
+                    _sensor_type_cache[sensor_id] = sensor_type
+        except ValueError:
+            pass
+
+    # For any still missing, we'll have to try common sensor types
+    still_missing = [s for s in missing if s not in result]
+    if still_missing:
+        logger.warning(
+            f"Could not determine sensor type for {len(still_missing)} sensors. "
+            "Will try common types (SDS011, BME280)."
+        )
+        # Mark as unknown - we'll try common types when fetching
+        for site_id in still_missing:
+            result[site_id] = "Unknown"
+
+    return result
+
+
+# ============================================================================
+# HISTORICAL DATA FETCHER
+# ============================================================================
+
+
+def fetch_sensor_community_data(
+    sites: list[str],
+    start_date: datetime,
+    end_date: datetime,
+) -> pd.DataFrame:
+    """
+    Fetch air quality data from Sensor.Community.
+
+    This function downloads historical data from the Sensor.Community archive.
+    It automatically determines the sensor type for each site and fetches the
+    appropriate data files.
+
+    Args:
+        sites: List of sensor IDs to fetch (use fetch_sensor_community_metadata
+               to find sensor IDs)
+        start_date: Start of date range (inclusive)
+        end_date: End of date range (inclusive)
+
+    Returns:
+        pd.DataFrame: Air quality data with standardized schema:
+            - site_code: Sensor ID
+            - date_time: Measurement timestamp
+            - measurand: Pollutant/parameter measured (e.g., "PM2.5", "PM10")
+            - value: Measured value
+            - units: Units of measurement
+            - source_network: "Sensor.Community"
+            - ratification: "Unvalidated" (citizen science data)
+            - created_at: When record was fetched
+
+    Note:
+        Historical archive data is available from 2015 onwards. The archive
+        is updated daily around 8:00 AM UTC.
+
+    Example:
+        >>> from datetime import datetime
+        >>> import aeolus
+        >>>
+        >>> # Get sensors in the UK
+        >>> metadata = aeolus.networks.get_metadata(
+        ...     "SENSOR_COMMUNITY",
+        ...     sensor_type="SDS011",
+        ...     country="GB"
+        ... )
+        >>>
+        >>> # Pick some sensors and download data
+        >>> sites = metadata["site_code"].head(3).tolist()
+        >>> data = aeolus.download(
+        ...     "SENSOR_COMMUNITY",
+        ...     sites,
+        ...     datetime(2024, 1, 1),
+        ...     datetime(2024, 1, 7)
+        ... )
+    """
+    if not sites:
+        return _empty_dataframe()
+
+    # Look up sensor types for all requested sites
+    sensor_types = _get_sensor_types_for_sites(sites)
+
+    # Group sites by sensor type for efficient fetching
+    sites_by_type: dict[str, list[str]] = {}
+    unknown_sites: list[str] = []
+
+    for site_id in sites:
+        sensor_type = sensor_types.get(site_id, "Unknown")
+        if sensor_type == "Unknown":
+            unknown_sites.append(site_id)
+        else:
+            if sensor_type not in sites_by_type:
+                sites_by_type[sensor_type] = []
+            sites_by_type[sensor_type].append(site_id)
+
+    all_data = []
+    current_date = start_date
+
+    while current_date <= end_date:
+        date_str = current_date.strftime("%Y-%m-%d")
+
+        # Fetch data for each sensor type group
+        for sensor_type, type_sites in sites_by_type.items():
+            for site_id in type_sites:
+                df = _fetch_sensor_archive(current_date, sensor_type, site_id)
+                if not df.empty:
+                    all_data.append(df)
+
+        # For unknown sensors, try common PM sensor types
+        if unknown_sites:
+            for site_id in unknown_sites:
+                # Try SDS011 first (most common), then BME280
+                for try_type in ["SDS011", "BME280", "PMS5003", "PMS7003"]:
+                    df = _fetch_sensor_archive(current_date, try_type, site_id)
+                    if not df.empty:
+                        # Cache the successful type for future requests
+                        _sensor_type_cache[site_id] = try_type
+                        all_data.append(df)
+                        break
+
+        current_date += timedelta(days=1)
+
+    if not all_data:
+        return _empty_dataframe()
+
+    result = pd.concat(all_data, ignore_index=True)
+
+    # Ensure standard column order
+    standard_cols = [
+        "site_code",
+        "date_time",
+        "measurand",
+        "value",
+        "units",
+        "source_network",
+        "ratification",
+        "created_at",
+    ]
+
+    return result[standard_cols]
+
+
+def _fetch_sensor_archive(
+    date: datetime, sensor_type: str, sensor_id: str
+) -> pd.DataFrame:
+    """
+    Fetch archive data for a specific sensor on a specific date.
+
+    The archive stores one CSV file per sensor per day:
+    {date}_{sensor_type}_sensor_{sensor_id}.csv
+
+    Args:
+        date: The date to fetch
+        sensor_type: The sensor type (e.g., "SDS011")
+        sensor_id: The sensor ID
+
+    Returns:
+        pd.DataFrame: Parsed and normalized data
+    """
+    date_str = date.strftime("%Y-%m-%d")
+    filename = f"{date_str}_{sensor_type.lower()}_sensor_{sensor_id}.csv"
+    url = f"{ARCHIVE_BASE}/{date_str}/{filename}"
+
+    response = _make_request(url, timeout=60)
+    if response is None:
+        return pd.DataFrame()
+
+    try:
+        df = pd.read_csv(
+            io.StringIO(response.text),
+            sep=";",
+            low_memory=False,
+        )
+    except Exception as e:
+        logger.debug(f"Failed to parse archive CSV {filename}: {e}")
+        return pd.DataFrame()
+
+    if df.empty:
+        return pd.DataFrame()
+
+    return _normalize_sensor_data(df, sensor_type, sensor_id)
+
+
+def _normalize_sensor_data(
+    df: pd.DataFrame, sensor_type: str, sensor_id: str
+) -> pd.DataFrame:
+    """
+    Normalize sensor CSV data to standard schema.
+
+    Args:
+        df: Raw CSV data
+        sensor_type: The sensor type
+        sensor_id: The sensor ID
+
+    Returns:
+        pd.DataFrame: Normalized data with standard schema
+    """
+    records = []
+    fetch_time = datetime.now()
+
+    # Determine which measurements this sensor type provides
+    measurands = SENSOR_TYPE_MAP.get(sensor_type, ["PM2.5", "PM10"])
+
+    # Map archive column names to our standard names
+    archive_value_map = {
+        "P1": "PM10",
+        "P2": "PM2.5",
+        "P0": "PM1",
+        "temperature": "Temperature",
+        "humidity": "Humidity",
+        "pressure": "Pressure",
+    }
+
+    for _, row in df.iterrows():
+        timestamp_str = row.get("timestamp")
+
+        try:
+            timestamp = pd.to_datetime(timestamp_str)
+        except (ValueError, TypeError):
+            continue
+
+        for col, measurand in archive_value_map.items():
+            if col not in df.columns:
+                continue
+            if measurand not in measurands:
+                continue
+
+            value = row.get(col)
+            if pd.isna(value):
+                continue
+
+            try:
+                value = float(value)
+            except (ValueError, TypeError):
+                continue
+
+            units = UNITS_MAP.get(measurand, "")
+
+            records.append(
+                {
+                    "site_code": sensor_id,
+                    "date_time": timestamp,
+                    "measurand": measurand,
+                    "value": value,
+                    "units": units,
+                    "source_network": "Sensor.Community",
+                    "ratification": "Unvalidated",
+                    "created_at": fetch_time,
+                }
+            )
+
+    if not records:
+        return pd.DataFrame()
+
+    return pd.DataFrame(records)
+
+
+def _empty_dataframe() -> pd.DataFrame:
+    """Return empty DataFrame with correct schema."""
+    return pd.DataFrame(
+        columns=[
+            "site_code",
+            "date_time",
+            "measurand",
+            "value",
+            "units",
+            "source_network",
+            "ratification",
+            "created_at",
+        ]
+    )
+
+
+# ============================================================================
+# REAL-TIME DATA FETCHER (for direct use, not via aeolus.download)
 # ============================================================================
 
 
@@ -403,7 +739,8 @@ def fetch_sensor_community_realtime(
     """
     Fetch real-time data from Sensor.Community API.
 
-    This returns the most recent measurements from active sensors.
+    This returns the most recent measurements from active sensors. Use this
+    for real-time monitoring; for historical data, use aeolus.download().
 
     Args:
         sensor_type: Filter by sensor type(s), e.g., "SDS011" or ["SDS011", "BME280"]
@@ -413,30 +750,17 @@ def fetch_sensor_community_realtime(
         averaging: Averaging period - "5min", "1h", or "24h" (default "5min")
 
     Returns:
-        pd.DataFrame: Air quality data with standardized schema:
-            - site_code: Sensor ID
-            - date_time: Measurement timestamp
-            - measurand: Pollutant/parameter measured
-            - value: Measured value
-            - units: Units of measurement
-            - source_network: "Sensor.Community"
-            - ratification: "Unvalidated" (citizen science data)
-            - created_at: When record was fetched
+        pd.DataFrame: Air quality data with standardized schema
 
     Example:
+        >>> from aeolus.sources.sensor_community import fetch_sensor_community_realtime
+        >>>
         >>> # Get current PM data for all UK sensors
         >>> data = fetch_sensor_community_realtime(
         ...     sensor_type="SDS011",
         ...     country="GB"
         ... )
-        >>>
-        >>> # Get 24-hour averages for sensors near Berlin
-        >>> data = fetch_sensor_community_realtime(
-        ...     area=(52.52, 13.405, 25),
-        ...     averaging="24h"
-        ... )
     """
-    # Determine the endpoint based on averaging
     avg_endpoints = {
         "5min": "data.json",
         "1h": "data.1h.json",
@@ -487,7 +811,6 @@ def fetch_sensor_community_realtime(
     if not data:
         return _empty_dataframe()
 
-    # Parse the response into records
     records = []
     fetch_time = datetime.now()
 
@@ -503,7 +826,6 @@ def fetch_sensor_community_realtime(
         except (ValueError, TypeError):
             continue
 
-        # Extract sensor values
         sensor_data_values = entry.get("sensordatavalues", [])
         for sdv in sensor_data_values:
             value_type = sdv.get("value_type", "")
@@ -537,334 +859,6 @@ def fetch_sensor_community_realtime(
         return _empty_dataframe()
 
     return pd.DataFrame(records)
-
-
-# ============================================================================
-# HISTORICAL DATA FETCHER
-# ============================================================================
-
-
-def fetch_sensor_community_data(
-    sites: list[str] | None = None,
-    start_date: datetime | None = None,
-    end_date: datetime | None = None,
-    sensor_type: str | list[str] | None = None,
-    country: str | list[str] | None = None,
-    area: tuple[float, float, float] | None = None,
-    box: tuple[float, float, float, float] | None = None,
-) -> pd.DataFrame:
-    """
-    Fetch air quality data from Sensor.Community.
-
-    For real-time data (no dates specified), this calls the live API.
-    For historical data, this downloads from the CSV archive.
-
-    Args:
-        sites: List of sensor IDs to fetch (optional, for historical data)
-        start_date: Start of date range (for historical data)
-        end_date: End of date range (for historical data)
-        sensor_type: Filter by sensor type(s), e.g., "SDS011" or ["SDS011", "BME280"]
-        country: Filter by country code(s), e.g., "GB" or ["GB", "DE", "FR"]
-        area: Circular area filter as (latitude, longitude, radius_km)
-        box: Bounding box filter as (lat1, lon1, lat2, lon2)
-
-    Returns:
-        pd.DataFrame: Air quality data with standardized schema:
-            - site_code: Sensor ID
-            - date_time: Measurement timestamp
-            - measurand: Pollutant/parameter measured
-            - value: Measured value
-            - units: Units of measurement
-            - source_network: "Sensor.Community"
-            - ratification: "Unvalidated" (citizen science data)
-            - created_at: When record was fetched
-
-    Note:
-        Historical archive data is available from 2015 onwards. The archive
-        is updated daily around 8:00 AM UTC.
-
-        For real-time data, use fetch_sensor_community_realtime() which
-        provides more filtering options.
-
-    Example:
-        >>> from datetime import datetime
-        >>> # Get historical data for specific sensors
-        >>> data = fetch_sensor_community_data(
-        ...     sites=["12345", "67890"],
-        ...     start_date=datetime(2024, 1, 1),
-        ...     end_date=datetime(2024, 1, 31),
-        ...     sensor_type="SDS011"
-        ... )
-        >>>
-        >>> # Get real-time data (no dates)
-        >>> realtime = fetch_sensor_community_data(
-        ...     country="GB",
-        ...     sensor_type="SDS011"
-        ... )
-    """
-    # If no dates specified, fetch real-time data
-    if start_date is None and end_date is None:
-        return fetch_sensor_community_realtime(
-            sensor_type=sensor_type,
-            country=country,
-            area=area,
-            box=box,
-        )
-
-    # For historical data, we need to download from the archive
-    if start_date is None:
-        start_date = end_date
-    if end_date is None:
-        end_date = start_date
-
-    # Determine sensor types to fetch
-    if sensor_type is None:
-        # Default to PM sensors
-        sensor_types = ["SDS011"]
-        logger.info("No sensor_type specified, defaulting to SDS011 (PM sensors)")
-    elif isinstance(sensor_type, str):
-        sensor_types = [sensor_type]
-    else:
-        sensor_types = sensor_type
-
-    all_data = []
-    current_date = start_date
-
-    while current_date <= end_date:
-        for st in sensor_types:
-            logger.info(
-                f"Fetching {st} data for {current_date.strftime('%Y-%m-%d')}..."
-            )
-
-            df = _fetch_archive_day(current_date, st)
-
-            if not df.empty:
-                # Apply site filter if specified
-                if sites:
-                    df = df[df["site_code"].isin(sites)]
-
-                # Apply country filter if specified
-                if country:
-                    countries = [country] if isinstance(country, str) else country
-                    if "country" in df.columns:
-                        df = df[df["country"].isin(countries)]
-
-                # Apply geographic filters
-                if area and "latitude" in df.columns and "longitude" in df.columns:
-                    lat, lon, radius = area
-                    df = _filter_by_distance(df, lat, lon, radius)
-
-                if box and "latitude" in df.columns and "longitude" in df.columns:
-                    lat1, lon1, lat2, lon2 = box
-                    df = df[
-                        (df["latitude"] >= min(lat1, lat2))
-                        & (df["latitude"] <= max(lat1, lat2))
-                        & (df["longitude"] >= min(lon1, lon2))
-                        & (df["longitude"] <= max(lon1, lon2))
-                    ]
-
-                if not df.empty:
-                    all_data.append(df)
-
-        current_date += timedelta(days=1)
-
-    if not all_data:
-        return _empty_dataframe()
-
-    result = pd.concat(all_data, ignore_index=True)
-
-    # Select standard columns
-    standard_cols = [
-        "site_code",
-        "date_time",
-        "measurand",
-        "value",
-        "units",
-        "source_network",
-        "ratification",
-        "created_at",
-    ]
-    available_cols = [c for c in standard_cols if c in result.columns]
-
-    return result[available_cols]
-
-
-def _fetch_archive_day(date: datetime, sensor_type: str) -> pd.DataFrame:
-    """
-    Fetch one day of archive data for a specific sensor type.
-
-    Args:
-        date: The date to fetch
-        sensor_type: The sensor type (e.g., "SDS011")
-
-    Returns:
-        pd.DataFrame: Parsed data for that day
-    """
-    date_str = date.strftime("%Y-%m-%d")
-    filename = f"{date_str}_{sensor_type.lower()}.csv"
-    url = f"{ARCHIVE_BASE}/{date_str}/{filename}"
-
-    response = _make_request(url, timeout=60)
-    if response is None:
-        return pd.DataFrame()
-
-    try:
-        # Parse CSV from response content
-        df = pd.read_csv(
-            io.StringIO(response.text),
-            sep=";",
-            low_memory=False,
-        )
-    except Exception as e:
-        warning(f"Failed to parse archive CSV for {date_str} {sensor_type}: {e}")
-        return pd.DataFrame()
-
-    if df.empty:
-        return pd.DataFrame()
-
-    # Normalize the archive data
-    return _normalize_archive_data(df, sensor_type)
-
-
-def _normalize_archive_data(df: pd.DataFrame, sensor_type: str) -> pd.DataFrame:
-    """
-    Normalize archive CSV data to standard schema.
-
-    Archive CSV columns typically include:
-    sensor_id, sensor_type, location, lat, lon, timestamp, P1, P2, temperature, humidity, etc.
-    """
-    records = []
-    fetch_time = datetime.now()
-
-    # Determine which measurements this sensor type provides
-    measurands = SENSOR_TYPE_MAP.get(sensor_type, [])
-
-    # Map archive column names to our standard names
-    archive_value_map = {
-        "P1": "PM10",
-        "P2": "PM2.5",
-        "P0": "PM1",
-        "temperature": "Temperature",
-        "humidity": "Humidity",
-        "pressure": "Pressure",
-    }
-
-    for _, row in df.iterrows():
-        sensor_id = str(row.get("sensor_id", ""))
-        timestamp_str = row.get("timestamp")
-
-        if not sensor_id:
-            continue
-
-        try:
-            timestamp = pd.to_datetime(timestamp_str)
-        except (ValueError, TypeError):
-            continue
-
-        # Extract latitude/longitude for potential filtering
-        lat = row.get("lat")
-        lon = row.get("lon")
-
-        for col, measurand in archive_value_map.items():
-            if col not in df.columns:
-                continue
-            if measurand not in measurands:
-                continue
-
-            value = row.get(col)
-            if pd.isna(value):
-                continue
-
-            try:
-                value = float(value)
-            except (ValueError, TypeError):
-                continue
-
-            units = UNITS_MAP.get(measurand, "")
-
-            record = {
-                "site_code": sensor_id,
-                "date_time": timestamp,
-                "measurand": measurand,
-                "value": value,
-                "units": units,
-                "source_network": "Sensor.Community",
-                "ratification": "Unvalidated",
-                "created_at": fetch_time,
-            }
-
-            # Include location data for filtering
-            if lat is not None and lon is not None:
-                try:
-                    record["latitude"] = float(lat)
-                    record["longitude"] = float(lon)
-                except (ValueError, TypeError):
-                    pass
-
-            # Include country for filtering
-            if "location" in row and pd.notna(row.get("location")):
-                record["country"] = str(row.get("location"))
-
-            records.append(record)
-
-    if not records:
-        return pd.DataFrame()
-
-    return pd.DataFrame(records)
-
-
-def _filter_by_distance(
-    df: pd.DataFrame, center_lat: float, center_lon: float, radius_km: float
-) -> pd.DataFrame:
-    """
-    Filter DataFrame by distance from a center point.
-
-    Uses the Haversine formula for accurate distance calculation.
-    """
-    import math
-
-    def haversine_distance(lat1, lon1, lat2, lon2):
-        """Calculate distance in km between two points."""
-        R = 6371  # Earth's radius in km
-
-        lat1_rad = math.radians(lat1)
-        lat2_rad = math.radians(lat2)
-        delta_lat = math.radians(lat2 - lat1)
-        delta_lon = math.radians(lon2 - lon1)
-
-        a = (
-            math.sin(delta_lat / 2) ** 2
-            + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon / 2) ** 2
-        )
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
-        return R * c
-
-    # Calculate distance for each row
-    distances = df.apply(
-        lambda row: haversine_distance(
-            center_lat, center_lon, row["latitude"], row["longitude"]
-        ),
-        axis=1,
-    )
-
-    return df[distances <= radius_km]
-
-
-def _empty_dataframe() -> pd.DataFrame:
-    """Return empty DataFrame with correct schema."""
-    return pd.DataFrame(
-        columns=[
-            "site_code",
-            "date_time",
-            "measurand",
-            "value",
-            "units",
-            "source_network",
-            "ratification",
-            "created_at",
-        ]
-    )
 
 
 # ============================================================================

@@ -21,25 +21,53 @@ Depending on sensor type:
 - **PM sensors** (SDS011, PMS series): PM2.5, PM10
 - **Environmental sensors** (BME280, DHT22): Temperature, Humidity, Pressure
 
-## Finding Sensors
+## Quick Start
 
 ```python
-from aeolus.sources.sensor_community import fetch_sensor_community_metadata
+import aeolus
+from datetime import datetime
 
-# Get sensors by country
-uk_sensors = fetch_sensor_community_metadata(
+# Get available sensors in the UK
+metadata = aeolus.networks.get_metadata(
+    "SENSOR_COMMUNITY",
     sensor_type="SDS011",
     country="GB"
 )
 
-# Get sensors in a geographic area (50km radius)
-london_sensors = fetch_sensor_community_metadata(
+# Pick some sensors
+sites = metadata["site_code"].head(5).tolist()
+
+# Download data - same interface as all other sources
+data = aeolus.download(
+    "SENSOR_COMMUNITY",
+    sites,
+    datetime(2024, 1, 1),
+    datetime(2024, 1, 7)
+)
+```
+
+## Finding Sensors
+
+```python
+import aeolus
+
+# Get sensors by country
+uk_sensors = aeolus.networks.get_metadata(
+    "SENSOR_COMMUNITY",
+    sensor_type="SDS011",
+    country="GB"
+)
+
+# Get sensors in a geographic area (50km radius around London)
+london_sensors = aeolus.networks.get_metadata(
+    "SENSOR_COMMUNITY",
     area=(51.5074, -0.1278, 50),  # lat, lon, radius_km
     sensor_type="SDS011"
 )
 
 # Get sensors in a bounding box
-sensors = fetch_sensor_community_metadata(
+sensors = aeolus.networks.get_metadata(
+    "SENSOR_COMMUNITY",
     box=(51.3, -0.5, 51.7, 0.3),  # lat1, lon1, lat2, lon2
     sensor_type="SDS011"
 )
@@ -47,7 +75,36 @@ sensors = fetch_sensor_community_metadata(
 
 ## Downloading Data
 
+### Historical Data
+
+Use the standard `aeolus.download()` interface:
+
+```python
+import aeolus
+from datetime import datetime
+
+# Get metadata first
+metadata = aeolus.networks.get_metadata(
+    "SENSOR_COMMUNITY",
+    sensor_type="SDS011",
+    country="GB"
+)
+
+# Pick sensors and download
+sites = metadata["site_code"].head(3).tolist()
+data = aeolus.download(
+    "SENSOR_COMMUNITY",
+    sites,
+    datetime(2024, 1, 1),
+    datetime(2024, 1, 7)
+)
+```
+
+Historical data is available from the daily archive (from 2015 onwards).
+
 ### Real-Time Data
+
+For real-time monitoring, use the dedicated function:
 
 ```python
 from aeolus.sources.sensor_community import fetch_sensor_community_realtime
@@ -57,23 +114,6 @@ data = fetch_sensor_community_realtime(
     sensor_type="SDS011",
     country="GB",
     averaging="5min"  # Options: "5min", "1h", "24h"
-)
-```
-
-### Historical Data (Archive)
-
-Historical data is available from the daily CSV archive (from 2015 onwards):
-
-```python
-from aeolus.sources.sensor_community import fetch_sensor_community_data
-from datetime import datetime
-
-# Get historical data
-data = fetch_sensor_community_data(
-    start_date=datetime(2024, 1, 1),
-    end_date=datetime(2024, 1, 7),
-    sensor_type="SDS011",
-    country="GB"
 )
 ```
 
