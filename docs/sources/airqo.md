@@ -12,9 +12,11 @@
 
 ## Getting an API Key
 
-1. Visit [AirQo](https://airqo.net/)
-2. Contact their team to request API access
-3. Set the environment variable:
+1. Visit [AirQo Analytics](https://analytics.airqo.net/) and create an account
+2. Go to Account Settings → API tab
+3. Register a new CLIENT application to generate credentials
+4. Create an access token
+5. Set the environment variable:
 
 ```bash
 export AIRQO_API_KEY=your_key_here

@@ -137,10 +137,12 @@ data = aeolus.download(
 
 **Requires API key:** Set `PURPLEAIR_API_KEY` in your environment. Get a free key (includes 1M API points) at [develop.purpleair.com](https://develop.purpleair.com/).
 
-**Note:** PurpleAir sensors have dual laser counters (A and B channels). Aeolus automatically averages both channels when valid and flags data quality:
-- `Validated`: Both channels agree (within 20%)
-- `Channel Disagreement`: Both channels valid but disagree significantly
+**Note:** PurpleAir sensors have dual laser counters (A and B channels). Aeolus automatically applies literature-based QA/QC and flags data quality:
+- `Validated`: Both channels agree (±10 µg/m³ for low concentrations, ±10% for high)
+- `Channel Disagreement`: Both channels valid but disagree beyond thresholds
 - `Single Channel (A/B)`: Only one channel had valid data
+- `Below Detection Limit`: Value below 0.3 µg/m³ (sensor noise floor)
+- `Sensor Saturation`: Value above 1000 µg/m³
 
 ### Sensor.Community (Global)
 

@@ -198,6 +198,71 @@ def mock_error_response():
     }
 
 
+@pytest.fixture
+def mock_empty_sites_response():
+    """Mock response when sites endpoint returns empty (but succeeds)."""
+    return {
+        "success": True,
+        "message": "successfully retrieved the site details",
+        "meta": {"total": 0, "totalResults": 0, "limit": 30, "skip": 0, "page": 1},
+        "sites": [],
+    }
+
+
+@pytest.fixture
+def mock_grids_summary_response():
+    """Mock response from grids/summary endpoint with embedded sites."""
+    return {
+        "success": True,
+        "message": "Successfully retrieved grids",
+        "grids": [
+            {
+                "_id": "grid_kampala",
+                "name": "kampala_city",
+                "long_name": "Kampala City",
+                "numberOfSites": 2,
+                "sites": [
+                    {
+                        "_id": "site_001",
+                        "name": "Kampala Central",
+                        "formatted_name": "Kampala Central Station",
+                        "approximate_latitude": 0.3163,
+                        "approximate_longitude": 32.5822,
+                        "country": "Uganda",
+                        "city": "Kampala",
+                    },
+                    {
+                        "_id": "site_002",
+                        "name": "Kampala North",
+                        "formatted_name": "Kampala North Station",
+                        "approximate_latitude": 0.35,
+                        "approximate_longitude": 32.60,
+                        "country": "Uganda",
+                        "city": "Kampala",
+                    },
+                ],
+            },
+            {
+                "_id": "grid_nairobi",
+                "name": "nairobi_city",
+                "long_name": "Nairobi City",
+                "numberOfSites": 1,
+                "sites": [
+                    {
+                        "_id": "site_003",
+                        "name": "Nairobi Central",
+                        "formatted_name": "Nairobi Central Station",
+                        "approximate_latitude": -1.2921,
+                        "approximate_longitude": 36.8219,
+                        "country": "Kenya",
+                        "city": "Nairobi",
+                    },
+                ],
+            },
+        ],
+    }
+
+
 # ============================================================================
 # Tests for _call_airqo_api()
 # ============================================================================
@@ -450,6 +515,116 @@ class TestFetchAirQoMetadata:
 
         result = fetch_airqo_metadata()
 
+        assert isinstance(result, pd.DataFrame)
+        assert result.empty
+
+    @responses.activate
+    def test_falls_back_to_grids_summary_when_sites_empty(
+        self, mock_empty_sites_response, mock_grids_summary_response, monkeypatch
+    ):
+        """Test that grids/summary is used as fallback when sites endpoint returns empty."""
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
+
+        # First call to sites returns empty
+        responses.add(
+            responses.GET,
+            f"{AIRQO_API_BASE}/devices/metadata/sites",
+            json=mock_empty_sites_response,
+            status=200,
+        )
+
+        # Fallback call to grids/summary returns sites
+        responses.add(
+            responses.GET,
+            f"{AIRQO_API_BASE}/devices/grids/summary",
+            json=mock_grids_summary_response,
+            status=200,
+        )
+
+        result = fetch_airqo_metadata()
+
+        # Should have extracted 3 sites from the grids
+        assert len(result) == 3
+        assert "site_code" in result.columns
+        assert "source_network" in result.columns
+        assert (result["source_network"] == "AirQo").all()
+
+    @responses.activate
+    def test_fallback_adds_grid_info_to_sites(
+        self, mock_empty_sites_response, mock_grids_summary_response, monkeypatch
+    ):
+        """Test that grid name and ID are added to sites from fallback."""
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
+
+        responses.add(
+            responses.GET,
+            f"{AIRQO_API_BASE}/devices/metadata/sites",
+            json=mock_empty_sites_response,
+            status=200,
+        )
+
+        responses.add(
+            responses.GET,
+            f"{AIRQO_API_BASE}/devices/grids/summary",
+            json=mock_grids_summary_response,
+            status=200,
+        )
+
+        result = fetch_airqo_metadata()
+
+        # Grid info should be present
+        assert "grid_name" in result.columns
+        assert "grid_id" in result.columns
+
+    @responses.activate
+    def test_fallback_returns_empty_when_grids_also_empty(
+        self, mock_empty_sites_response, monkeypatch
+    ):
+        """Test that empty DataFrame is returned when both endpoints return empty."""
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
+
+        responses.add(
+            responses.GET,
+            f"{AIRQO_API_BASE}/devices/metadata/sites",
+            json=mock_empty_sites_response,
+            status=200,
+        )
+
+        responses.add(
+            responses.GET,
+            f"{AIRQO_API_BASE}/devices/grids/summary",
+            json={"success": True, "message": "No grids", "grids": []},
+            status=200,
+        )
+
+        result = fetch_airqo_metadata()
+
+        assert isinstance(result, pd.DataFrame)
+        assert result.empty
+
+    @responses.activate
+    def test_fallback_handles_grids_endpoint_failure(
+        self, mock_empty_sites_response, monkeypatch
+    ):
+        """Test that fallback handles grids endpoint failure gracefully."""
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
+
+        responses.add(
+            responses.GET,
+            f"{AIRQO_API_BASE}/devices/metadata/sites",
+            json=mock_empty_sites_response,
+            status=200,
+        )
+
+        responses.add(
+            responses.GET,
+            f"{AIRQO_API_BASE}/devices/grids/summary",
+            status=500,
+        )
+
+        result = fetch_airqo_metadata()
+
+        # Should return empty DataFrame, not raise exception
         assert isinstance(result, pd.DataFrame)
         assert result.empty
 
