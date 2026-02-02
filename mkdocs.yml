@@ -84,6 +84,8 @@ nav:
       - OpenAQ: sources/openaq.md
       - Breathe London: sources/breathe-london.md
       - AirQo: sources/airqo.md
+      - PurpleAir: sources/purpleair.md
+      - Sensor.Community: sources/sensor-community.md
   - API Reference:
       - Overview: api/index.md
       - aeolus: api/aeolus.md
