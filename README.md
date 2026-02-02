@@ -142,6 +142,50 @@ data = aeolus.download(
 - `Channel Disagreement`: Both channels valid but disagree significantly
 - `Single Channel (A/B)`: Only one channel had valid data
 
+### Sensor.Community (Global)
+
+Global citizen science network (formerly luftdaten.info) with 35,000+ low-cost sensors worldwide. Provides PM2.5, PM10, temperature, humidity, and pressure data. No API key required.
+
+```python
+# Get real-time data from UK sensors
+data = aeolus.download(
+    "SENSOR_COMMUNITY",
+    country="GB",
+    sensor_type="SDS011"  # PM sensors
+)
+
+# Get historical data (from archive)
+from datetime import datetime
+data = aeolus.download(
+    "SENSOR_COMMUNITY",
+    start_date=datetime(2024, 1, 1),
+    end_date=datetime(2024, 1, 7),
+    sensor_type="SDS011",
+    country="GB"
+)
+
+# Get sensors in a geographic area (50km radius around London)
+from aeolus.sources.sensor_community import fetch_sensor_community_metadata
+sites = fetch_sensor_community_metadata(
+    area=(51.5074, -0.1278, 50),  # lat, lon, radius_km
+    sensor_type="SDS011"
+)
+```
+
+**Rate limiting:** Aeolus includes built-in rate limiting (10 requests/minute by default) to be respectful of the community-run infrastructure. You can configure this:
+
+```python
+from aeolus.sources.sensor_community import set_rate_limiting
+
+# Adjust rate limits
+set_rate_limiting(max_requests=5, period=60, min_delay=2.0)
+
+# Disable (not recommended)
+set_rate_limiting(enabled=False)
+```
+
+**Note:** Data is marked as `Unvalidated` since this is citizen science data without formal QA/QC processes.
+
 ### OpenAQ
 
 Global air quality portal aggregating measurements from 100+ countries.
@@ -433,6 +477,7 @@ Aeolus wouldn't be possible without the work of many organisations and individua
 - [Breathe London](https://www.breathelondon.org/) — Imperial College London's Environmental Research Group (Open Government Licence v3.0)
 - [AirQo](https://airqo.net/) — Makerere University's air quality monitoring network for African cities
 - [PurpleAir](https://www.purpleair.com/) — Global network of low-cost sensors
+- [Sensor.Community](https://sensor.community/) — Global citizen science sensor network (formerly luftdaten.info)
 - UK regulatory bodies (DEFRA, SEPA, Natural Resources Wales, DAERA) — Reference-grade monitoring networks
 
 **Standards and Methodologies**

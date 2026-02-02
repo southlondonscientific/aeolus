@@ -80,6 +80,27 @@ PurpleAir operates a global network of 30,000+ low-cost air quality sensors.
 - Developer Portal: https://develop.purpleair.com/
 - Map: https://map.purpleair.com/
 
+### Sensor.Community
+
+Sensor.Community (formerly luftdaten.info) is a global citizen science project for air quality monitoring with 35,000+ sensors worldwide.
+
+- Website: https://sensor.community/
+- Map: https://maps.sensor.community/
+- API Documentation: https://github.com/opendata-stuttgart/meta/wiki/EN-APIs
+- Data Archive: https://archive.sensor.community/
+
+**Origin:** The project was founded in 2015 in Stuttgart, Germany, initially focused on particulate matter monitoring. It has grown into a worldwide network of citizen-operated sensors.
+
+**Data Access:** The API is completely open with no authentication required. Data is available via:
+- Real-time API (5-minute, 1-hour, 24-hour averages)
+- Daily CSV archives (historical data from 2015 onwards)
+
+**Supported Sensors:**
+- PM sensors: SDS011, SDS021, PMS series, HPM, SPS30
+- Environmental sensors: BME280, BMP280, DHT22, SHT31, HTU21D, DS18B20
+
+**Data Licence:** Data is provided under open licence for public use.
+
 ---
 
 ## Air Quality Index Standards

@@ -31,6 +31,7 @@ from . import (
     openaq,  # noqa: F401
     purpleair,  # noqa: F401
     regulatory,  # noqa: F401
+    sensor_community,  # noqa: F401
 )
 
-__all__ = ["regulatory", "openaq", "breathe_london", "purpleair"]
+__all__ = ["regulatory", "openaq", "breathe_london", "purpleair", "sensor_community"]
