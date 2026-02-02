@@ -113,6 +113,35 @@ data = aeolus.download(
 
 **Requires API key:** Set `AIRQO_API_TOKEN` in your environment. Get a free token at [analytics.airqo.net](https://analytics.airqo.net/).
 
+### PurpleAir (Global)
+
+Global network of 30,000+ low-cost air quality sensors, popular with researchers and citizen scientists. PurpleAir sensors use dual laser counters for improved accuracy and measure PM1, PM2.5, PM10, temperature, humidity, and pressure.
+
+```python
+# Get PurpleAir sensors in a bounding box (e.g., London)
+sites = aeolus.networks.get_metadata(
+    "PURPLEAIR",
+    nwlat=51.7, nwlng=-0.5,
+    selat=51.3, selng=0.3,
+    location_type=0  # 0 = outdoor only
+)
+
+# Download data from specific sensors
+data = aeolus.download(
+    "PURPLEAIR",
+    sites=["131075", "131076"],  # Sensor indices from map.purpleair.com
+    start_date=datetime(2024, 1, 1),
+    end_date=datetime(2024, 1, 31)
+)
+```
+
+**Requires API key:** Set `PURPLEAIR_API_KEY` in your environment. Get a free key (includes 1M API points) at [develop.purpleair.com](https://develop.purpleair.com/).
+
+**Note:** PurpleAir sensors have dual laser counters (A and B channels). Aeolus automatically averages both channels when valid and flags data quality:
+- `Validated`: Both channels agree (within 20%)
+- `Channel Disagreement`: Both channels valid but disagree significantly
+- `Single Channel (A/B)`: Only one channel had valid data
+
 ### OpenAQ
 
 Global air quality portal aggregating measurements from 100+ countries.
@@ -198,6 +227,9 @@ BL_API_KEY=your_key_here
 
 # Required for AirQo
 AIRQO_API_TOKEN=your_token_here
+
+# Required for PurpleAir
+PURPLEAIR_API_KEY=your_key_here
 ```
 
 ### Using with dotenv
@@ -390,16 +422,31 @@ The metrics module automatically converts units where needed (e.g., ppb to µg/m
 
 ## Acknowledgements
 
-Aeolus wouldn't be possible without the work of many organisations and individuals:
+Aeolus wouldn't be possible without the work of many organisations and individuals. See [REFERENCES.md](REFERENCES.md) for full citations and methodology sources.
+
+**Code Contributors**
+- Ruaraidh Dobson — Project creator, architecture, documentation
+- Claude (Anthropic) — Code implementation, including data source integrations, AQI calculations, QA/QC methodology, and test suites
 
 **Data Providers**
-- [OpenAQ](https://openaq.org/) — For building an open, global air quality data portal and API
-- [Breathe London](https://www.breathelondon.org/) — Imperial College London's Environmental Research Group, for high-density monitoring data across London (Open Government Licence v3.0)
-- [AirQo](https://airqo.net/) — Makerere University's air quality monitoring network, bridging the data gap in African cities
-- UK regulatory bodies (DEFRA, SEPA, Natural Resources Wales, DAERA) — For maintaining reference-grade monitoring networks
+- [OpenAQ](https://openaq.org/) — Open, global air quality data portal and API
+- [Breathe London](https://www.breathelondon.org/) — Imperial College London's Environmental Research Group (Open Government Licence v3.0)
+- [AirQo](https://airqo.net/) — Makerere University's air quality monitoring network for African cities
+- [PurpleAir](https://www.purpleair.com/) — Global network of low-cost sensors
+- UK regulatory bodies (DEFRA, SEPA, Natural Resources Wales, DAERA) — Reference-grade monitoring networks
+
+**Standards and Methodologies**
+- US EPA — Air Quality Index and NowCast algorithm
+- DEFRA/COMEAP — UK Daily Air Quality Index
+- WHO — 2021 Air Quality Guidelines
+- CITEAIR Project — EU Common Air Quality Index
+- CPCB India — National Air Quality Index
+- China MEE — HJ 633-2012 AQI Standard
+- PurpleAir Community — QA/QC methodology for dual-channel sensors
 
 **Software**
 - [openair](https://davidcarslaw.github.io/openair/) — David Carslaw and Karl Ropkins' R package, which provides the data files for UK regulatory networks. If you use Aeolus with UK data, please cite: Carslaw, D.C. and K. Ropkins (2012) openair — an R package for air quality data analysis. *Environmental Modelling & Software* 27-28, 52-61.
+- [purpleair-api](https://github.com/carlkidcrypto/purpleair_api) — Carlos Santos' Python wrapper for the PurpleAir API
 
 ## Contributing
 

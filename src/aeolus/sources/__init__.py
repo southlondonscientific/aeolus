@@ -29,7 +29,8 @@ Available sources are registered automatically when this package is imported.
 from . import (
     breathe_london,  # noqa: F401
     openaq,  # noqa: F401
+    purpleair,  # noqa: F401
     regulatory,  # noqa: F401
 )
 
-__all__ = ["regulatory", "openaq", "breathe_london"]
+__all__ = ["regulatory", "openaq", "breathe_london", "purpleair"]
