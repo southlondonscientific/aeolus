@@ -9,7 +9,7 @@ The `ratification` column provides a consistent way to understand data quality a
 | Value | Meaning | Sources |
 |-------|---------|---------|
 | `Ratified` | Officially validated by network operator | UK regulatory networks |
-| `Provisional` | Awaiting official validation | UK regulatory networks |
+| `Provisional` | Awaiting official validation | UK regulatory networks, EPA AirNow |
 | `Validated` | Passed automated QA/QC checks | PurpleAir |
 | `Indicative` | Calibrated low-cost sensor data | AirQo |
 | `Unvalidated` | No formal QA/QC applied | OpenAQ, Breathe London, Sensor.Community, PurpleAir (non-PM) |
@@ -50,6 +50,16 @@ London sensor network operated by Imperial College London.
 | `Unvalidated` | Status unknown or not provided |
 
 **Note:** Breathe London uses a mix of reference-grade and indicative monitors.
+
+### EPA AirNow
+
+US EPA real-time air quality monitoring network.
+
+| Value | Meaning |
+|-------|---------|
+| `Provisional` | All data (real-time, preliminary, subject to change) |
+
+**Note:** AirNow data is preliminary and updated hourly. For verified historical US data, use the EPA AQS (Air Quality System) which contains ratified data after a 6+ month delay.
 
 ### AirQo
 

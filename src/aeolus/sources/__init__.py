@@ -27,6 +27,8 @@ Available sources are registered automatically when this package is imported.
 # Import source modules to trigger their registration
 # As we add more sources, import them here
 from . import (
+    airnow,  # noqa: F401
+    airqo,  # noqa: F401
     breathe_london,  # noqa: F401
     openaq,  # noqa: F401
     purpleair,  # noqa: F401
@@ -34,4 +36,12 @@ from . import (
     sensor_community,  # noqa: F401
 )
 
-__all__ = ["regulatory", "openaq", "breathe_london", "purpleair", "sensor_community"]
+__all__ = [
+    "airnow",
+    "airqo",
+    "breathe_london",
+    "openaq",
+    "purpleair",
+    "regulatory",
+    "sensor_community",
+]
