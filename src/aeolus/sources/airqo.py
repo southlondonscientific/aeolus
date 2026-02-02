@@ -30,8 +30,10 @@ Data Platform: https://airqo.net/
 
 import os
 from datetime import datetime
-from logging import warning
+from logging import getLogger, warning
 from typing import Any
+
+logger = getLogger(__name__)
 
 import pandas as pd
 import requests
@@ -167,6 +169,39 @@ def fetch_airqo_metadata(**filters) -> pd.DataFrame:
         return pd.DataFrame()
 
     sites = data["sites"]
+
+    # If sites endpoint returns empty, try grids/summary as fallback
+    # This can happen with some API tokens that have grid-level access
+    if not sites:
+        logger.info("Sites endpoint empty, trying grids/summary fallback...")
+        try:
+            grids_data = _call_airqo_api("devices/grids/summary")
+            if grids_data.get("success") and grids_data.get("grids"):
+                # Extract sites from grids
+                all_sites = []
+                for grid in grids_data["grids"]:
+                    grid_sites = grid.get("sites", [])
+                    grid_name = grid.get("name", grid.get("long_name", ""))
+                    grid_id = grid.get("_id", "")
+                    for site in grid_sites:
+                        if isinstance(site, dict):
+                            site["grid_name"] = grid_name
+                            site["grid_id"] = grid_id
+                            all_sites.append(site)
+                        elif isinstance(site, str):
+                            # Some grids just have site IDs
+                            all_sites.append(
+                                {
+                                    "_id": site,
+                                    "grid_name": grid_name,
+                                    "grid_id": grid_id,
+                                }
+                            )
+                sites = all_sites
+                logger.info(f"Retrieved {len(sites)} sites from grids/summary")
+        except Exception as e:
+            logger.warning(f"Grids fallback also failed: {e}")
+
     if not sites:
         return pd.DataFrame()
 
