@@ -37,6 +37,7 @@ from typing import Any
 
 import pandas as pd
 
+from ..decorators import retry_on_network_error
 from ..registry import register_source
 from ..transforms import add_column, compose, select_columns
 
@@ -127,6 +128,7 @@ def _get_purpleair_client():
 # ============================================================================
 
 
+@retry_on_network_error
 def fetch_purpleair_metadata(**filters) -> pd.DataFrame:
     """
     Fetch sensor metadata from PurpleAir API.
@@ -262,6 +264,7 @@ def _create_metadata_normalizer():
 # ============================================================================
 
 
+@retry_on_network_error
 def fetch_purpleair_data(
     sites: list[str],
     start_date: datetime,

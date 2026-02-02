@@ -36,10 +36,33 @@ from aeolus.registry import clear_registry, register_source
 
 @pytest.fixture(autouse=True)
 def reset_registry():
-    """Clear registry before and after each test."""
+    """Clear registry before and after each test, then restore sources."""
     clear_registry()
     yield
     clear_registry()
+    # Re-import all source modules to restore registry for subsequent tests
+    import importlib
+
+    from aeolus.sources import (
+        airnow,
+        airqo,
+        breathe_london,
+        openaq,
+        purpleair,
+        regulatory,
+        sensor_community,
+    )
+
+    for module in [
+        airnow,
+        airqo,
+        breathe_london,
+        openaq,
+        purpleair,
+        regulatory,
+        sensor_community,
+    ]:
+        importlib.reload(module)
 
 
 @pytest.fixture

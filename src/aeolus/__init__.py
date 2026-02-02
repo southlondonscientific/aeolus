@@ -81,14 +81,7 @@ from .api import (
     list_sources,
 )
 
-# Backwards compatibility: import old functions
-# DEPRECATED: These functions will be removed in v0.3.0
-# Use the new API instead:
-#   - get_network_metadata() -> aeolus.networks.get_metadata()
-#   - download_regulatory_data() -> aeolus.download()
-#   - multiple_download_regulatory_data() -> aeolus.download()
-#   - get_breathe_london_metadata() -> aeolus.networks.get_metadata("BREATHE_LONDON")
-#   - download_breathe_london_data() -> aeolus.download("BREATHE_LONDON", ...)
+# Database operations (still supported)
 from .database_operations import (
     add_data_to_database,
     add_sites_to_database,
@@ -96,13 +89,8 @@ from .database_operations import (
 from .database_operations import (
     get_site_metadata as db_get_site_metadata,
 )
-from .downloader import (
-    download_breathe_london_data,  # Deprecated
-    download_regulatory_data,  # Deprecated
-    get_breathe_london_metadata,  # Deprecated
-    get_network_metadata,  # Deprecated
-    multiple_download_regulatory_data,  # Deprecated
-)
+
+# Meteorology (still supported)
 from .meteorology import get_meteo_data
 
 # Define what gets exported with "from aeolus import *"
@@ -114,19 +102,15 @@ __all__ = [
     "networks",
     "portals",
     "transforms",
-    # Top-level API (recommended)
+    # Top-level API
     "list_sources",
     "download",
     "get_source_info",
     "fetch",
-    # Deprecated (will be removed in v0.3.0)
-    "get_network_metadata",
-    "download_regulatory_data",
-    "multiple_download_regulatory_data",
-    "get_breathe_london_metadata",
-    "download_breathe_london_data",
+    # Database operations
     "add_sites_to_database",
     "add_data_to_database",
     "db_get_site_metadata",
+    # Meteorology
     "get_meteo_data",
 ]

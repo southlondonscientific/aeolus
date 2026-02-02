@@ -12,6 +12,8 @@ import pandas as pd
 import pytest
 import responses
 
+# Import sources package to ensure all sources are registered
+import aeolus.sources  # noqa: F401
 from aeolus.sources.regulatory import (
     DATA_BASE_URLS,
     METADATA_URLS,

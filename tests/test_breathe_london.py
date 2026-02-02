@@ -1042,8 +1042,9 @@ class TestSourceRegistration:
 
         source = get_source("BREATHE_LONDON")
 
-        assert source["fetch_metadata"] == fetch_breathe_london_metadata
-        assert source["fetch_data"] == fetch_breathe_london_data
+        # Check function names match (handles reloaded modules)
+        assert source["fetch_metadata"].__name__ == "fetch_breathe_london_metadata"
+        assert source["fetch_data"].__name__ == "fetch_breathe_london_data"
 
 
 # ============================================================================

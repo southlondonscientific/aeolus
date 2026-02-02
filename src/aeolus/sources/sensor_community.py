@@ -41,6 +41,7 @@ from typing import Any
 import pandas as pd
 import requests
 
+from ..decorators import retry_on_network_error
 from ..registry import register_source
 
 logger = getLogger(__name__)
@@ -238,6 +239,7 @@ def _apply_rate_limit() -> None:
 # ============================================================================
 
 
+@retry_on_network_error
 def _make_request(url: str, timeout: int = 30) -> requests.Response | None:
     """
     Make an HTTP GET request with appropriate headers and error handling.

@@ -803,9 +803,10 @@ class TestSourceRegistration:
             )
             source = get_source("OPENAQ")
 
-        assert source["search"] == fetch_openaq_metadata
-        assert source["fetch_metadata"] == fetch_openaq_metadata
-        assert source["fetch_data"] == fetch_openaq_data
+        # Check function names match (handles reloaded modules)
+        assert source["search"].__name__ == "fetch_openaq_metadata"
+        assert source["fetch_metadata"].__name__ == "fetch_openaq_metadata"
+        assert source["fetch_data"].__name__ == "fetch_openaq_data"
 
 
 # ============================================================================

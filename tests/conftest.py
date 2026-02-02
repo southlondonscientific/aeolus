@@ -11,6 +11,9 @@ import pandas as pd
 import pytest
 import rdata
 
+# Import aeolus.sources to ensure all sources are registered before tests run
+import aeolus.sources  # noqa: F401
+
 # ============================================================================
 # Path Fixtures
 # ============================================================================

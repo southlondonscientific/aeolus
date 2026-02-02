@@ -36,6 +36,7 @@ from typing import Any
 import pandas as pd
 import requests
 
+from ..decorators import retry_on_network_error
 from ..registry import register_source
 from ..transforms import add_column, compose, rename_columns, select_columns
 
@@ -59,6 +60,7 @@ SPECIES_MAP = {
 # ============================================================================
 
 
+@retry_on_network_error
 def _call_breathe_london_api(endpoint: str, params: dict) -> dict:
     """
     Low-level Breathe London API caller with authentication and error handling.

@@ -1316,7 +1316,7 @@ class TestSourceRegistration:
             register_source(
                 "PURPLEAIR",
                 {
-                    "type": "network",
+                    "type": "portal",
                     "name": "PurpleAir",
                     "fetch_metadata": fetch_purpleair_metadata,
                     "fetch_data": fetch_purpleair_data,
@@ -1329,7 +1329,7 @@ class TestSourceRegistration:
 
         assert source is not None
         assert source["name"] == "PurpleAir"
-        assert source["type"] == "network"
+        assert source["type"] == "portal"
         assert source["requires_api_key"] is True
 
     def test_registered_with_correct_functions(self):
@@ -1341,7 +1341,7 @@ class TestSourceRegistration:
             register_source(
                 "PURPLEAIR",
                 {
-                    "type": "network",
+                    "type": "portal",
                     "name": "PurpleAir",
                     "fetch_metadata": fetch_purpleair_metadata,
                     "fetch_data": fetch_purpleair_data,
@@ -1352,8 +1352,9 @@ class TestSourceRegistration:
 
         source = get_source("PURPLEAIR")
 
-        assert source["fetch_metadata"] == fetch_purpleair_metadata
-        assert source["fetch_data"] == fetch_purpleair_data
+        # Check function names match (handles reloaded modules)
+        assert source["fetch_metadata"].__name__ == "fetch_purpleair_metadata"
+        assert source["fetch_data"].__name__ == "fetch_purpleair_data"
 
 
 # ============================================================================
