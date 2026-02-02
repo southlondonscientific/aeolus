@@ -42,6 +42,7 @@ def mock_sensors_response():
     """Mock response from request_multiple_sensors_data."""
     return {
         "fields": [
+            "sensor_index",
             "name",
             "latitude",
             "longitude",
@@ -55,7 +56,7 @@ def mock_sensors_response():
         ],
         "data": [
             [
-                131075,  # sensor_index (prepended by API)
+                131075,  # sensor_index
                 "London Sensor 1",
                 51.5074,
                 -0.1278,
@@ -89,6 +90,7 @@ def mock_single_sensor_response():
     """Mock response for a single sensor."""
     return {
         "fields": [
+            "sensor_index",
             "name",
             "latitude",
             "longitude",

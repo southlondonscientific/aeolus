@@ -212,9 +212,8 @@ def fetch_purpleair_metadata(**filters) -> pd.DataFrame:
     if not data:
         return pd.DataFrame()
 
-    # The first field is always sensor_index
-    all_fields = ["sensor_index"] + fields
-    df = pd.DataFrame(data, columns=all_fields)
+    # Use fields directly from API response (sensor_index is included)
+    df = pd.DataFrame(data, columns=fields)
 
     # Normalize to standard schema
     normalizer = _create_metadata_normalizer()
