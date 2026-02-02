@@ -17,7 +17,7 @@
 3. Set the environment variable:
 
 ```bash
-export AIRQO_API_TOKEN=your_token_here
+export AIRQO_API_KEY=your_key_here
 ```
 
 ## Available Pollutants

@@ -9,7 +9,7 @@ Aeolus reads API keys from environment variables. Export them in your shell:
 ```bash
 export OPENAQ_API_KEY=your_openaq_key_here
 export BL_API_KEY=your_breathe_london_key_here
-export AIRQO_API_TOKEN=your_airqo_token_here
+export AIRQO_API_KEY=your_airqo_token_here
 ```
 
 ### Using a .env file (optional)
@@ -26,7 +26,7 @@ Create a `.env` file in your project root:
 # .env
 OPENAQ_API_KEY=your_openaq_key_here
 BL_API_KEY=your_breathe_london_key_here
-AIRQO_API_TOKEN=your_airqo_token_here
+AIRQO_API_KEY=your_airqo_token_here
 ```
 
 Then load it before using Aeolus:

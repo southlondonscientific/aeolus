@@ -209,7 +209,7 @@ class TestCallAirQoApi:
     @responses.activate
     def test_success(self, mock_sites_response, monkeypatch):
         """Test successful API call."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "test_token_123")
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
             responses.GET,
@@ -226,7 +226,7 @@ class TestCallAirQoApi:
     @responses.activate
     def test_includes_token_param(self, mock_sites_response, monkeypatch):
         """Test that token is included in request params."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "test_token_123")
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
             responses.GET,
@@ -242,7 +242,7 @@ class TestCallAirQoApi:
     @responses.activate
     def test_includes_accept_header(self, mock_sites_response, monkeypatch):
         """Test that Accept header is set to JSON."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "test_token_123")
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
             responses.GET,
@@ -257,14 +257,14 @@ class TestCallAirQoApi:
 
     def test_raises_without_token(self, monkeypatch):
         """Test that missing token raises ValueError."""
-        monkeypatch.delenv("AIRQO_API_TOKEN", raising=False)
+        monkeypatch.delenv("AIRQO_API_KEY", raising=False)
 
-        with pytest.raises(ValueError, match="AirQo API token required"):
+        with pytest.raises(ValueError, match="AirQo API key required"):
             _call_airqo_api("devices/metadata/sites")
 
     def test_error_message_includes_setup_instructions(self, monkeypatch):
         """Test that error message includes instructions for getting token."""
-        monkeypatch.delenv("AIRQO_API_TOKEN", raising=False)
+        monkeypatch.delenv("AIRQO_API_KEY", raising=False)
 
         with pytest.raises(ValueError, match="analytics.airqo.net"):
             _call_airqo_api("devices/metadata/sites")
@@ -272,7 +272,7 @@ class TestCallAirQoApi:
     @responses.activate
     def test_includes_extra_params(self, mock_sites_response, monkeypatch):
         """Test that extra parameters are passed correctly."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "test_token_123")
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
             responses.GET,
@@ -291,7 +291,7 @@ class TestCallAirQoApi:
     @responses.activate
     def test_handles_401_unauthorized(self, monkeypatch):
         """Test that 401 unauthorized raises ValueError."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "invalid_token")
+        monkeypatch.setenv("AIRQO_API_KEY", "invalid_token")
 
         responses.add(
             responses.GET,
@@ -305,7 +305,7 @@ class TestCallAirQoApi:
     @responses.activate
     def test_handles_429_rate_limit(self, monkeypatch):
         """Test that 429 rate limit raises HTTPError."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "test_token_123")
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
             responses.GET,
@@ -321,7 +321,7 @@ class TestCallAirQoApi:
     @responses.activate
     def test_handles_500_server_error(self, monkeypatch):
         """Test that 500 errors are raised."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "test_token_123")
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
             responses.GET,
@@ -346,7 +346,7 @@ class TestFetchAirQoMetadata:
     @responses.activate
     def test_fetches_all_sites(self, mock_sites_response, monkeypatch):
         """Test fetching all sites without filters."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "test_token_123")
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
             responses.GET,
@@ -367,7 +367,7 @@ class TestFetchAirQoMetadata:
     @responses.activate
     def test_normalizes_column_names(self, mock_sites_response, monkeypatch):
         """Test that column names are normalized to standard schema."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "test_token_123")
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
             responses.GET,
@@ -387,7 +387,7 @@ class TestFetchAirQoMetadata:
     @responses.activate
     def test_adds_source_network(self, mock_sites_response, monkeypatch):
         """Test that source_network column is added."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "test_token_123")
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
             responses.GET,
@@ -403,7 +403,7 @@ class TestFetchAirQoMetadata:
     @responses.activate
     def test_filters_by_country(self, mock_sites_response, monkeypatch):
         """Test filtering by country."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "test_token_123")
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
             responses.GET,
@@ -421,7 +421,7 @@ class TestFetchAirQoMetadata:
     @responses.activate
     def test_returns_empty_on_api_error(self, monkeypatch):
         """Test that API errors return empty DataFrame with warning."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "test_token_123")
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
             responses.GET,
@@ -439,7 +439,7 @@ class TestFetchAirQoMetadata:
         self, mock_error_response, monkeypatch
     ):
         """Test that unsuccessful API response returns empty DataFrame."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "test_token_123")
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
             responses.GET,
@@ -465,7 +465,7 @@ class TestFetchAirQoGrids:
     @responses.activate
     def test_fetches_grids(self, mock_grids_response, monkeypatch):
         """Test fetching available grids."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "test_token_123")
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
             responses.GET,
@@ -483,7 +483,7 @@ class TestFetchAirQoGrids:
     @responses.activate
     def test_renames_id_column(self, mock_grids_response, monkeypatch):
         """Test that _id is renamed to grid_id."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "test_token_123")
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
             responses.GET,
@@ -500,7 +500,7 @@ class TestFetchAirQoGrids:
     @responses.activate
     def test_returns_empty_on_error(self, monkeypatch):
         """Test that errors return empty DataFrame."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "test_token_123")
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
             responses.GET,
@@ -525,7 +525,7 @@ class TestFetchAirQoData:
     @responses.activate
     def test_fetches_single_site(self, mock_measurements_response, monkeypatch):
         """Test fetching data for a single site."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "test_token_123")
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
             responses.GET,
@@ -549,7 +549,7 @@ class TestFetchAirQoData:
     @responses.activate
     def test_formats_date_parameters(self, mock_measurements_response, monkeypatch):
         """Test that date parameters are formatted correctly."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "test_token_123")
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
             responses.GET,
@@ -571,7 +571,7 @@ class TestFetchAirQoData:
     @responses.activate
     def test_fetches_multiple_sites(self, mock_measurements_response, monkeypatch):
         """Test fetching data for multiple sites."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "test_token_123")
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         # Mock response for each site
         for site in ["site_001", "site_002"]:
@@ -597,7 +597,7 @@ class TestFetchAirQoData:
         self, mock_measurements_response, monkeypatch
     ):
         """Test that failure for one site doesn't stop other sites."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "test_token_123")
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         # First site fails
         responses.add(
@@ -627,7 +627,7 @@ class TestFetchAirQoData:
         self, mock_empty_measurements_response, monkeypatch
     ):
         """Test that empty response returns empty DataFrame."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "test_token_123")
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
             responses.GET,
@@ -647,7 +647,7 @@ class TestFetchAirQoData:
     @responses.activate
     def test_normalizes_output_schema(self, mock_measurements_response, monkeypatch):
         """Test that output has normalized schema."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "test_token_123")
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
             responses.GET,
@@ -678,7 +678,7 @@ class TestFetchAirQoData:
     @responses.activate
     def test_adds_source_network(self, mock_measurements_response, monkeypatch):
         """Test that source_network is added."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "test_token_123")
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
             responses.GET,
@@ -707,7 +707,7 @@ class TestFetchAirQoDataByGrid:
     @responses.activate
     def test_fetches_grid_data(self, mock_measurements_response, monkeypatch):
         """Test fetching data for a grid."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "test_token_123")
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
             responses.GET,
@@ -728,7 +728,7 @@ class TestFetchAirQoDataByGrid:
     @responses.activate
     def test_returns_empty_on_error(self, monkeypatch):
         """Test that errors return empty DataFrame."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "test_token_123")
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
             responses.GET,
@@ -1122,7 +1122,7 @@ class TestAirQoIntegration:
     @responses.activate
     def test_full_metadata_workflow(self, mock_sites_response, monkeypatch):
         """Test complete metadata fetching workflow."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "test_token_123")
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
             responses.GET,
@@ -1143,7 +1143,7 @@ class TestAirQoIntegration:
     @responses.activate
     def test_full_data_workflow(self, mock_measurements_response, monkeypatch):
         """Test complete data fetching workflow."""
-        monkeypatch.setenv("AIRQO_API_TOKEN", "test_token_123")
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
             responses.GET,

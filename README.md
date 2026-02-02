@@ -111,7 +111,7 @@ data = aeolus.download(
 )
 ```
 
-**Requires API key:** Set `AIRQO_API_TOKEN` in your environment. Get a free token at [analytics.airqo.net](https://analytics.airqo.net/).
+**Requires API key:** Set `AIRQO_API_KEY` in your environment. Get a free key at [analytics.airqo.net](https://analytics.airqo.net/).
 
 ### PurpleAir (Global)
 
@@ -270,7 +270,7 @@ OPENAQ_API_KEY=your_key_here
 BL_API_KEY=your_key_here
 
 # Required for AirQo
-AIRQO_API_TOKEN=your_token_here
+AIRQO_API_KEY=your_key_here
 
 # Required for PurpleAir
 PURPLEAIR_API_KEY=your_key_here

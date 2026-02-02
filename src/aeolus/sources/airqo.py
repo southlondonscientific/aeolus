@@ -70,10 +70,10 @@ def _get_api_token() -> str:
     Raises:
         ValueError: If token is not configured
     """
-    token = os.getenv("AIRQO_API_TOKEN")
+    token = os.getenv("AIRQO_API_KEY")
     if not token:
         raise ValueError(
-            "AirQo API token required. Set AIRQO_API_TOKEN in .env file. "
+            "AirQo API key required. Set AIRQO_API_KEY in .env file. "
             "Get free token at: https://analytics.airqo.net/ (register, then "
             "go to account settings > API tab to create a client application)"
         )
@@ -110,7 +110,7 @@ def _call_airqo_api(endpoint: str, params: dict | None = None) -> dict:
     # Handle common errors
     if response.status_code == 401:
         raise ValueError(
-            "AirQo API authentication failed. Check your AIRQO_API_TOKEN. "
+            "AirQo API authentication failed. Check your AIRQO_API_KEY. "
             "You may need to regenerate your token at https://analytics.airqo.net/"
         )
 
@@ -295,7 +295,7 @@ def fetch_airqo_data(
             - created_at: When record was fetched
 
     Note:
-        - AirQo API requires an API token (set AIRQO_API_TOKEN in .env)
+        - AirQo API requires an API key (set AIRQO_API_KEY in .env)
         - Get free token at: https://analytics.airqo.net/
         - Data is primarily PM2.5 and PM10 from low-cost sensors
         - Coverage is focused on African cities

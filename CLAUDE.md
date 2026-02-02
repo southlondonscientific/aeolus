@@ -25,7 +25,7 @@ source .venv/bin/activate
 **Environment variables** are in `.env` (copy from `.env.example`):
 - `OPENAQ_API_KEY` - Required for OpenAQ data
 - `BL_API_KEY` - Required for Breathe London data
-- `AIRQO_API_TOKEN` - Required for AirQo data
+- `AIRQO_API_KEY` - Required for AirQo data
 - AURN and SAQN sources do not require API keys
 
 ## Project Structure
