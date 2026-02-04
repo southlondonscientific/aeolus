@@ -51,6 +51,30 @@ Northern Ireland monitoring network.
 - **Data quality**: Ratified
 - **API key**: Not required
 
+### AQE (Air Quality England)
+
+Local authority monitoring sites across England.
+
+- **Coverage**: England (local authorities)
+- **Data quality**: Ratified
+- **API key**: Not required
+
+### LOCAL (Local Authority Networks)
+
+Additional local authority monitoring networks.
+
+- **Coverage**: England
+- **Data quality**: Ratified
+- **API key**: Not required
+
+### LMAM (London Air Quality Mesh)
+
+Greater London monitoring network.
+
+- **Coverage**: Greater London
+- **Data quality**: Ratified
+- **API key**: Not required
+
 ## Global Portals
 
 Portals aggregate data from multiple sources worldwide. Due to their scale (hundreds of thousands of sites), you search for sites first, then download.
@@ -120,6 +144,11 @@ Global citizen science network (formerly luftdaten.info) with 35,000+ low-cost s
 |--------|------|----------|---------|-----------|------------|
 | AURN | Network | UK | Reference | Yes | 1973+ |
 | SAQN | Network | Scotland | Reference | Yes | 2000s+ |
+| WAQN | Network | Wales | Reference | Yes | 2000s+ |
+| NI | Network | N. Ireland | Reference | Yes | 2000s+ |
+| AQE | Network | England | Reference | Yes | 2000s+ |
+| LOCAL | Network | England | Reference | Yes | 2000s+ |
+| LMAM | Network | London | Reference | Yes | 2000s+ |
 | OpenAQ | Portal | Global | Mixed | Yes | 2015+ |
 | PurpleAir | Portal | Global | Indicative | Yes | 2017+ |
 | Breathe London | Network | London | Indicative | Yes | 2019+ |

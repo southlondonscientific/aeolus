@@ -100,6 +100,57 @@ data = aeolus.download(
 )
 ```
 
+## AQE (Air Quality England)
+
+Local authority monitoring sites across England, providing additional coverage beyond the national AURN network.
+
+```python
+import aeolus
+from datetime import datetime
+
+sites = aeolus.networks.get_metadata("AQE")
+data = aeolus.download(
+    sources="AQE",
+    sites=sites["site_code"].head(3).tolist(),
+    start_date=datetime(2024, 1, 1),
+    end_date=datetime(2024, 1, 31)
+)
+```
+
+## LOCAL (Local Authority Networks)
+
+Additional local authority monitoring networks in England.
+
+```python
+import aeolus
+from datetime import datetime
+
+sites = aeolus.networks.get_metadata("LOCAL")
+data = aeolus.download(
+    sources="LOCAL",
+    sites=sites["site_code"].head(3).tolist(),
+    start_date=datetime(2024, 1, 1),
+    end_date=datetime(2024, 1, 31)
+)
+```
+
+## LMAM (London Air Quality Mesh)
+
+Greater London monitoring network providing additional coverage across the capital.
+
+```python
+import aeolus
+from datetime import datetime
+
+sites = aeolus.networks.get_metadata("LMAM")
+data = aeolus.download(
+    sources="LMAM",
+    sites=sites["site_code"].head(3).tolist(),
+    start_date=datetime(2024, 1, 1),
+    end_date=datetime(2024, 1, 31)
+)
+```
+
 ## Data Quality
 
 UK regulatory networks provide **ratified data**:
