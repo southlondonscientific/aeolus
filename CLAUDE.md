@@ -2,6 +2,8 @@
 
 Air quality data downloading and standardization library for UK and international monitoring networks.
 
+**Current Version:** 0.3.0
+
 ## Quick Start
 
 ```bash
@@ -36,15 +38,14 @@ source .venv/bin/activate
 src/aeolus/
 ├── __init__.py          # Public API (download, list_sources, etc.)
 ├── api.py               # Main download() function implementation
-├── downloader.py        # Multi-source download orchestration
 ├── registry.py          # Source registration system
 ├── transforms.py        # Data normalization utilities
 ├── sources/             # Data source implementations
-│   ├── regulatory.py    # UK AURN and SAQN networks
-│   ├── openaq.py        # OpenAQ global data
+│   ├── regulatory.py    # UK regulatory networks (AURN, SAQN, WAQN, NI, AQE, LOCAL, LMAM)
+│   ├── openaq.py        # OpenAQ global portal
 │   ├── breathe_london.py # Breathe London network
 │   ├── airqo.py         # AirQo African network
-│   ├── purpleair.py     # PurpleAir global sensors
+│   ├── purpleair.py     # PurpleAir global portal
 │   ├── sensor_community.py # Sensor.Community citizen science
 │   └── airnow.py        # EPA AirNow US network
 ├── metrics/             # Air quality metrics calculations
@@ -53,16 +54,28 @@ src/aeolus/
 
 ## Data Sources
 
-| Source | API Key Required | Coverage |
-|--------|-----------------|----------|
-| AURN | No | UK regulatory network |
-| SAQN | No | Scottish network |
-| OpenAQ | Yes | Global (100+ countries) |
-| Breathe London | Yes | London low-cost sensors |
-| AirQo | Yes | African cities (200+ sensors) |
-| PurpleAir | Yes | Global low-cost sensors (30,000+) |
-| Sensor.Community | No | Global citizen science (35,000+) |
-| AirNow | Yes | USA, Canada, Mexico (real-time) |
+### Networks (known site lists)
+
+| Source | API Key | Coverage |
+|--------|---------|----------|
+| AURN | No | UK national network |
+| SAQN | No | Scotland |
+| WAQN | No | Wales |
+| NI | No | Northern Ireland |
+| AQE | No | Air Quality England |
+| LOCAL | No | Local authority networks |
+| LMAM | No | London air quality mesh |
+| BREATHE_LONDON | Yes (`BL_API_KEY`) | London low-cost sensors |
+| AIRQO | Yes (`AIRQO_API_KEY`) | African cities (200+ sensors) |
+| AIRNOW | Yes (`AIRNOW_API_KEY`) | USA, Canada, Mexico |
+| SENSOR_COMMUNITY | No | Global citizen science (35,000+) |
+
+### Portals (search required)
+
+| Source | API Key | Coverage |
+|--------|---------|----------|
+| OPENAQ | Yes (`OPENAQ_API_KEY`) | Global (100+ countries) |
+| PURPLEAIR | Yes (`PURPLEAIR_API_KEY`) | Global low-cost sensors (30,000+) |
 
 ## Standard Data Schema
 
@@ -144,4 +157,5 @@ Mock API responses are defined as pytest fixtures within each test file.
 - Python 3.11+ required
 - Uses `pandas` for data handling
 - Time bins are left-closed: timestamp 13:00 represents [12:00, 13:00)
-- Low-cost sensor data marked as `ratification='Indicative'`
+- Low-cost sensor data marked as `ratification='Unvalidated'`
+- PurpleAir data has additional QA flags (`Validated`, `Single Channel`, etc.)

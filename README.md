@@ -56,6 +56,7 @@ These networks provide quality-assured data from reference-grade monitors operat
 | **NI** | Northern Ireland Network | Northern Ireland |
 | **AQE** | Air Quality England | England (local authorities) |
 | **LOCAL** | Local authority networks | England |
+| **LMAM** | London air quality mesh | Greater London |
 
 ```python
 # Get metadata for all AURN sites
@@ -187,12 +188,12 @@ Global air quality portal aggregating measurements from 100+ countries.
 
 ```python
 # Search for monitoring locations
-locations = aeolus.portals.find_sites("OpenAQ", country="GB")
+locations = aeolus.portals.find_sites("OPENAQ", country="GB")
 
 # Download data using location IDs
 location_ids = locations["location_id"].head(5).tolist()
 data = aeolus.portals.download(
-    "OpenAQ",
+    "OPENAQ",
     location_ids=location_ids,
     start_date=datetime(2024, 1, 1),
     end_date=datetime(2024, 1, 31)
@@ -272,7 +273,7 @@ data = aeolus.download(
     {
         "AURN": ["MY1"],
         "BREATHE_LONDON": ["BL0001"],
-        "OpenAQ": ["2178"]
+        "OPENAQ": ["2178"]
     },
     start_date=datetime(2024, 1, 1),
     end_date=datetime(2024, 1, 31)
@@ -350,12 +351,12 @@ aeolus.networks.download("AURN", ["MY1"], start_date, end_date)
 aeolus.portals.list_portals()
 
 # Search for monitoring locations (filters required)
-aeolus.portals.find_sites("OpenAQ", country="GB")
-aeolus.portals.find_sites("OpenAQ", city="London")
+aeolus.portals.find_sites("OPENAQ", country="GB")
+aeolus.portals.find_sites("OPENAQ", city="London")
 aeolus.portals.find_sites("PURPLEAIR", nwlat=51.7, nwlng=-0.5, selat=51.3, selng=0.3)
 
 # Download data
-aeolus.portals.download("OpenAQ", location_ids, start_date, end_date)
+aeolus.portals.download("OPENAQ", location_ids, start_date, end_date)
 aeolus.portals.download("PURPLEAIR", sensor_indices, start_date, end_date)
 ```
 
