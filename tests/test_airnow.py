@@ -635,3 +635,177 @@ class TestAeolusDownloadIntegration:
 
         assert not df.empty
         assert "site_code" in df.columns
+
+
+# ============================================================================
+# Live Integration Tests (require network access and API key)
+# ============================================================================
+
+
+@pytest.mark.integration
+class TestLiveIntegration:
+    """
+    Integration tests that hit the live AirNow API.
+
+    These tests are skipped by default. Run with:
+        pytest -m integration tests/test_airnow.py
+
+    Requires AIRNOW_API_KEY environment variable to be set.
+    """
+
+    @pytest.fixture(autouse=True)
+    def check_api_key(self):
+        """Skip tests if API key is not available."""
+        import os
+
+        if not os.environ.get("AIRNOW_API_KEY"):
+            pytest.skip("AIRNOW_API_KEY not set")
+
+    def test_live_fetch_metadata_california(self):
+        """Test fetching monitoring sites in California."""
+        from aeolus.sources.airnow import fetch_airnow_metadata
+
+        # California bounding box
+        df = fetch_airnow_metadata(
+            bounding_box=(-124.0, 32.0, -114.0, 42.0),
+        )
+
+        assert not df.empty
+        assert "site_code" in df.columns
+        assert "site_name" in df.columns
+        assert "latitude" in df.columns
+        assert "longitude" in df.columns
+        assert all(df["source_network"] == "AirNow")
+
+        # Should have many sites in California
+        assert len(df) > 50
+
+        # Coordinates should be in California
+        assert df["latitude"].min() > 31.0
+        assert df["latitude"].max() < 43.0
+        assert df["longitude"].min() > -125.0
+        assert df["longitude"].max() < -113.0
+
+    def test_live_fetch_metadata_new_york(self):
+        """Test fetching monitoring sites near New York City."""
+        from aeolus.sources.airnow import fetch_airnow_metadata
+
+        # NYC area bounding box
+        df = fetch_airnow_metadata(
+            bounding_box=(-74.5, 40.4, -73.5, 41.0),
+        )
+
+        if not df.empty:
+            assert "site_code" in df.columns
+            assert all(df["source_network"] == "AirNow")
+
+    def test_live_fetch_historical_data(self):
+        """Test fetching historical data."""
+        from aeolus.sources.airnow import fetch_airnow_data, fetch_airnow_metadata
+
+        # First get a site
+        metadata = fetch_airnow_metadata(
+            bounding_box=(-118.5, 33.5, -117.5, 34.5),  # LA area
+        )
+
+        if metadata.empty:
+            pytest.skip("No sites found")
+
+        site_code = metadata["site_code"].iloc[0]
+
+        # Fetch data from yesterday (AirNow has ~1 day delay)
+        from datetime import timedelta
+
+        end_date = datetime.now() - timedelta(days=2)
+        start_date = end_date - timedelta(days=1)
+
+        df = fetch_airnow_data(
+            sites=[site_code],
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        # May be empty if no data in range
+        if not df.empty:
+            assert "site_code" in df.columns
+            assert "date_time" in df.columns
+            assert "measurand" in df.columns
+            assert "value" in df.columns
+            assert all(df["source_network"] == "AirNow")
+
+            # Values should be reasonable
+            assert df["value"].min() >= 0
+
+    def test_live_fetch_multiple_sites(self):
+        """Test fetching data for multiple sites."""
+        from aeolus.sources.airnow import fetch_airnow_data, fetch_airnow_metadata
+
+        # Get a few sites
+        metadata = fetch_airnow_metadata(
+            bounding_box=(-118.5, 33.5, -117.5, 34.5),  # LA area
+        )
+
+        if len(metadata) < 2:
+            pytest.skip("Not enough sites available")
+
+        site_codes = metadata["site_code"].head(3).tolist()
+
+        from datetime import timedelta
+
+        end_date = datetime.now() - timedelta(days=2)
+        start_date = end_date - timedelta(days=1)
+
+        df = fetch_airnow_data(
+            sites=site_codes,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        if not df.empty:
+            # Should have data from multiple sites
+            assert len(df["site_code"].unique()) >= 1
+
+    def test_live_aeolus_networks_api(self):
+        """Test using aeolus.networks API with AirNow."""
+        import aeolus
+
+        df = aeolus.networks.get_metadata(
+            "AIRNOW",
+            bounding_box=(-118.5, 33.5, -117.5, 34.5),
+        )
+
+        assert not df.empty
+        assert "site_code" in df.columns
+        assert "latitude" in df.columns
+
+    def test_live_full_workflow(self):
+        """Test complete workflow: get metadata, then download data."""
+        import aeolus
+
+        # Get sites
+        sites = aeolus.networks.get_metadata(
+            "AIRNOW",
+            bounding_box=(-118.5, 33.5, -117.5, 34.5),
+        )
+
+        if sites.empty:
+            pytest.skip("No sites found")
+
+        site_codes = sites["site_code"].head(2).tolist()
+
+        # Download data
+        from datetime import timedelta
+
+        end_date = datetime.now() - timedelta(days=2)
+        start_date = end_date - timedelta(days=1)
+
+        df = aeolus.download(
+            "AIRNOW",
+            site_codes,
+            start_date,
+            end_date,
+        )
+
+        # Verify structure even if empty
+        expected_cols = {"site_code", "date_time", "measurand", "value", "units"}
+        assert expected_cols.issubset(set(df.columns))

@@ -867,3 +867,147 @@ class TestOpenAQIntegration:
         assert result["units"].iloc[0] == "ug/m3"
         assert result["source_network"].iloc[0] == "OpenAQ"
         assert pd.api.types.is_datetime64_any_dtype(result["date_time"])
+
+
+# ============================================================================
+# Live Integration Tests (require network access and API key)
+# ============================================================================
+
+
+@pytest.mark.integration
+class TestLiveIntegration:
+    """
+    Integration tests that hit the live OpenAQ API.
+
+    These tests are skipped by default. Run with:
+        pytest -m integration tests/test_openaq.py
+
+    Requires OPENAQ_API_KEY environment variable to be set.
+    """
+
+    @pytest.fixture(autouse=True)
+    def check_api_key(self):
+        """Skip tests if API key is not available."""
+        import os
+
+        if not os.environ.get("OPENAQ_API_KEY") and not os.environ.get(
+            "OPENAQ-API-KEY"
+        ):
+            pytest.skip("OPENAQ_API_KEY not set")
+
+        # Clear cached client to ensure fresh connection
+        import aeolus.sources.openaq as openaq_module
+
+        openaq_module._client = None
+        yield
+        openaq_module._client = None
+
+    def test_live_search_by_country(self):
+        """Test searching locations by country code."""
+        df = fetch_openaq_metadata(country="GB", limit=20)
+
+        assert not df.empty
+        assert "location_id" in df.columns
+        assert "location_name" in df.columns
+        assert "latitude" in df.columns
+        assert "longitude" in df.columns
+        assert all(df["source_network"] == "OpenAQ")
+
+        # Should have UK locations
+        assert all(df["country"] == "GB")
+
+    def test_live_search_by_bbox(self):
+        """Test searching locations by bounding box (London area)."""
+        # London bounding box
+        bbox = (-0.5, 51.3, 0.3, 51.7)
+        df = fetch_openaq_metadata(bbox=bbox, limit=20)
+
+        if not df.empty:
+            # Locations should be within or near bbox
+            assert df["latitude"].min() > 50.0
+            assert df["latitude"].max() < 53.0
+
+    def test_live_search_by_coordinates(self):
+        """Test searching locations by coordinates and radius."""
+        # Central London
+        df = fetch_openaq_metadata(
+            coordinates=(51.5074, -0.1278),
+            radius=10000,  # 10km
+            limit=20,
+        )
+
+        if not df.empty:
+            assert "location_id" in df.columns
+            # Should find some locations near central London
+
+    def test_live_fetch_data(self):
+        """Test fetching actual measurement data."""
+        # First find a location
+        metadata = fetch_openaq_metadata(country="GB", limit=5)
+
+        if metadata.empty:
+            pytest.skip("No locations found")
+
+        location_id = metadata["location_id"].iloc[0]
+
+        # Fetch recent data (last 7 days)
+        from datetime import timedelta
+
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=7)
+
+        df = fetch_openaq_data(
+            sites=[location_id],
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        # May be empty if location has no recent data
+        if not df.empty:
+            assert "site_code" in df.columns
+            assert "date_time" in df.columns
+            assert "measurand" in df.columns
+            assert "value" in df.columns
+            assert "units" in df.columns
+            assert all(df["source_network"] == "OpenAQ")
+
+            # Values should be reasonable
+            assert df["value"].min() >= 0
+
+    def test_live_aeolus_portals_api(self):
+        """Test using aeolus.portals API with OpenAQ."""
+        import aeolus
+
+        df = aeolus.portals.find_sites("OPENAQ", country="GB", limit=10)
+
+        assert not df.empty
+        assert "location_id" in df.columns
+
+    def test_live_full_workflow(self):
+        """Test complete workflow: find sites, then download data."""
+        import aeolus
+
+        # Find sites
+        sites = aeolus.portals.find_sites("OPENAQ", country="GB", limit=3)
+
+        if sites.empty:
+            pytest.skip("No sites found")
+
+        site_ids = sites["location_id"].tolist()
+
+        # Download recent data
+        from datetime import timedelta
+
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=3)
+
+        df = aeolus.download(
+            "OPENAQ",
+            site_ids,
+            start_date,
+            end_date,
+        )
+
+        # Verify structure even if empty
+        expected_cols = {"site_code", "date_time", "measurand", "value", "units"}
+        assert expected_cols.issubset(set(df.columns))

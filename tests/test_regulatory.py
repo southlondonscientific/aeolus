@@ -644,3 +644,168 @@ class TestIntegrationWithAeolus:
         assert "NI" in networks
         assert "WAQN" in networks
         assert "AQE" in networks
+
+
+# ============================================================================
+# Live Integration Tests (require network access)
+# ============================================================================
+
+
+@pytest.mark.integration
+class TestLiveIntegration:
+    """
+    Integration tests that hit the live UK regulatory data APIs.
+
+    These tests are skipped by default. Run with:
+        pytest -m integration tests/test_regulatory.py
+
+    Note: These tests depend on external API availability and may be slow.
+    The UK regulatory data is hosted on public servers and doesn't require API keys.
+    """
+
+    def test_live_aurn_metadata(self):
+        """Test fetching live AURN metadata."""
+        fetcher = make_metadata_fetcher("aurn")
+        df = fetcher()
+
+        assert not df.empty
+        assert "site_code" in df.columns
+        assert "site_name" in df.columns
+        assert "latitude" in df.columns
+        assert "longitude" in df.columns
+        assert "source_network" in df.columns
+        assert all(df["source_network"] == "AURN")
+
+        # AURN should have many sites
+        assert len(df) > 50
+
+        # Coordinates should be in UK
+        assert df["latitude"].min() > 49.0
+        assert df["latitude"].max() < 61.0
+
+    def test_live_saqn_metadata(self):
+        """Test fetching live SAQN (Scotland) metadata."""
+        fetcher = make_metadata_fetcher("saqn")
+        df = fetcher()
+
+        assert not df.empty
+        assert "site_code" in df.columns
+        assert all(df["source_network"] == "SAQN")
+
+        # Scottish sites should be in northern UK
+        assert df["latitude"].min() > 54.0
+
+    def test_live_waqn_metadata(self):
+        """Test fetching live WAQN (Wales) metadata."""
+        fetcher = make_metadata_fetcher("waqn")
+        df = fetcher()
+
+        assert not df.empty
+        assert "site_code" in df.columns
+        assert all(df["source_network"] == "WAQN")
+
+    def test_live_ni_metadata(self):
+        """Test fetching live NI (Northern Ireland) metadata."""
+        fetcher = make_metadata_fetcher("ni")
+        df = fetcher()
+
+        assert not df.empty
+        assert "site_code" in df.columns
+        assert all(df["source_network"] == "NI")
+
+    def test_live_aurn_historical_data(self):
+        """Test fetching historical AURN data."""
+        fetcher = make_data_fetcher("aurn")
+
+        # Fetch data for a well-known site (London Marylebone Road)
+        # Use 2023 data which should be complete
+        df = fetcher(
+            sites=["MY1"],
+            start_date=datetime(2023, 6, 1),
+            end_date=datetime(2023, 6, 7),
+        )
+
+        assert not df.empty
+        assert "site_code" in df.columns
+        assert "date_time" in df.columns
+        assert "measurand" in df.columns
+        assert "value" in df.columns
+        assert "units" in df.columns
+        assert all(df["source_network"] == "AURN")
+
+        # Should have multiple measurands
+        measurands = df["measurand"].unique()
+        assert len(measurands) >= 2
+
+        # Values should be reasonable
+        assert df["value"].min() >= 0
+        assert df["value"].max() < 1000
+
+    def test_live_aurn_multiple_sites(self):
+        """Test fetching data for multiple AURN sites."""
+        fetcher = make_data_fetcher("aurn")
+
+        # MY1 = London Marylebone Road, KC1 = London N. Kensington
+        df = fetcher(
+            sites=["MY1", "KC1"],
+            start_date=datetime(2023, 6, 1),
+            end_date=datetime(2023, 6, 3),
+        )
+
+        assert not df.empty
+
+        # Should have data from both sites
+        sites = df["site_code"].unique()
+        assert len(sites) == 2
+        assert "MY1" in sites
+        assert "KC1" in sites
+
+    def test_live_aeolus_download_aurn(self):
+        """Test the full aeolus.download() flow with AURN."""
+        import aeolus
+
+        df = aeolus.download(
+            sources="AURN",
+            sites=["MY1"],
+            start_date=datetime(2023, 6, 1),
+            end_date=datetime(2023, 6, 3),
+        )
+
+        assert not df.empty
+        assert "site_code" in df.columns
+        assert "measurand" in df.columns
+        assert all(df["source_network"] == "AURN")
+
+    def test_live_aeolus_networks_get_metadata(self):
+        """Test aeolus.networks.get_metadata() with AURN."""
+        import aeolus
+
+        df = aeolus.networks.get_metadata("AURN")
+
+        assert not df.empty
+        assert "site_code" in df.columns
+        assert "latitude" in df.columns
+        assert "longitude" in df.columns
+
+    def test_live_saqn_historical_data(self):
+        """Test fetching historical SAQN data."""
+        # First get a valid site code
+        meta_fetcher = make_metadata_fetcher("saqn")
+        metadata = meta_fetcher()
+
+        if metadata.empty:
+            pytest.skip("No SAQN metadata available")
+
+        site_code = metadata["site_code"].iloc[0]
+
+        fetcher = make_data_fetcher("saqn")
+        df = fetcher(
+            sites=[site_code],
+            start_date=datetime(2023, 6, 1),
+            end_date=datetime(2023, 6, 7),
+        )
+
+        # May be empty if site doesn't have data for this period
+        if not df.empty:
+            assert "site_code" in df.columns
+            assert all(df["source_network"] == "SAQN")

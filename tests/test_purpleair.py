@@ -1427,3 +1427,197 @@ class TestPurpleairIntegration:
         ratifications = result["ratification"].unique()
         assert "Validated" in ratifications
         assert "Single Channel (A)" in ratifications
+
+
+# ============================================================================
+# Live Integration Tests (require network access and API key)
+# ============================================================================
+
+
+@pytest.mark.integration
+class TestLiveIntegration:
+    """
+    Integration tests that hit the live PurpleAir API.
+
+    These tests are skipped by default. Run with:
+        pytest -m integration tests/test_purpleair.py
+
+    Requires PURPLEAIR_API_KEY environment variable to be set.
+    """
+
+    @pytest.fixture(autouse=True)
+    def check_api_key(self):
+        """Skip tests if API key is not available."""
+        import os
+
+        if not os.environ.get("PURPLEAIR_API_KEY"):
+            pytest.skip("PURPLEAIR_API_KEY not set")
+
+        # Clear cached client
+        import aeolus.sources.purpleair as purpleair_module
+
+        purpleair_module._client = None
+        yield
+        purpleair_module._client = None
+
+    def test_live_fetch_metadata_by_location(self):
+        """Test fetching sensors near a location (London)."""
+        df = fetch_purpleair_metadata(
+            nwlat=51.6,
+            nwlng=-0.3,
+            selat=51.4,
+            selng=0.1,
+        )
+
+        # May be empty in some areas
+        if not df.empty:
+            assert "site_code" in df.columns
+            assert "site_name" in df.columns
+            assert "latitude" in df.columns
+            assert "longitude" in df.columns
+            assert all(df["source_network"] == "PurpleAir")
+
+            # Should be in London area
+            assert df["latitude"].min() > 51.0
+            assert df["latitude"].max() < 52.0
+
+    def test_live_fetch_metadata_outdoor_only(self):
+        """Test fetching only outdoor sensors."""
+        df = fetch_purpleair_metadata(
+            nwlat=52.0,
+            nwlng=-2.0,
+            selat=51.0,
+            selng=0.0,
+            location_type=0,  # outdoor only
+        )
+
+        # Verify outdoor sensors (location_type=0)
+        if not df.empty and "location_type" in df.columns:
+            assert (df["location_type"] == 0).all()
+
+    def test_live_fetch_historical_data(self):
+        """Test fetching historical data."""
+        # First find a sensor
+        metadata = fetch_purpleair_metadata(
+            nwlat=51.6,
+            nwlng=-0.3,
+            selat=51.4,
+            selng=0.1,
+        )
+
+        if metadata.empty:
+            pytest.skip("No sensors found in area")
+
+        sensor_id = metadata["site_code"].iloc[0]
+
+        # Fetch data from a week ago (to ensure data availability)
+        from datetime import timedelta
+
+        end_date = datetime.now() - timedelta(days=7)
+        start_date = end_date - timedelta(days=1)
+
+        df = fetch_purpleair_data(
+            sites=[sensor_id],
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        # May be empty if sensor wasn't active
+        if not df.empty:
+            assert "site_code" in df.columns
+            assert "date_time" in df.columns
+            assert "measurand" in df.columns
+            assert "value" in df.columns
+            assert "ratification" in df.columns
+            assert all(df["source_network"] == "PurpleAir")
+
+            # Should have PM data
+            measurands = df["measurand"].unique()
+            assert any(m in measurands for m in ["PM2.5", "PM10", "PM1"])
+
+            # Values should be reasonable for PM (most < 500)
+            pm_data = df[df["measurand"].isin(["PM2.5", "PM10", "PM1"])]
+            if not pm_data.empty:
+                assert pm_data["value"].min() >= 0
+                assert pm_data["value"].quantile(0.95) < 500
+
+    def test_live_fetch_multiple_sensors(self):
+        """Test fetching data for multiple sensors."""
+        # Find a few sensors
+        metadata = fetch_purpleair_metadata(
+            nwlat=51.6,
+            nwlng=-0.3,
+            selat=51.4,
+            selng=0.1,
+        )
+
+        if len(metadata) < 2:
+            pytest.skip("Not enough sensors found")
+
+        sensor_ids = metadata["site_code"].head(2).tolist()
+
+        from datetime import timedelta
+
+        end_date = datetime.now() - timedelta(days=7)
+        start_date = end_date - timedelta(hours=12)
+
+        df = fetch_purpleair_data(
+            sites=sensor_ids,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        if not df.empty:
+            # Should have data from multiple sensors
+            assert len(df["site_code"].unique()) >= 1
+
+    def test_live_aeolus_portals_api(self):
+        """Test using aeolus.portals API with PurpleAir."""
+        import aeolus
+
+        df = aeolus.portals.find_sites(
+            "PURPLEAIR",
+            nwlat=51.6,
+            nwlng=-0.3,
+            selat=51.4,
+            selng=0.1,
+        )
+
+        if not df.empty:
+            assert "site_code" in df.columns
+            assert "latitude" in df.columns
+
+    def test_live_full_workflow(self):
+        """Test complete workflow: find sites, then download data."""
+        import aeolus
+
+        # Find sites
+        sites = aeolus.portals.find_sites(
+            "PURPLEAIR",
+            nwlat=51.6,
+            nwlng=-0.3,
+            selat=51.4,
+            selng=0.1,
+        )
+
+        if sites.empty:
+            pytest.skip("No sites found")
+
+        site_ids = sites["site_code"].head(2).tolist()
+
+        # Download data
+        from datetime import timedelta
+
+        end_date = datetime.now() - timedelta(days=7)
+        start_date = end_date - timedelta(hours=6)
+
+        df = aeolus.download(
+            "PURPLEAIR",
+            site_ids,
+            start_date,
+            end_date,
+        )
+
+        # Verify structure even if empty
+        expected_cols = {"site_code", "date_time", "measurand", "value", "units"}
+        assert expected_cols.issubset(set(df.columns))

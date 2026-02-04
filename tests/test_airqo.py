@@ -1341,3 +1341,174 @@ class TestAirQoIntegration:
         assert (result["source_network"] == "AirQo").all()
         assert (result["units"] == "ug/m3").all()
         assert pd.api.types.is_datetime64_any_dtype(result["date_time"])
+
+
+# ============================================================================
+# Live Integration Tests (require network access and API key)
+# ============================================================================
+
+
+@pytest.mark.integration
+class TestLiveIntegration:
+    """
+    Integration tests that hit the live AirQo API.
+
+    These tests are skipped by default. Run with:
+        pytest -m integration tests/test_airqo.py
+
+    Requires AIRQO_API_KEY environment variable to be set.
+    """
+
+    @pytest.fixture(autouse=True)
+    def check_api_key(self):
+        """Skip tests if API key is not available."""
+        import os
+
+        if not os.environ.get("AIRQO_API_KEY"):
+            pytest.skip("AIRQO_API_KEY not set")
+
+    def test_live_fetch_all_metadata(self):
+        """Test fetching all AirQo site metadata."""
+        df = fetch_airqo_metadata()
+
+        assert not df.empty
+        assert "site_code" in df.columns
+        assert "site_name" in df.columns
+        assert "latitude" in df.columns
+        assert "longitude" in df.columns
+        assert all(df["source_network"] == "AirQo")
+
+        # AirQo primarily covers Africa
+        # Coordinates should be roughly in Africa/East Africa
+        # (latitude roughly -35 to 40, longitude roughly -20 to 55)
+        assert df["latitude"].min() > -40
+        assert df["latitude"].max() < 45
+        assert df["longitude"].min() > -25
+        assert df["longitude"].max() < 60
+
+    def test_live_fetch_metadata_by_country(self):
+        """Test fetching metadata filtered by country (Uganda)."""
+        df = fetch_airqo_metadata(country="Uganda")
+
+        if not df.empty:
+            assert "site_code" in df.columns
+            assert all(df["source_network"] == "AirQo")
+
+            # Uganda coordinates roughly: lat 0-4, lon 29-35
+            assert df["latitude"].min() > -2
+            assert df["latitude"].max() < 5
+            assert df["longitude"].min() > 28
+            assert df["longitude"].max() < 36
+
+    def test_live_fetch_metadata_by_city(self):
+        """Test fetching metadata filtered by city (Kampala)."""
+        df = fetch_airqo_metadata(city="Kampala")
+
+        if not df.empty:
+            assert "site_code" in df.columns
+            # Kampala sensors should be in the area
+
+    def test_live_fetch_historical_data(self):
+        """Test fetching historical data."""
+        # First get a valid site code
+        metadata = fetch_airqo_metadata()
+
+        if metadata.empty:
+            pytest.skip("No metadata available")
+
+        site_code = metadata["site_code"].iloc[0]
+
+        # Fetch data from last week
+        from datetime import timedelta
+
+        end_date = datetime.now() - timedelta(days=3)
+        start_date = end_date - timedelta(days=2)
+
+        df = fetch_airqo_data(
+            sites=[site_code],
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        # May be empty if no data in range
+        if not df.empty:
+            assert "site_code" in df.columns
+            assert "date_time" in df.columns
+            assert "measurand" in df.columns
+            assert "value" in df.columns
+            assert all(df["source_network"] == "AirQo")
+
+            # Should have PM data (AirQo focuses on PM2.5)
+            measurands = df["measurand"].unique()
+            assert "PM2.5" in measurands or "PM10" in measurands
+
+            # Values should be reasonable
+            pm_data = df[df["measurand"].isin(["PM2.5", "PM10"])]
+            if not pm_data.empty:
+                assert pm_data["value"].min() >= 0
+                # 95th percentile should be reasonable
+                assert pm_data["value"].quantile(0.95) < 500
+
+    def test_live_fetch_multiple_sites(self):
+        """Test fetching data for multiple sites."""
+        # Get a few sites
+        metadata = fetch_airqo_metadata()
+
+        if len(metadata) < 2:
+            pytest.skip("Not enough sites available")
+
+        site_codes = metadata["site_code"].head(3).tolist()
+
+        from datetime import timedelta
+
+        end_date = datetime.now() - timedelta(days=3)
+        start_date = end_date - timedelta(days=1)
+
+        df = fetch_airqo_data(
+            sites=site_codes,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        if not df.empty:
+            # Should have data from at least one site
+            assert len(df["site_code"].unique()) >= 1
+
+    def test_live_aeolus_networks_api(self):
+        """Test using aeolus.networks API with AirQo."""
+        import aeolus
+
+        df = aeolus.networks.get_metadata("AIRQO")
+
+        assert not df.empty
+        assert "site_code" in df.columns
+        assert "latitude" in df.columns
+
+    def test_live_full_workflow(self):
+        """Test complete workflow: get metadata, then download data."""
+        import aeolus
+
+        # Get sites
+        sites = aeolus.networks.get_metadata("AIRQO")
+
+        if sites.empty:
+            pytest.skip("No sites found")
+
+        site_codes = sites["site_code"].head(2).tolist()
+
+        # Download data
+        from datetime import timedelta
+
+        end_date = datetime.now() - timedelta(days=3)
+        start_date = end_date - timedelta(days=1)
+
+        df = aeolus.download(
+            "AIRQO",
+            site_codes,
+            start_date,
+            end_date,
+        )
+
+        # Verify structure even if empty
+        expected_cols = {"site_code", "date_time", "measurand", "value", "units"}
+        assert expected_cols.issubset(set(df.columns))

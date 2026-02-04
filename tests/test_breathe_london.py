@@ -1103,3 +1103,170 @@ class TestBreatheLondonIntegration:
         assert (result["source_network"] == "Breathe London").all()
         assert (result["units"] == "ug/m3").all()
         assert pd.api.types.is_datetime64_any_dtype(result["date_time"])
+
+
+# ============================================================================
+# Live Integration Tests (require network access and API key)
+# ============================================================================
+
+
+@pytest.mark.integration
+class TestLiveIntegration:
+    """
+    Integration tests that hit the live Breathe London API.
+
+    These tests are skipped by default. Run with:
+        pytest -m integration tests/test_breathe_london.py
+
+    Requires BL_API_KEY environment variable to be set.
+    """
+
+    @pytest.fixture(autouse=True)
+    def check_api_key(self):
+        """Skip tests if API key is not available."""
+        import os
+
+        if not os.environ.get("BL_API_KEY"):
+            pytest.skip("BL_API_KEY not set")
+
+    def test_live_fetch_all_metadata(self):
+        """Test fetching all sensor metadata."""
+        df = fetch_breathe_london_metadata()
+
+        assert not df.empty
+        assert "site_code" in df.columns
+        assert "site_name" in df.columns
+        assert "latitude" in df.columns
+        assert "longitude" in df.columns
+        assert all(df["source_network"] == "Breathe London")
+
+        # Breathe London covers Greater London
+        assert len(df) > 10  # Should have many sensors
+        assert df["latitude"].min() > 51.0
+        assert df["latitude"].max() < 52.0
+
+    def test_live_fetch_metadata_by_borough(self):
+        """Test fetching metadata filtered by borough."""
+        df = fetch_breathe_london_metadata(borough="Camden")
+
+        if not df.empty:
+            # All should be in Camden
+            assert all(df["source_network"] == "Breathe London")
+
+    def test_live_fetch_metadata_by_species(self):
+        """Test fetching metadata filtered by species."""
+        df = fetch_breathe_london_metadata(species="NO2")
+
+        assert not df.empty
+        assert "site_code" in df.columns
+
+    def test_live_fetch_metadata_by_location(self):
+        """Test fetching metadata by location (central London)."""
+        df = fetch_breathe_london_metadata(
+            latitude=51.5074,
+            longitude=-0.1278,
+            radius_km=5,
+        )
+
+        if not df.empty:
+            # Should be near central London
+            assert df["latitude"].mean() > 51.4
+            assert df["latitude"].mean() < 51.6
+
+    def test_live_fetch_historical_data(self):
+        """Test fetching historical data."""
+        # First get a valid site code
+        metadata = fetch_breathe_london_metadata()
+
+        if metadata.empty:
+            pytest.skip("No metadata available")
+
+        site_code = metadata["site_code"].iloc[0]
+
+        # Fetch data from last month (recent data should be available)
+        from datetime import timedelta
+
+        end_date = datetime.now() - timedelta(days=7)
+        start_date = end_date - timedelta(days=3)
+
+        df = fetch_breathe_london_data(
+            sites=[site_code],
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        # May be empty if no data in range
+        if not df.empty:
+            assert "site_code" in df.columns
+            assert "date_time" in df.columns
+            assert "measurand" in df.columns
+            assert "value" in df.columns
+            assert all(df["source_network"] == "Breathe London")
+
+            # Values should be reasonable
+            assert df["value"].min() >= 0
+            assert df["value"].max() < 1000
+
+    def test_live_fetch_multiple_sites(self):
+        """Test fetching data for multiple sites."""
+        # Get a few site codes
+        metadata = fetch_breathe_london_metadata()
+
+        if len(metadata) < 2:
+            pytest.skip("Not enough sites available")
+
+        site_codes = metadata["site_code"].head(3).tolist()
+
+        from datetime import timedelta
+
+        end_date = datetime.now() - timedelta(days=7)
+        start_date = end_date - timedelta(days=1)
+
+        df = fetch_breathe_london_data(
+            sites=site_codes,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        if not df.empty:
+            # Should have data from multiple sites
+            assert len(df["site_code"].unique()) >= 1
+
+    def test_live_aeolus_networks_api(self):
+        """Test using aeolus.networks API with Breathe London."""
+        import aeolus
+
+        df = aeolus.networks.get_metadata("BREATHE_LONDON")
+
+        assert not df.empty
+        assert "site_code" in df.columns
+        assert "latitude" in df.columns
+
+    def test_live_full_workflow(self):
+        """Test complete workflow: get metadata, then download data."""
+        import aeolus
+
+        # Get sites
+        sites = aeolus.networks.get_metadata("BREATHE_LONDON")
+
+        if sites.empty:
+            pytest.skip("No sites found")
+
+        site_codes = sites["site_code"].head(2).tolist()
+
+        # Download data
+        from datetime import timedelta
+
+        end_date = datetime.now() - timedelta(days=7)
+        start_date = end_date - timedelta(days=1)
+
+        df = aeolus.download(
+            "BREATHE_LONDON",
+            site_codes,
+            start_date,
+            end_date,
+        )
+
+        # Verify structure even if empty
+        expected_cols = {"site_code", "date_time", "measurand", "value", "units"}
+        assert expected_cols.issubset(set(df.columns))
