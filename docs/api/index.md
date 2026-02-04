@@ -42,10 +42,10 @@ aeolus.networks.download("AURN", sites, start, end)
 
 ```python
 # Find sites on a portal
-aeolus.portals.find_sites("OpenAQ", country="GB")
+aeolus.portals.find_sites("OPENAQ", country="GB")
 
 # Download from a portal
-aeolus.portals.download("OpenAQ", location_ids, start, end)
+aeolus.portals.download("OPENAQ", sites, start, end)
 ```
 
 ### Metrics Functions

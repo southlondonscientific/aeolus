@@ -81,7 +81,7 @@ src/aeolus/
 
 All sources normalize to this schema:
 - `site_code` - Unique site identifier
-- `site_name` - Human-readable name
+- `site_name` - Human-readable name (in metadata)
 - `date_time` - Timestamp (left-closed intervals)
 - `measurand` - Pollutant (PM2.5, NO2, O3, etc.)
 - `value` - Measurement value
@@ -89,6 +89,15 @@ All sources normalize to this schema:
 - `source_network` - Data source name
 - `ratification` - Data quality flag
 - `created_at` - When record was fetched
+
+**Metadata schema** (from `get_metadata()` / `find_sites()`):
+- `site_code` - Unique site identifier (use for download)
+- `site_name` - Human-readable name
+- `latitude`, `longitude` - Location coordinates
+- `source_network` - Data source name
+
+**Bounding box format** (consistent across all sources):
+- `bbox=(min_lon, min_lat, max_lon, max_lat)` - GeoJSON/shapely convention
 
 ## Common Commands
 

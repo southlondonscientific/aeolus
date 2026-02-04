@@ -281,6 +281,7 @@ def fetch_sensor_community_metadata(
     sensor_type: str | list[str] | None = None,
     country: str | list[str] | None = None,
     area: tuple[float, float, float] | None = None,
+    bbox: tuple[float, float, float, float] | None = None,
     box: tuple[float, float, float, float] | None = None,
 ) -> pd.DataFrame:
     """
@@ -293,7 +294,10 @@ def fetch_sensor_community_metadata(
         sensor_type: Filter by sensor type(s), e.g., "SDS011" or ["SDS011", "BME280"]
         country: Filter by country code(s), e.g., "GB" or ["GB", "DE", "FR"]
         area: Circular area filter as (latitude, longitude, radius_km)
-        box: Bounding box filter as (lat1, lon1, lat2, lon2)
+        bbox: Bounding box as (min_lon, min_lat, max_lon, max_lat) - standard format
+              consistent with GeoJSON and shapely conventions.
+        box: [Deprecated] Legacy bounding box as (lat1, lon1, lat2, lon2).
+             Use `bbox` instead for consistency with other sources.
 
     Returns:
         pd.DataFrame: Sensor metadata with standardized schema:
@@ -316,33 +320,45 @@ def fetch_sensor_community_metadata(
         >>> metadata = fetch_sensor_community_metadata(
         ...     area=(51.5074, -0.1278, 50)
         ... )
+        >>>
+        >>> # Get sensors in a bounding box (London area)
+        >>> metadata = fetch_sensor_community_metadata(
+        ...     bbox=(-0.5, 51.3, 0.3, 51.7)
+        ... )
     """
     global _sensor_type_cache
 
     # Build the filter query
-    filters = []
+    query_filters = []
 
     if sensor_type:
         if isinstance(sensor_type, str):
             sensor_type = [sensor_type]
-        filters.append(f"type={','.join(sensor_type)}")
+        query_filters.append(f"type={','.join(sensor_type)}")
 
     if country:
         if isinstance(country, str):
             country = [country]
-        filters.append(f"country={','.join(country)}")
+        query_filters.append(f"country={','.join(country)}")
 
     if area:
         lat, lon, radius = area
-        filters.append(f"area={lat},{lon},{radius}")
+        query_filters.append(f"area={lat},{lon},{radius}")
 
-    if box:
+    # Handle bbox (standard format) - convert to API's box format
+    # Standard: (min_lon, min_lat, max_lon, max_lat)
+    # API format: box=lat1,lon1,lat2,lon2
+    if bbox is not None:
+        min_lon, min_lat, max_lon, max_lat = bbox
+        query_filters.append(f"box={min_lat},{min_lon},{max_lat},{max_lon}")
+    elif box is not None:
+        # Legacy format - pass through directly
         lat1, lon1, lat2, lon2 = box
-        filters.append(f"box={lat1},{lon1},{lat2},{lon2}")
+        query_filters.append(f"box={lat1},{lon1},{lat2},{lon2}")
 
     # Construct URL
-    if filters:
-        filter_query = "&".join(filters)
+    if query_filters:
+        filter_query = "&".join(query_filters)
         url = f"{DATA_API_BASE}/airrohr/v1/filter/{filter_query}"
     else:
         # Get all sensors (this can be large!)
@@ -735,6 +751,7 @@ def fetch_sensor_community_realtime(
     sensor_type: str | list[str] | None = None,
     country: str | list[str] | None = None,
     area: tuple[float, float, float] | None = None,
+    bbox: tuple[float, float, float, float] | None = None,
     box: tuple[float, float, float, float] | None = None,
     averaging: str = "5min",
 ) -> pd.DataFrame:
@@ -748,7 +765,10 @@ def fetch_sensor_community_realtime(
         sensor_type: Filter by sensor type(s), e.g., "SDS011" or ["SDS011", "BME280"]
         country: Filter by country code(s), e.g., "GB" or ["GB", "DE", "FR"]
         area: Circular area filter as (latitude, longitude, radius_km)
-        box: Bounding box filter as (lat1, lon1, lat2, lon2)
+        bbox: Bounding box as (min_lon, min_lat, max_lon, max_lat) - standard format
+              consistent with GeoJSON and shapely conventions.
+        box: [Deprecated] Legacy bounding box as (lat1, lon1, lat2, lon2).
+             Use `bbox` instead for consistency with other sources.
         averaging: Averaging period - "5min", "1h", or "24h" (default "5min")
 
     Returns:
@@ -773,29 +793,36 @@ def fetch_sensor_community_realtime(
         raise ValueError(f"Invalid averaging: {averaging}. Use '5min', '1h', or '24h'")
 
     # Build the filter query
-    filters = []
+    query_filters = []
 
     if sensor_type:
         if isinstance(sensor_type, str):
             sensor_type = [sensor_type]
-        filters.append(f"type={','.join(sensor_type)}")
+        query_filters.append(f"type={','.join(sensor_type)}")
 
     if country:
         if isinstance(country, str):
             country = [country]
-        filters.append(f"country={','.join(country)}")
+        query_filters.append(f"country={','.join(country)}")
 
     if area:
         lat, lon, radius = area
-        filters.append(f"area={lat},{lon},{radius}")
+        query_filters.append(f"area={lat},{lon},{radius}")
 
-    if box:
+    # Handle bbox (standard format) - convert to API's box format
+    # Standard: (min_lon, min_lat, max_lon, max_lat)
+    # API format: box=lat1,lon1,lat2,lon2
+    if bbox is not None:
+        min_lon, min_lat, max_lon, max_lat = bbox
+        query_filters.append(f"box={min_lat},{min_lon},{max_lat},{max_lon}")
+    elif box is not None:
+        # Legacy format - pass through directly
         lat1, lon1, lat2, lon2 = box
-        filters.append(f"box={lat1},{lon1},{lat2},{lon2}")
+        query_filters.append(f"box={lat1},{lon1},{lat2},{lon2}")
 
     # Construct URL
-    if filters:
-        filter_query = "&".join(filters)
+    if query_filters:
+        filter_query = "&".join(query_filters)
         url = f"{DATA_API_BASE}/airrohr/v1/filter/{filter_query}"
     else:
         url = f"{DATA_API_BASE}/static/v2/{avg_endpoints[averaging]}"

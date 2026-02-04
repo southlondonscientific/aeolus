@@ -30,10 +30,11 @@ import aeolus
 # Search for sites in a country
 uk_sites = aeolus.portals.find_sites("OPENAQ", country="GB")
 
-# Search within a bounding box (min_lat, min_lon, max_lat, max_lon)
+# Search within a bounding box
+# bbox format: (min_lon, min_lat, max_lon, max_lat) - same as GeoJSON/shapely
 london_sites = aeolus.portals.find_sites(
     "OPENAQ",
-    bbox=(51.28, -0.51, 51.69, 0.34)
+    bbox=(-0.51, 51.28, 0.34, 51.69)
 )
 
 # Search by city
@@ -42,20 +43,20 @@ city_sites = aeolus.portals.find_sites("OPENAQ", city="London")
 
 ## Downloading Data
 
-Use `portals.download()` with `location_ids`:
+Use `portals.download()` with site codes:
 
 ```python
 import aeolus
 from datetime import datetime
 
-# Get location IDs from find_sites
+# Get site codes from find_sites
 locations = aeolus.portals.find_sites("OPENAQ", country="GB")
-location_ids = locations["location_id"].tolist()[:5]  # First 5
+site_codes = locations["site_code"].tolist()[:5]  # First 5
 
 # Download using portals.download
 data = aeolus.portals.download(
     portal="OPENAQ",
-    location_ids=location_ids,
+    sites=site_codes,
     start_date=datetime(2024, 1, 1),
     end_date=datetime(2024, 1, 31)
 )
@@ -65,7 +66,7 @@ Or use the top-level `download()` with the sources dict:
 
 ```python
 data = aeolus.download(
-    sources={"OPENAQ": location_ids},
+    sources={"OPENAQ": site_codes},
     start_date=datetime(2024, 1, 1),
     end_date=datetime(2024, 1, 31)
 )
@@ -114,20 +115,20 @@ from datetime import datetime
 uk_sites = aeolus.portals.find_sites("OPENAQ", country="GB")
 de_sites = aeolus.portals.find_sites("OPENAQ", country="DE")
 
-# Get a few location IDs from each
-location_ids = (
-    uk_sites["location_id"].tolist()[:2] +
-    de_sites["location_id"].tolist()[:2]
+# Get a few site codes from each
+site_codes = (
+    uk_sites["site_code"].tolist()[:2] +
+    de_sites["site_code"].tolist()[:2]
 )
 
 # Download data
 data = aeolus.portals.download(
     portal="OPENAQ",
-    location_ids=location_ids,
+    sites=site_codes,
     start_date=datetime(2024, 1, 1),
     end_date=datetime(2024, 1, 31)
 )
 
 # Compare by site
-data.groupby('site_name')['value'].describe()
+data.groupby('site_code')['value'].describe()
 ```

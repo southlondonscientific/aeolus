@@ -27,16 +27,16 @@ import aeolus
 uk_sites = aeolus.portals.find_sites("OPENAQ", country="GB")
 
 # Find sites within a bounding box
+# bbox format: (min_lon, min_lat, max_lon, max_lat) - same as GeoJSON/shapely
 london_sites = aeolus.portals.find_sites(
     "OPENAQ",
-    bbox=(51.28, -0.51, 51.69, 0.34)
+    bbox=(-0.51, 51.28, 0.34, 51.69)
 )
 
-# Find PurpleAir sensors in an area
+# Find PurpleAir sensors in an area (using standard bbox format)
 purpleair_sites = aeolus.portals.find_sites(
     "PURPLEAIR",
-    nwlat=51.7, nwlng=-0.5,
-    selat=51.3, selng=0.3
+    bbox=(-0.5, 51.3, 0.3, 51.7)
 )
 ```
 
@@ -46,14 +46,14 @@ purpleair_sites = aeolus.portals.find_sites(
 import aeolus
 from datetime import datetime
 
-# First get location IDs from find_sites
+# First get site codes from find_sites
 locations = aeolus.portals.find_sites("OPENAQ", country="GB")
-location_ids = locations["location_id"].tolist()[:5]
+site_codes = locations["site_code"].tolist()[:5]
 
-# Download using location_ids parameter
+# Download using sites parameter (consistent with networks API)
 data = aeolus.portals.download(
     portal="OPENAQ",
-    location_ids=location_ids,
+    sites=site_codes,
     start_date=datetime(2024, 1, 1),
     end_date=datetime(2024, 1, 31)
 )

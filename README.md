@@ -164,9 +164,10 @@ current = fetch_airnow_current(
 )
 
 # Find monitoring sites in a bounding box
+# bbox format: (min_lon, min_lat, max_lon, max_lat) - same as GeoJSON/shapely
 sites = aeolus.networks.get_metadata(
     "AIRNOW",
-    bounding_box=(-118.5, 33.7, -117.5, 34.3)  # LA area
+    bbox=(-118.5, 33.7, -117.5, 34.3)  # LA area
 )
 
 # Download historical data (up to ~45 days)
@@ -190,11 +191,11 @@ Global air quality portal aggregating measurements from 100+ countries.
 # Search for monitoring locations
 locations = aeolus.portals.find_sites("OPENAQ", country="GB")
 
-# Download data using location IDs
-location_ids = locations["location_id"].head(5).tolist()
+# Download data using site codes
+site_codes = locations["site_code"].head(5).tolist()
 data = aeolus.portals.download(
     "OPENAQ",
-    location_ids=location_ids,
+    sites=site_codes,
     start_date=datetime(2024, 1, 1),
     end_date=datetime(2024, 1, 31)
 )
@@ -208,10 +209,10 @@ Global network of 30,000+ low-cost air quality sensors, popular with researchers
 
 ```python
 # Search for PurpleAir sensors in a bounding box (e.g., London)
+# bbox format: (min_lon, min_lat, max_lon, max_lat) - same as GeoJSON/shapely
 sites = aeolus.portals.find_sites(
     "PURPLEAIR",
-    nwlat=51.7, nwlng=-0.5,
-    selat=51.3, selng=0.3,
+    bbox=(-0.5, 51.3, 0.3, 51.7),
     location_type=0  # 0 = outdoor only
 )
 
@@ -353,11 +354,12 @@ aeolus.portals.list_portals()
 # Search for monitoring locations (filters required)
 aeolus.portals.find_sites("OPENAQ", country="GB")
 aeolus.portals.find_sites("OPENAQ", city="London")
-aeolus.portals.find_sites("PURPLEAIR", nwlat=51.7, nwlng=-0.5, selat=51.3, selng=0.3)
+# bbox format: (min_lon, min_lat, max_lon, max_lat)
+aeolus.portals.find_sites("PURPLEAIR", bbox=(-0.5, 51.3, 0.3, 51.7))
 
 # Download data
-aeolus.portals.download("OPENAQ", location_ids, start_date, end_date)
-aeolus.portals.download("PURPLEAIR", sensor_indices, start_date, end_date)
+aeolus.portals.download("OPENAQ", sites, start_date, end_date)
+aeolus.portals.download("PURPLEAIR", sites, start_date, end_date)
 ```
 
 ## Examples
@@ -500,7 +502,7 @@ The metrics module automatically converts units where needed (e.g., ppb to µg/m
 Aeolus wouldn't be possible without the work of many organisations and individuals. See [REFERENCES.md](REFERENCES.md) for full citations and methodology sources.
 
 **Code Contributors**
-- Ruaraidh Dobson — Project creator, architecture, documentation
+- Dr Ruaraidh Dobson — Project creator, architecture, documentation
 - Claude (Anthropic) — Code implementation, including data source integrations, AQI calculations, QA/QC methodology, and test suites
 
 **Data Providers**

@@ -171,6 +171,7 @@ def _call_airnow_api(
 
 
 def fetch_airnow_metadata(
+    bbox: tuple[float, float, float, float] | None = None,
     bounding_box: tuple[float, float, float, float] | None = None,
     **filters,
 ) -> pd.DataFrame:
@@ -181,8 +182,11 @@ def fetch_airnow_metadata(
     fetches current observations and extracts unique site information.
 
     Args:
-        bounding_box: Geographic bounds as (min_lon, min_lat, max_lon, max_lat)
-                     If not provided, defaults to continental US bounds.
+        bbox: Geographic bounds as (min_lon, min_lat, max_lon, max_lat).
+              Standard format consistent with GeoJSON and shapely conventions.
+              If not provided, defaults to continental US bounds.
+        bounding_box: [Deprecated] Alias for `bbox`. Use `bbox` for consistency
+                      with other sources.
         **filters: Additional filters (not currently used)
 
     Returns:
@@ -197,14 +201,18 @@ def fetch_airnow_metadata(
     Example:
         >>> # Get sites in California
         >>> metadata = fetch_airnow_metadata(
-        ...     bounding_box=(-124.48, 32.53, -114.13, 42.01)
+        ...     bbox=(-124.48, 32.53, -114.13, 42.01)
         ... )
     """
-    # Default to continental US if no bounding box provided
-    if bounding_box is None:
-        bounding_box = (-125.0, 24.0, -66.0, 50.0)
+    # Handle bbox/bounding_box - prefer bbox, fall back to bounding_box for backwards compat
+    if bbox is None and bounding_box is not None:
+        bbox = bounding_box
 
-    min_lon, min_lat, max_lon, max_lat = bounding_box
+    # Default to continental US if no bounding box provided
+    if bbox is None:
+        bbox = (-125.0, 24.0, -66.0, 50.0)
+
+    min_lon, min_lat, max_lon, max_lat = bbox
 
     # Fetch current observations to get site list
     params = {

@@ -192,8 +192,8 @@ class TestFetchOpenaqMetadata:
 
         mock_client.locations.list.assert_called_once_with(iso="GB", limit=100)
         assert len(result) == 1
-        assert result["location_id"].iloc[0] == "2708"
-        assert result["location_name"].iloc[0] == "London Marylebone Road"
+        assert result["site_code"].iloc[0] == "2708"
+        assert result["site_name"].iloc[0] == "London Marylebone Road"
         assert result["country"].iloc[0] == "GB"
 
     @patch("aeolus.sources.openaq._get_client")
@@ -272,7 +272,7 @@ class TestFetchOpenaqMetadata:
 
         assert isinstance(result, pd.DataFrame)
         assert result.empty
-        assert "location_id" in result.columns
+        assert "site_code" in result.columns
         assert "source_network" in result.columns
 
     @patch("aeolus.sources.openaq._get_client")
@@ -831,8 +831,8 @@ class TestOpenAQIntegration:
 
         assert not result.empty
         assert len(result) == 1
-        assert result["location_id"].iloc[0] == "2708"
-        assert result["location_name"].iloc[0] == "London Marylebone Road"
+        assert result["site_code"].iloc[0] == "2708"
+        assert result["site_name"].iloc[0] == "London Marylebone Road"
         assert result["latitude"].iloc[0] == 51.5225
         assert result["longitude"].iloc[0] == -0.1546
         assert result["country"].iloc[0] == "GB"
@@ -907,8 +907,8 @@ class TestLiveIntegration:
         df = fetch_openaq_metadata(country="GB", limit=20)
 
         assert not df.empty
-        assert "location_id" in df.columns
-        assert "location_name" in df.columns
+        assert "site_code" in df.columns
+        assert "site_name" in df.columns
         assert "latitude" in df.columns
         assert "longitude" in df.columns
         assert all(df["source_network"] == "OpenAQ")
@@ -937,7 +937,7 @@ class TestLiveIntegration:
         )
 
         if not df.empty:
-            assert "location_id" in df.columns
+            assert "site_code" in df.columns
             # Should find some locations near central London
 
     def test_live_fetch_data(self):
@@ -948,7 +948,7 @@ class TestLiveIntegration:
         if metadata.empty:
             pytest.skip("No locations found")
 
-        location_id = metadata["location_id"].iloc[0]
+        site_code = metadata["site_code"].iloc[0]
 
         # Fetch recent data (last 7 days)
         from datetime import timedelta
@@ -957,7 +957,7 @@ class TestLiveIntegration:
         start_date = end_date - timedelta(days=7)
 
         df = fetch_openaq_data(
-            sites=[location_id],
+            sites=[site_code],
             start_date=start_date,
             end_date=end_date,
         )
@@ -981,7 +981,7 @@ class TestLiveIntegration:
         df = aeolus.portals.find_sites("OPENAQ", country="GB", limit=10)
 
         assert not df.empty
-        assert "location_id" in df.columns
+        assert "site_code" in df.columns
 
     def test_live_full_workflow(self):
         """Test complete workflow: find sites, then download data."""
@@ -993,7 +993,7 @@ class TestLiveIntegration:
         if sites.empty:
             pytest.skip("No sites found")
 
-        site_ids = sites["location_id"].tolist()
+        site_ids = sites["site_code"].tolist()
 
         # Download recent data
         from datetime import timedelta

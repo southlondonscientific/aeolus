@@ -111,8 +111,8 @@ def fetch_openaq_metadata(**filters) -> pd.DataFrame:
 
     Returns:
         pd.DataFrame: Location metadata with columns:
-            - location_id: OpenAQ location ID (use for download)
-            - location_name: Human-readable name
+            - site_code: OpenAQ location ID (use for download)
+            - site_name: Human-readable name
             - latitude: Location latitude
             - longitude: Location longitude
             - country: Country code
@@ -158,8 +158,8 @@ def fetch_openaq_metadata(**filters) -> pd.DataFrame:
     if not response.results:
         return pd.DataFrame(
             columns=[
-                "location_id",
-                "location_name",
+                "site_code",
+                "site_name",
                 "latitude",
                 "longitude",
                 "country",
@@ -177,8 +177,8 @@ def fetch_openaq_metadata(**filters) -> pd.DataFrame:
 
         records.append(
             {
-                "location_id": str(loc.id),
-                "location_name": loc.name,
+                "site_code": str(loc.id),
+                "site_name": loc.name,
                 "latitude": loc.coordinates.latitude if loc.coordinates else None,
                 "longitude": loc.coordinates.longitude if loc.coordinates else None,
                 "country": loc.country.code if loc.country else None,

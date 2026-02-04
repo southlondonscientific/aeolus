@@ -34,10 +34,10 @@ export PURPLEAIR_API_KEY=your_key_here
 import aeolus
 
 # Get outdoor sensors in a bounding box (London example)
+# bbox format: (min_lon, min_lat, max_lon, max_lat) - same as GeoJSON/shapely
 sites = aeolus.portals.find_sites(
     "PURPLEAIR",
-    nwlat=51.7, nwlng=-0.5,
-    selat=51.3, selng=0.3,
+    bbox=(-0.5, 51.3, 0.3, 51.7),
     location_type=0  # 0 = outdoor, 1 = indoor
 )
 
@@ -114,8 +114,7 @@ from datetime import datetime
 # Find sensors in London
 sites = aeolus.portals.find_sites(
     "PURPLEAIR",
-    nwlat=51.7, nwlng=-0.5,
-    selat=51.3, selng=0.3,
+    bbox=(-0.5, 51.3, 0.3, 51.7),
     location_type=0
 )
 

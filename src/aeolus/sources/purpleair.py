@@ -135,13 +135,14 @@ def fetch_purpleair_metadata(**filters) -> pd.DataFrame:
 
     Args:
         **filters: Optional filters for metadata query:
-            - nwlat: North-west latitude (for bounding box)
-            - nwlng: North-west longitude (for bounding box)
-            - selat: South-east latitude (for bounding box)
-            - selng: South-east longitude (for bounding box)
+            - bbox: Bounding box as (min_lon, min_lat, max_lon, max_lat)
+                   This is the standard format used across all Aeolus sources.
             - location_type: 0 for outdoor, 1 for indoor
             - max_age: Maximum age of sensor data in seconds (default 604800 = 1 week)
             - show_only: Comma-separated list of sensor indices to include
+
+            Legacy parameters (still supported):
+            - nwlat, nwlng, selat, selng: Individual bounding box corners
 
     Returns:
         pd.DataFrame: Sensor metadata with standardized schema:
@@ -161,10 +162,9 @@ def fetch_purpleair_metadata(**filters) -> pd.DataFrame:
         - Without filters, returns sensors active in the last week
 
     Example:
-        >>> # Get all outdoor sensors in London area
+        >>> # Get all outdoor sensors in London area (standard bbox format)
         >>> metadata = fetch_purpleair_metadata(
-        ...     nwlat=51.7, nwlng=-0.5,
-        ...     selat=51.3, selng=0.3,
+        ...     bbox=(-0.5, 51.3, 0.3, 51.7),
         ...     location_type=0  # outdoor only
         ... )
         >>>
@@ -182,7 +182,16 @@ def fetch_purpleair_metadata(**filters) -> pd.DataFrame:
         "fields": METADATA_FIELDS,
     }
 
-    # Map filter names to API parameters
+    # Handle standard bbox format: (min_lon, min_lat, max_lon, max_lat)
+    # Convert to PurpleAir's nw/se format
+    if "bbox" in filters and filters["bbox"] is not None:
+        min_lon, min_lat, max_lon, max_lat = filters["bbox"]
+        params["nwlat"] = max_lat  # North = max latitude
+        params["nwlng"] = min_lon  # West = min longitude
+        params["selat"] = min_lat  # South = min latitude
+        params["selng"] = max_lon  # East = max longitude
+
+    # Map other filter names to API parameters (including legacy bbox params)
     filter_map = {
         "nwlat": "nwlat",
         "nwlng": "nwlng",

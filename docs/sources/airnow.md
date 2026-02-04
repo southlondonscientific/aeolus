@@ -29,7 +29,7 @@ from datetime import datetime
 # Get monitoring sites in California
 metadata = aeolus.networks.get_metadata(
     "AIRNOW",
-    bounding_box=(-124.48, 32.53, -114.13, 42.01)  # CA bounds
+    bbox=(-124.48, 32.53, -114.13, 42.01)  # CA bounds
 )
 
 # Pick some sites
@@ -52,10 +52,10 @@ AirNow sites are identified by their coordinates, encoded as site codes:
 import aeolus
 
 # Get sites in a geographic region
-# bounding_box format: (min_lon, min_lat, max_lon, max_lat)
+# bbox format: (min_lon, min_lat, max_lon, max_lat) - same as GeoJSON/shapely
 metadata = aeolus.networks.get_metadata(
     "AIRNOW",
-    bounding_box=(-125.0, 24.0, -66.0, 50.0)  # Continental US
+    bbox=(-125.0, 24.0, -66.0, 50.0)  # Continental US
 )
 
 print(metadata[["site_code", "site_name", "state_code"]])
@@ -155,7 +155,7 @@ all_sites = []
 for city, (lon, lat) in cities.items():
     metadata = aeolus.networks.get_metadata(
         "AIRNOW",
-        bounding_box=(lon - 0.5, lat - 0.5, lon + 0.5, lat + 0.5)
+        bbox=(lon - 0.5, lat - 0.5, lon + 0.5, lat + 0.5)
     )
     if not metadata.empty:
         all_sites.extend(metadata["site_code"].head(2).tolist())

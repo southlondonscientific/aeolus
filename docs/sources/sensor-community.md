@@ -66,9 +66,10 @@ london_sensors = aeolus.networks.get_metadata(
 )
 
 # Get sensors in a bounding box
+# bbox format: (min_lon, min_lat, max_lon, max_lat) - same as GeoJSON/shapely
 sensors = aeolus.networks.get_metadata(
     "SENSOR_COMMUNITY",
-    box=(51.3, -0.5, 51.7, 0.3),  # lat1, lon1, lat2, lon2
+    bbox=(-0.5, 51.3, 0.3, 51.7),
     sensor_type="SDS011"
 )
 ```

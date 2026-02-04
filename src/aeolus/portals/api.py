@@ -39,18 +39,19 @@ def find_sites(portal: str, **filters) -> pd.DataFrame:
     potentially millions of locations. They require filters to narrow searches.
 
     Args:
-        portal: Portal name ("OpenAQ", etc.)
+        portal: Portal name ("OPENAQ", "PURPLEAIR", etc.)
         **filters: Portal-specific search filters (REQUIRED)
-            OpenAQ examples:
+            Common filters:
                 - country="GB" - Filter by country code
-                - bbox=(min_lat, min_lon, max_lat, max_lon) - Bounding box
-                - city="London" - City name
-                - etc.
+                - bbox=(min_lon, min_lat, max_lon, max_lat) - Bounding box
+                  (GeoJSON/shapely format)
+                - city="London" - City name (OpenAQ)
+                - sensor_type="SDS011" - Sensor type (Sensor.Community)
 
     Returns:
         DataFrame with location metadata including:
-            - location_id: Unique location identifier (use for download)
-            - location_name: Human-readable name
+            - site_code: Unique location identifier (use for download)
+            - site_name: Human-readable name
             - latitude: Location latitude
             - longitude: Location longitude
             - source_network: Original data source
@@ -60,16 +61,16 @@ def find_sites(portal: str, **filters) -> pd.DataFrame:
 
     Examples:
         >>> # Find OpenAQ locations in UK
-        >>> locations = aeolus.portals.find_sites("OpenAQ", country="GB")
+        >>> locations = aeolus.portals.find_sites("OPENAQ", country="GB")
         >>>
-        >>> # Find locations in bounding box
+        >>> # Find locations in bounding box (min_lon, min_lat, max_lon, max_lat)
         >>> locations = aeolus.portals.find_sites(
-        ...     "OpenAQ",
-        ...     bbox=(51.28, -0.51, 51.69, 0.34)
+        ...     "OPENAQ",
+        ...     bbox=(-0.51, 51.28, 0.34, 51.69)
         ... )
         >>>
-        >>> # Extract location IDs for download
-        >>> location_ids = locations["location_id"].tolist()
+        >>> # Extract site codes for download
+        >>> site_codes = locations["site_code"].tolist()
     """
     source_spec = get_source(portal)
 
@@ -104,7 +105,7 @@ def find_sites(portal: str, **filters) -> pd.DataFrame:
 
 def download(
     portal: str,
-    location_ids: list[str],
+    sites: list[str],
     start_date: datetime,
     end_date: datetime,
 ) -> pd.DataFrame:
@@ -112,8 +113,8 @@ def download(
     Download air quality data from a portal.
 
     Args:
-        portal: Portal name ("OpenAQ", etc.)
-        location_ids: List of location IDs (obtained from find_sites())
+        portal: Portal name ("OPENAQ", "PURPLEAIR", etc.)
+        sites: List of site codes (obtained from find_sites())
         start_date: Start of date range (inclusive)
         end_date: End of date range (inclusive)
 
@@ -135,13 +136,13 @@ def download(
         >>> from datetime import datetime
         >>>
         >>> # Step 1: Find locations
-        >>> locations = aeolus.portals.find_sites("OpenAQ", country="GB")
-        >>> location_ids = locations["location_id"].head(5).tolist()
+        >>> locations = aeolus.portals.find_sites("OPENAQ", country="GB")
+        >>> site_codes = locations["site_code"].head(5).tolist()
         >>>
         >>> # Step 2: Download data
         >>> data = aeolus.portals.download(
-        ...     "OpenAQ",
-        ...     location_ids,
+        ...     "OPENAQ",
+        ...     site_codes,
         ...     datetime(2024, 1, 1),
         ...     datetime(2024, 1, 31)
         ... )
@@ -164,7 +165,7 @@ def download(
     if not fetcher:
         raise ValueError(f"Portal {portal} does not support data downloading")
 
-    return fetcher(location_ids, start_date, end_date)
+    return fetcher(sites, start_date, end_date)
 
 
 def list_portals() -> list[str]:
