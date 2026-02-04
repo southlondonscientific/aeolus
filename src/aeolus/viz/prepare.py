@@ -25,7 +25,7 @@ formats suitable for plotting, including:
 """
 
 import warnings
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal
 
 import numpy as np

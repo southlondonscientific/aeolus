@@ -225,13 +225,13 @@ CHINA_AQI_COLOURS = {
     "Severely Polluted": AEOLUS_6_BAND["hazardous"],
 }
 
-# EU CAQI (5 bands)
+# EU CAQI (6 bands) - matches eu_caqi.py CATEGORIES
 EU_CAQI_COLOURS = {
-    "Very Low": AEOLUS_6_BAND["good"],
-    "Low": AEOLUS_LIME,
-    "Medium": AEOLUS_6_BAND["moderate"],
-    "High": AEOLUS_6_BAND["unhealthy"],
-    "Very High": AEOLUS_6_BAND["very_unhealthy"],
+    "Good": AEOLUS_6_BAND["good"],
+    "Fair": AEOLUS_LIME,
+    "Moderate": AEOLUS_6_BAND["moderate"],
+    "Poor": AEOLUS_6_BAND["unhealthy"],
+    "Very Poor": AEOLUS_6_BAND["very_unhealthy"],
     "Extremely Poor": AEOLUS_6_BAND["hazardous"],
 }
 
