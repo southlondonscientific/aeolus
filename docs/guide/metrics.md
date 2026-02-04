@@ -9,8 +9,9 @@ Aeolus includes built-in functions for calculating Air Quality Indices (AQI) fro
 | UK_DAQI | UK | 1-10 | O3, NO2, SO2, PM2.5, PM10 |
 | US_EPA | USA | 0-500 | O3, PM2.5, PM10, CO, SO2, NO2 |
 | CHINA | China | 0-500 | PM2.5, PM10, SO2, NO2, O3, CO |
-| EU_CAQI | EU | 1-6 | NO2, PM2.5, PM10, O3, CO |
-| INDIA_NAQI | India | 0-500 | PM2.5, PM10, SO2, NO2, O3, CO, NH3 |
+| EU_CAQI_ROADSIDE | EU | 1-6 | NO2, PM2.5, PM10 |
+| EU_CAQI_BACKGROUND | EU | 1-6 | NO2, O3, PM2.5, PM10, SO2 |
+| INDIA_NAQI | India | 0-500 | PM2.5, PM10, SO2, NO2, O3, CO, NH3, Pb |
 | WHO | Global | - | Guidelines compliance checker |
 
 ## AQI Summary

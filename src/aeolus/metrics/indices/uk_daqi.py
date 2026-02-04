@@ -69,7 +69,6 @@ register_index("UK_DAQI", INDEX_INFO)
 # Colors from UK-AIR official styling
 COLORS = {
     1: "#9CFF9C",  # Light green
-    1: "#9CFF9C",  # Light green
     2: "#31FF00",  # Green
     3: "#31CF00",  # Dark green
     4: "#FFFF00",  # Yellow
