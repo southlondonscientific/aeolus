@@ -762,7 +762,7 @@ class TestBreatheLondonNormalizer:
 
         assert "ratification" in result.columns
         assert result["ratification"].iloc[0] == "Ratified"
-        assert result["ratification"].iloc[1] == "Unvalidated"
+        assert result["ratification"].iloc[1] == "Indicative"
 
     def test_adds_default_ratification_when_missing(self):
         """Test that default ratification is added when column missing."""
@@ -780,7 +780,7 @@ class TestBreatheLondonNormalizer:
 
         result = normalizer(df)
 
-        assert (result["ratification"] == "Unvalidated").all()
+        assert (result["ratification"] == "Indicative").all()
 
     def test_adds_source_network(self):
         """Test that source_network column is added."""

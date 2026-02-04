@@ -179,10 +179,6 @@ def _create_metadata_normalizer():
             }
         ),
         add_column("source_network", "Breathe London"),
-        # Keep all original columns but ensure standard ones exist
-        lambda df: df
-        if all(col in df.columns for col in ["site_code", "site_name"])
-        else df,
     )
 
 
@@ -334,12 +330,12 @@ def create_breathe_london_normalizer():
 
     def add_quality_flag(df: pd.DataFrame) -> pd.DataFrame:
         """Add data quality information."""
-        # Use RatificationStatus from API if available, otherwise mark as Unvalidated
+        # Use RatificationStatus from API if available, otherwise mark as Indicative
         if "RatificationStatus" in df.columns:
-            df["ratification"] = df["RatificationStatus"].fillna("Unvalidated")
+            df["ratification"] = df["RatificationStatus"].fillna("Indicative")
             df = df.drop(columns=["RatificationStatus"])
         else:
-            df["ratification"] = "Unvalidated"
+            df["ratification"] = "Indicative"
         return df
 
     def standardize_units(df: pd.DataFrame) -> pd.DataFrame:
