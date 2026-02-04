@@ -1491,9 +1491,11 @@ class TestLiveIntegration:
             location_type=0,  # outdoor only
         )
 
-        # Verify outdoor sensors (location_type=0)
+        # Verify outdoor sensors (location_type=0 or "outdoor")
         if not df.empty and "location_type" in df.columns:
-            assert (df["location_type"] == 0).all()
+            # API may return 0 or "outdoor" depending on normalization
+            outdoor_values = df["location_type"].astype(str).str.lower()
+            assert all((outdoor_values == "0") | (outdoor_values == "outdoor"))
 
     def test_live_fetch_historical_data(self):
         """Test fetching historical data."""
