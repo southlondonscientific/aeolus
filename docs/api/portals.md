@@ -1,6 +1,6 @@
 # aeolus.portals
 
-Functions for working with global data portals (OpenAQ, etc.).
+Functions for working with global data portals (OpenAQ, PurpleAir).
 
 ## Functions
 
@@ -23,17 +23,21 @@ Functions for working with global data portals (OpenAQ, etc.).
 ```python
 import aeolus
 
-# Find sites in a country
-uk_sites = aeolus.portals.find_sites("OpenAQ", country="GB")
+# Find OpenAQ sites in a country
+uk_sites = aeolus.portals.find_sites("OPENAQ", country="GB")
 
-# Find sites within a bounding box (min_lat, min_lon, max_lat, max_lon)
+# Find sites within a bounding box
 london_sites = aeolus.portals.find_sites(
-    "OpenAQ",
+    "OPENAQ",
     bbox=(51.28, -0.51, 51.69, 0.34)
 )
 
-# Find sites by city
-city_sites = aeolus.portals.find_sites("OpenAQ", city="London")
+# Find PurpleAir sensors in an area
+purpleair_sites = aeolus.portals.find_sites(
+    "PURPLEAIR",
+    nwlat=51.7, nwlng=-0.5,
+    selat=51.3, selng=0.3
+)
 ```
 
 ### Download Portal Data
@@ -43,12 +47,12 @@ import aeolus
 from datetime import datetime
 
 # First get location IDs from find_sites
-locations = aeolus.portals.find_sites("OpenAQ", country="GB")
+locations = aeolus.portals.find_sites("OPENAQ", country="GB")
 location_ids = locations["location_id"].tolist()[:5]
 
 # Download using location_ids parameter
 data = aeolus.portals.download(
-    portal="OpenAQ",
+    portal="OPENAQ",
     location_ids=location_ids,
     start_date=datetime(2024, 1, 1),
     end_date=datetime(2024, 1, 31)
@@ -60,11 +64,12 @@ data = aeolus.portals.download(
 ```python
 portals = aeolus.portals.list_portals()
 print(portals)
-# ['OpenAQ']
+# ['OPENAQ', 'PURPLEAIR']
 ```
 
 ## Supported Portals
 
 | Portal | Description | API Key |
 |--------|-------------|---------|
-| OpenAQ | Global air quality data platform | Yes |
+| OPENAQ | Global air quality data platform | Yes (`OPENAQ_API_KEY`) |
+| PURPLEAIR | Global low-cost sensor network (30,000+) | Yes (`PURPLEAIR_API_KEY`) |

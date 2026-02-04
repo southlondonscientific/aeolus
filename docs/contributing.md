@@ -37,7 +37,6 @@ aeolus/
 ├── src/aeolus/
 │   ├── __init__.py          # Public API
 │   ├── api.py               # Main download() function
-│   ├── downloader.py        # Multi-source orchestration
 │   ├── registry.py          # Source registration
 │   ├── transforms.py        # Data normalisation
 │   ├── sources/             # Data source implementations

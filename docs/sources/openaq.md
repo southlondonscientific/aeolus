@@ -28,16 +28,16 @@ OpenAQ aggregates data from many sources, so site discovery is important:
 import aeolus
 
 # Search for sites in a country
-uk_sites = aeolus.portals.find_sites("OpenAQ", country="GB")
+uk_sites = aeolus.portals.find_sites("OPENAQ", country="GB")
 
 # Search within a bounding box (min_lat, min_lon, max_lat, max_lon)
 london_sites = aeolus.portals.find_sites(
-    "OpenAQ",
+    "OPENAQ",
     bbox=(51.28, -0.51, 51.69, 0.34)
 )
 
 # Search by city
-city_sites = aeolus.portals.find_sites("OpenAQ", city="London")
+city_sites = aeolus.portals.find_sites("OPENAQ", city="London")
 ```
 
 ## Downloading Data
@@ -49,12 +49,12 @@ import aeolus
 from datetime import datetime
 
 # Get location IDs from find_sites
-locations = aeolus.portals.find_sites("OpenAQ", country="GB")
+locations = aeolus.portals.find_sites("OPENAQ", country="GB")
 location_ids = locations["location_id"].tolist()[:5]  # First 5
 
 # Download using portals.download
 data = aeolus.portals.download(
-    portal="OpenAQ",
+    portal="OPENAQ",
     location_ids=location_ids,
     start_date=datetime(2024, 1, 1),
     end_date=datetime(2024, 1, 31)
@@ -65,7 +65,7 @@ Or use the top-level `download()` with the sources dict:
 
 ```python
 data = aeolus.download(
-    sources={"OpenAQ": location_ids},
+    sources={"OPENAQ": location_ids},
     start_date=datetime(2024, 1, 1),
     end_date=datetime(2024, 1, 31)
 )
@@ -111,8 +111,8 @@ import aeolus
 from datetime import datetime
 
 # Find sites in different countries
-uk_sites = aeolus.portals.find_sites("OpenAQ", country="GB")
-de_sites = aeolus.portals.find_sites("OpenAQ", country="DE")
+uk_sites = aeolus.portals.find_sites("OPENAQ", country="GB")
+de_sites = aeolus.portals.find_sites("OPENAQ", country="DE")
 
 # Get a few location IDs from each
 location_ids = (
@@ -122,7 +122,7 @@ location_ids = (
 
 # Download data
 data = aeolus.portals.download(
-    portal="OpenAQ",
+    portal="OPENAQ",
     location_ids=location_ids,
     start_date=datetime(2024, 1, 1),
     end_date=datetime(2024, 1, 31)

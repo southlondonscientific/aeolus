@@ -53,16 +53,29 @@ data = aeolus.networks.download(
 ```python
 networks = aeolus.networks.list_networks()
 print(networks)
-# ['AURN', 'SAQN', 'WAQN', 'NI', 'BREATHE_LONDON', 'AIRQO']
+# ['AURN', 'SAQN', 'WAQN', 'NI', 'AQE', 'LOCAL', 'LMAM', 
+#  'BREATHE_LONDON', 'AIRQO', 'AIRNOW', 'SENSOR_COMMUNITY']
 ```
 
 ## Supported Networks
 
+### UK Regulatory Networks (no API key required)
+
+| Network | Description |
+|---------|-------------|
+| AURN | UK Automatic Urban and Rural Network |
+| SAQN | Scottish Air Quality Network |
+| WAQN | Welsh Air Quality Network |
+| NI | Northern Ireland Network |
+| AQE | Air Quality England |
+| LOCAL | Local authority networks |
+| LMAM | London air quality mesh |
+
+### Other Networks
+
 | Network | Description | API Key |
 |---------|-------------|---------|
-| AURN | UK Automatic Urban and Rural Network | No |
-| SAQN | Scottish Air Quality Network | No |
-| WAQN | Welsh Air Quality Network | No |
-| NI | Northern Ireland Network | No |
-| BREATHE_LONDON | London low-cost sensors | Yes |
-| AIRQO | African cities network | Yes |
+| BREATHE_LONDON | London low-cost sensors | Yes (`BL_API_KEY`) |
+| AIRQO | African cities network | Yes (`AIRQO_API_KEY`) |
+| AIRNOW | US EPA real-time data | Yes (`AIRNOW_API_KEY`) |
+| SENSOR_COMMUNITY | Global citizen science | No |

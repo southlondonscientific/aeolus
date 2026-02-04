@@ -52,6 +52,8 @@ data = aeolus.download(
 
 Additional monitoring sites operated by the Scottish Environment Protection Agency (SEPA).
 
+> **Note**: `SAQD` is also accepted as an alias for `SAQN` for backwards compatibility.
+
 ```python
 import aeolus
 from datetime import datetime
