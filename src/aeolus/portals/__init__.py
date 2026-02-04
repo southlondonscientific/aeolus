@@ -19,8 +19,7 @@ Portal Data Sources.
 
 Portals are global data platforms aggregating air quality data from multiple sources:
 - OpenAQ (Global air quality data from 100+ countries)
-- PurpleAir (Crowdsourced sensor network) [Coming soon]
-- AirGradient (DIY sensor platform) [Coming soon]
+- PurpleAir (Global low-cost sensor network with 30,000+ sensors)
 
 Portals have potentially millions of locations globally, requiring search/discovery
 patterns rather than complete listing.

@@ -77,7 +77,7 @@ def find_sites(portal: str, **filters) -> pd.DataFrame:
         raise ValueError(f"Unknown portal: {portal}")
 
     # Verify it's a portal
-    source_type = source_spec.get("type", "network")
+    source_type = source_spec.get("type", "portal")
     if source_type != "portal":
         raise ValueError(
             f"{portal} is a {source_type}, not a portal.\n"
@@ -152,7 +152,7 @@ def download(
         raise ValueError(f"Unknown portal: {portal}")
 
     # Verify it's a portal
-    source_type = source_spec.get("type", "network")
+    source_type = source_spec.get("type", "portal")
     if source_type != "portal":
         raise ValueError(
             f"{portal} is a {source_type}, not a portal.\n"

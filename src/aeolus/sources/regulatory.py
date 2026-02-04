@@ -371,7 +371,6 @@ register_source(
 )
 
 # Register WAQN (Wales Air Quality Network)
-# Register WAQN (Wales)
 register_source(
     "WAQN",
     {
@@ -397,7 +396,6 @@ register_source(
     },
 )
 
-# Register Local (Local Monitoring and Management)
 # Register LOCAL (Local authority networks)
 register_source(
     "LOCAL",
@@ -411,8 +409,7 @@ register_source(
     },
 )
 
-# Register LMAM (alias for Local)
-# Register LMAM (London Air Quality Network)
+# Register LMAM (London Mobile Air Monitoring)
 register_source(
     "LMAM",
     {
