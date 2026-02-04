@@ -1,8 +1,26 @@
+"""
+Meteorological data retrieval from Open-Meteo API.
+
+.. deprecated:: 0.3.0
+    This module is deprecated and will be removed in v0.4.0.
+    Consider using the Open-Meteo Python SDK directly for meteorological data:
+    https://pypi.org/project/openmeteo-requests/
+"""
+
+import warnings
 from collections.abc import Iterable
 from datetime import datetime, timedelta
 
 import pandas as pd
 import requests
+
+# Deprecation warning shown on module import
+warnings.warn(
+    "aeolus.meteorology is deprecated and will be removed in v0.4.0. "
+    "Consider using the Open-Meteo Python SDK directly for meteorological data.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 def get_meteo_data_for_dataframe(df: pd.DataFrame) -> pd.DataFrame:

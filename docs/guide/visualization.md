@@ -148,8 +148,8 @@ from aeolus.viz import (
 # Get colour for a category
 colour = get_colour_for_category("Low", index="UK_DAQI")
 
-# Get colour for a numeric value
-colour = get_colour_for_value(45, pollutant="NO2", index="UK_DAQI")
+# Get colour for an AQI value (1-10 for UK_DAQI)
+colour = get_colour_for_value(3, index="UK_DAQI")
 ```
 
 ## Saving Plots

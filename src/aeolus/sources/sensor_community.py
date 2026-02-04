@@ -874,6 +874,7 @@ register_source(
         "name": "Sensor.Community",
         "fetch_metadata": fetch_sensor_community_metadata,
         "fetch_data": fetch_sensor_community_data,
+        "normalise": lambda df: df,  # Normalisation happens in fetch_sensor_community_data
         "requires_api_key": False,
     },
 )

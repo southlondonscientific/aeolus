@@ -28,7 +28,7 @@ from datetime import datetime
 
 # Get all AURN sites
 sites = aeolus.networks.get_metadata("AURN")
-print(sites[['site_code', 'site_name', 'site_type', 'latitude', 'longitude']])
+print(sites[['site_code', 'site_name', 'location_type', 'latitude', 'longitude']])
 
 # Download data
 data = aeolus.download(
@@ -39,7 +39,7 @@ data = aeolus.download(
 )
 ```
 
-### Site Types
+### Location Types
 
 | Type | Description |
 |------|-------------|

@@ -16,6 +16,10 @@
 
 """
 Store air quality data and site data in a structured manner.
+
+.. deprecated:: 0.3.0
+    This module is deprecated and will be removed in v0.4.0.
+    Consider using pandas to_sql() or similar for database storage needs.
 """
 
 import os
@@ -23,6 +27,14 @@ import site
 import warnings
 from datetime import datetime
 from logging import warning
+
+# Deprecation warning shown on module import
+warnings.warn(
+    "aeolus.database_operations is deprecated and will be removed in v0.4.0. "
+    "Consider using pandas to_sql() or similar for database storage needs.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 import pandas as pd
 from sqlalchemy import text

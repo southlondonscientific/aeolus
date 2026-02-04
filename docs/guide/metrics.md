@@ -110,7 +110,7 @@ print(indices)
 # Get details about an index
 info = metrics.get_index_info("UK_DAQI")
 print(f"Name: {info['name']}")
-print(f"Scale: {info['scale']}")
+print(f"Scale: {info['scale_min']}-{info['scale_max']}")
 print(f"Pollutants: {info['pollutants']}")
 ```
 

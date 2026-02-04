@@ -538,6 +538,7 @@ register_source(
         "name": "AirNow",
         "fetch_metadata": fetch_airnow_metadata,
         "fetch_data": fetch_airnow_data,
+        "normalise": lambda df: df,  # Normalisation happens in fetch_airnow_data
         "requires_api_key": True,
     },
 )
