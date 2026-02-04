@@ -922,3 +922,203 @@ class TestAeolusDownloadIntegration:
         )
 
         assert not df.empty
+
+
+# ============================================================================
+# Live Integration Tests (require network access)
+# ============================================================================
+
+
+@pytest.mark.integration
+class TestLiveIntegration:
+    """
+    Integration tests that hit the live Sensor.Community API.
+
+    These tests are skipped by default. Run with:
+        pytest -m integration tests/test_sensor_community.py
+
+    Note: These tests depend on external API availability and may be slow.
+    """
+
+    def test_live_fetch_metadata_gb(self):
+        """Test fetching real metadata for UK sensors."""
+        df = fetch_sensor_community_metadata(
+            sensor_type="SDS011",
+            country="GB",
+        )
+
+        # UK should have SDS011 sensors
+        assert not df.empty
+        assert "site_code" in df.columns
+        assert "latitude" in df.columns
+        assert "longitude" in df.columns
+        assert "sensor_type" in df.columns
+        assert all(df["source_network"] == "Sensor.Community")
+
+        # Filter to valid coordinates (some sensors have lat=0 or missing data)
+        valid_coords = df[(df["latitude"] > 1) & (df["longitude"] != 0)]
+
+        # Most sensors should be in UK range (allow for some misconfigured sensors)
+        uk_sensors = valid_coords[
+            (valid_coords["latitude"] > 49.0)
+            & (valid_coords["latitude"] < 61.0)
+            & (valid_coords["longitude"] > -11.0)
+            & (valid_coords["longitude"] < 3.0)
+        ]
+        # At least 80% should be in UK
+        assert len(uk_sensors) >= len(valid_coords) * 0.8
+
+    def test_live_fetch_metadata_bme280(self):
+        """Test fetching BME280 environmental sensors."""
+        df = fetch_sensor_community_metadata(
+            sensor_type="BME280",
+            country="DE",  # Germany has many sensors
+        )
+
+        assert not df.empty
+        assert all(df["sensor_type"] == "BME280")
+
+    def test_live_fetch_metadata_area_filter(self):
+        """Test fetching metadata with area filter (London area)."""
+        df = fetch_sensor_community_metadata(
+            sensor_type="SDS011",
+            area=(51.5074, -0.1278, 20),  # London, 20km radius
+        )
+
+        # Should find sensors near London
+        if not df.empty:
+            # Verify sensors are roughly in the area
+            assert df["latitude"].min() > 51.0
+            assert df["latitude"].max() < 52.0
+
+    def test_live_fetch_realtime(self):
+        """Test fetching real-time data."""
+        df = fetch_sensor_community_realtime(
+            sensor_type="SDS011",
+            country="DE",  # Germany has reliable coverage
+        )
+
+        assert not df.empty
+        assert "site_code" in df.columns
+        assert "date_time" in df.columns
+        assert "measurand" in df.columns
+        assert "value" in df.columns
+        assert "units" in df.columns
+
+        # Should have PM data
+        measurands = df["measurand"].unique()
+        assert "PM2.5" in measurands or "PM10" in measurands
+
+        # Values should be non-negative
+        pm_data = df[df["measurand"].isin(["PM2.5", "PM10"])]
+        assert pm_data["value"].min() >= 0
+
+        # Most values should be reasonable (some sensors malfunction or extreme events)
+        # 95th percentile should be under 500 ug/m3
+        assert pm_data["value"].quantile(0.95) < 500
+
+    def test_live_fetch_realtime_hourly_average(self):
+        """Test fetching hourly averaged real-time data."""
+        df = fetch_sensor_community_realtime(
+            sensor_type="SDS011",
+            country="DE",
+            averaging="1h",
+        )
+
+        # Hourly data may have fewer records
+        if not df.empty:
+            assert "date_time" in df.columns
+            assert "measurand" in df.columns
+
+    def test_live_fetch_historical_data(self):
+        """Test fetching historical archive data."""
+        # First get some real sensor IDs from metadata
+        metadata = fetch_sensor_community_metadata(
+            sensor_type="SDS011",
+            country="DE",
+        )
+
+        if metadata.empty:
+            pytest.skip("No sensors found in metadata")
+
+        # Get a few sensor IDs
+        sensor_ids = metadata["site_code"].head(3).tolist()
+
+        # Fetch data from 7 days ago (archive has ~2 day delay)
+        from datetime import timedelta
+
+        end_date = datetime.now() - timedelta(days=7)
+        start_date = end_date - timedelta(days=1)
+
+        df = fetch_sensor_community_data(
+            sites=sensor_ids,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        # May be empty if sensors didn't report that day, but structure should be correct
+        if not df.empty:
+            assert "site_code" in df.columns
+            assert "date_time" in df.columns
+            assert "measurand" in df.columns
+            assert "value" in df.columns
+            assert all(df["source_network"] == "Sensor.Community")
+            assert all(df["ratification"] == "Unvalidated")
+
+    def test_live_aeolus_download_integration(self):
+        """Test the full aeolus.download() flow with live data."""
+        import aeolus
+
+        # Get sensor IDs first
+        metadata = fetch_sensor_community_metadata(
+            sensor_type="SDS011",
+            country="GB",
+        )
+
+        if metadata.empty:
+            pytest.skip("No UK sensors found")
+
+        sensor_ids = metadata["site_code"].head(2).tolist()
+
+        # Fetch historical data
+        from datetime import timedelta
+
+        end_date = datetime.now() - timedelta(days=7)
+        start_date = end_date - timedelta(days=1)
+
+        df = aeolus.download(
+            "SENSOR_COMMUNITY",
+            sensor_ids,
+            start_date,
+            end_date,
+        )
+
+        # Verify DataFrame structure even if empty
+        expected_cols = {"site_code", "date_time", "measurand", "value", "units"}
+        assert expected_cols.issubset(set(df.columns))
+
+    def test_live_rate_limiting_works(self):
+        """Test that rate limiting prevents excessive requests."""
+        from aeolus.sources import sensor_community
+
+        # Enable strict rate limiting
+        original = sensor_community._rate_limiter
+        try:
+            set_rate_limiting(enabled=True, max_requests=2, period=10.0, min_delay=0.5)
+
+            start = time.time()
+
+            # Make 3 quick requests
+            for _ in range(3):
+                fetch_sensor_community_metadata(
+                    sensor_type="SDS011",
+                    country="GB",
+                )
+
+            elapsed = time.time() - start
+
+            # Should have delays between requests
+            assert elapsed >= 1.0  # At least 2 * 0.5s delays
+
+        finally:
+            sensor_community._rate_limiter = original
