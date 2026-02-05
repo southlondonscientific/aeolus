@@ -13,13 +13,13 @@ Aeolus distinguishes between two types of data source:
 
 | Type | Source | Coverage | API Key |
 |------|--------|----------|---------|
-| Network | AURN, SAQN, WAQN, NI, AQE, LOCAL, LMAM | UK regulatory networks | No |
-| Network | Breathe London | London low-cost sensors | Yes |
-| Network | AirQo | African cities (200+ sensors) | Yes |
-| Network | Sensor.Community | Global citizen science (35,000+) | No |
-| Network | EPA AirNow | USA, Canada, Mexico | Yes |
-| Portal | OpenAQ | Global (100+ countries) | Yes |
-| Portal | PurpleAir | Global low-cost sensors (30,000+) | Yes |
+| Network | [AURN](https://uk-air.defra.gov.uk/), [SAQN](https://www.scottishairquality.scot/), [WAQN](https://airquality.gov.wales/), [NI](https://www.airqualityni.co.uk/), [AQE](https://www.airqualityengland.co.uk/), LOCAL, LMAM | UK regulatory networks | No |
+| Network | [Breathe London](https://www.breathelondon.org/) | London low-cost sensors | Yes |
+| Network | [AirQo](https://airqo.net/) | African cities (200+ sensors) | Yes |
+| Network | [Sensor.Community](https://sensor.community/) | Global citizen science (35,000+) | No |
+| Network | [EPA AirNow](https://www.airnow.gov/) | USA, Canada, Mexico | Yes |
+| Portal | [OpenAQ](https://openaq.org/) | Global (100+ countries) | Yes |
+| Portal | [PurpleAir](https://www.purpleair.com/) | Global low-cost sensors (30,000+) | Yes |
 
 ## Installation
 
