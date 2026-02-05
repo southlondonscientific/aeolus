@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Other
 - OpenAQ site discovery now fully implemented (search by country, city, bbox)
-- MkDocs documentation site
+- [Documentation site](https://southlondonscientific.github.io/aeolus/) with full API reference and guides
 
 ### Changed
 - OpenAQ migrated to official `openaq` Python SDK

@@ -2,12 +2,24 @@
 
 *An opinionated Python toolkit for air quality data analysis.*
 
+**[Documentation](https://southlondonscientific.github.io/aeolus/)** · **[GitHub](https://github.com/southlondonscientific/aeolus)** · **[PyPI](https://pypi.org/project/aeolus-aq/)**
+
 Aeolus provides a simple, unified, opinionated workflow for downloading and working with air quality data from multiple sources.
 
 Aeolus distinguishes between two types of data source:
 
 - **Networks** are discrete monitoring networks with a known set of sites (e.g. the UK's AURN/SAQN or Breathe London). You can list all sites and download data directly.
 - **Portals** are global data aggregators (e.g. OpenAQ). With hundreds of thousands of sites worldwide, you search first, then download.
+
+| Type | Source | Coverage | API Key |
+|------|--------|----------|---------|
+| Network | AURN, SAQN, WAQN, NI, AQE, LOCAL, LMAM | UK regulatory networks | No |
+| Network | Breathe London | London low-cost sensors | Yes |
+| Network | AirQo | African cities (200+ sensors) | Yes |
+| Network | Sensor.Community | Global citizen science (35,000+) | No |
+| Network | EPA AirNow | USA, Canada, Mexico | Yes |
+| Portal | OpenAQ | Global (100+ countries) | Yes |
+| Portal | PurpleAir | Global low-cost sensors (30,000+) | Yes |
 
 ## Installation
 
