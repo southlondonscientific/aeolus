@@ -5,7 +5,7 @@ Tests the RData fetching, metadata and data normalisation, and factory
 functions with mocked HTTP responses.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -442,8 +442,8 @@ class TestMakeDataFetcher:
 
         # Should only include data within range
         if not result.empty:
-            assert result["date_time"].min() >= datetime(2024, 1, 1, 0, 0)
-            assert result["date_time"].max() <= datetime(2024, 1, 1, 1, 0)
+            assert result["date_time"].min() >= datetime(2024, 1, 1, 0, 0, tzinfo=timezone.utc)
+            assert result["date_time"].max() <= datetime(2024, 1, 1, 1, 0, tzinfo=timezone.utc)
 
     @patch("aeolus.sources.regulatory.fetch_rdata")
     def test_data_fetcher_handles_all_none(self, mock_fetch):

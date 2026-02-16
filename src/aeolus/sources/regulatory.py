@@ -32,7 +32,7 @@ share common fetching and normalisation functions.
 """
 
 import warnings
-from datetime import datetime
+from datetime import datetime, timezone
 from logging import warning
 from typing import Callable
 
@@ -220,7 +220,7 @@ def normalise_regulatory_data(network_name: str) -> Normaliser:
                     "date": "date_time",
                 }
             ),
-            convert_timestamps("date_time", unit="s"),
+            convert_timestamps("date_time", unit="s", utc=True),
             add_column("source_network", network_name.upper()),
             add_column("ratification", "None"),
             add_column("units", "ug/m3"),
@@ -308,8 +308,11 @@ def make_data_fetcher(network_name: str) -> DataFetcher:
 
         # Filter to the requested date range
         if not normalised.empty and "date_time" in normalised.columns:
-            mask = (normalised["date_time"] >= start_date) & (
-                normalised["date_time"] <= end_date
+            # Ensure start/end dates are tz-aware UTC to match the data
+            sd = start_date if start_date.tzinfo else start_date.replace(tzinfo=timezone.utc)
+            ed = end_date if end_date.tzinfo else end_date.replace(tzinfo=timezone.utc)
+            mask = (normalised["date_time"] >= sd) & (
+                normalised["date_time"] <= ed
             )
             normalised = normalised[mask]
 
