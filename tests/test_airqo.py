@@ -839,7 +839,6 @@ class TestFetchAirQoData:
 
         expected_columns = [
             "site_code",
-            "site_name",
             "date_time",
             "measurand",
             "value",
@@ -954,7 +953,6 @@ class TestAirQoNormalizer:
         result = normalizer(df)
 
         assert "site_001" in result["site_code"].values
-        assert "Test Site Station" in result["site_name"].values
 
     def test_melts_pollutants_to_long_format(self):
         """Test that PM2.5 and PM10 columns are melted to long format."""
@@ -1167,7 +1165,6 @@ class TestAirQoNormalizer:
 
         expected_columns = [
             "site_code",
-            "site_name",
             "date_time",
             "measurand",
             "value",

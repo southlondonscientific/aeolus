@@ -481,7 +481,6 @@ def _empty_dataframe() -> pd.DataFrame:
     return pd.DataFrame(
         columns=[
             "site_code",
-            "site_name",
             "date_time",
             "measurand",
             "value",
@@ -638,7 +637,6 @@ def create_airqo_normalizer():
         add_column("created_at", datetime.now(timezone.utc)),
         select_columns(
             "site_code",
-            "site_name",
             "date_time",
             "measurand",
             "value",

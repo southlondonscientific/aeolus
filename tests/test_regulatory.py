@@ -240,12 +240,13 @@ class TestNormaliseRegulatoryData:
         normaliser = normalise_regulatory_data("AURN")
         result = normaliser(mock_data_df)
 
-        assert "site_name" in result.columns
         assert "site_code" in result.columns
         assert "date_time" in result.columns
         assert "site" not in result.columns
         assert "code" not in result.columns
         assert "date" not in result.columns
+        # site_name is dropped (not in standard data schema)
+        assert "site_name" not in result.columns
 
     def test_normalise_data_adds_metadata_columns(self, mock_data_df):
         """Should add source_network, ratification, units, created_at."""
@@ -291,15 +292,16 @@ class TestNormaliseRegulatoryData:
             result = normaliser(mock_data_df)
             assert all(result["source_network"] == network)
 
-    def test_normalise_data_categorises_columns(self, mock_data_df):
-        """Should categorise appropriate columns."""
+    def test_normalise_data_standard_schema(self, mock_data_df):
+        """Should produce standard 8-column schema."""
         normaliser = normalise_regulatory_data("AURN")
         result = normaliser(mock_data_df)
 
-        # Check that categorical columns are categorical dtype
-        assert result["site_code"].dtype.name == "category"
-        assert result["measurand"].dtype.name == "category"
-        assert result["source_network"].dtype.name == "category"
+        expected_columns = {
+            "site_code", "date_time", "measurand", "value",
+            "units", "source_network", "ratification", "created_at",
+        }
+        assert set(result.columns) == expected_columns
 
 
 # ============================================================================

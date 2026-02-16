@@ -55,6 +55,18 @@ from . import sources as _sources
 from .registry import get_source, source_exists
 from .registry import list_sources as _list_sources
 
+# Standard data schema columns for consistent empty DataFrames
+_STANDARD_COLUMNS = [
+    "site_code",
+    "date_time",
+    "measurand",
+    "value",
+    "units",
+    "source_network",
+    "ratification",
+    "created_at",
+]
+
 
 def list_sources() -> list[str]:
     """
@@ -242,7 +254,7 @@ def download(
                 warnings.warn(
                     f"Failed to download from {source_name}: {e}", UserWarning
                 )
-                all_data[source_name] = pd.DataFrame()
+                all_data[source_name] = pd.DataFrame(columns=_STANDARD_COLUMNS)
 
         # Combine results
         if combine:
@@ -250,7 +262,7 @@ def download(
             if non_empty:
                 return pd.concat(non_empty, ignore_index=True)
             else:
-                return pd.DataFrame()
+                return pd.DataFrame(columns=_STANDARD_COLUMNS)
         else:
             return all_data
 

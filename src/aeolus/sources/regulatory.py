@@ -203,9 +203,20 @@ def normalise_regulatory_data(network_name: str) -> Normaliser:
         measurands_present = [m for m in REGULATORY_MEASURANDS if m in df.columns]
 
         if not measurands_present:
-            # No measurands found - return empty DataFrame
+            # No measurands found - return empty DataFrame with standard schema
             warning(f"No measurands found in DataFrame for {network_name}")
-            return pd.DataFrame()
+            return pd.DataFrame(
+                columns=[
+                    "site_code",
+                    "date_time",
+                    "measurand",
+                    "value",
+                    "units",
+                    "source_network",
+                    "ratification",
+                    "created_at",
+                ]
+            )
 
         # Apply transformation pipeline
         return compose(
@@ -225,14 +236,7 @@ def normalise_regulatory_data(network_name: str) -> Normaliser:
             add_column("ratification", "None"),
             add_column("units", "ug/m3"),
             add_column("created_at", lambda df: datetime.now(timezone.utc)),
-            categorise_columns(
-                "site_name",
-                "site_code",
-                "measurand",
-                "source_network",
-                "ratification",
-                "units",
-            ),
+            drop_columns("site_name"),
         )(df)
 
     return normalise
