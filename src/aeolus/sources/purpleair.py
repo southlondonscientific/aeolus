@@ -31,7 +31,7 @@ QA/QC Methodology: See REFERENCES.md for sources.
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from logging import getLogger, warning
 from typing import Any
 
@@ -254,10 +254,10 @@ def _create_metadata_normalizer():
 
         # Convert timestamps
         if "last_seen" in df.columns:
-            df["last_seen"] = pd.to_datetime(df["last_seen"], unit="s", errors="coerce")
+            df["last_seen"] = pd.to_datetime(df["last_seen"], unit="s", utc=True, errors="coerce")
         if "date_created" in df.columns:
             df["date_created"] = pd.to_datetime(
-                df["date_created"], unit="s", errors="coerce"
+                df["date_created"], unit="s", utc=True, errors="coerce"
             )
 
         return df
@@ -562,7 +562,7 @@ def create_purpleair_normalizer():
 
         df = df.copy()
         # PurpleAir returns timestamps as Unix timestamps
-        df["date_time"] = pd.to_datetime(df["time_stamp"], unit="s", errors="coerce")
+        df["date_time"] = pd.to_datetime(df["time_stamp"], unit="s", utc=True, errors="coerce")
         return df
 
     def rename_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -592,7 +592,7 @@ def create_purpleair_normalizer():
         rename_columns,
         convert_temperature,
         add_column("source_network", "PurpleAir"),
-        add_column("created_at", datetime.now()),
+        add_column("created_at", datetime.now(timezone.utc)),
         select_columns(
             "site_code",
             "date_time",

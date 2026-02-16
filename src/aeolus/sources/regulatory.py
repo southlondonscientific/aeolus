@@ -224,7 +224,7 @@ def normalise_regulatory_data(network_name: str) -> Normaliser:
             add_column("source_network", network_name.upper()),
             add_column("ratification", "None"),
             add_column("units", "ug/m3"),
-            add_column("created_at", lambda df: datetime.now()),
+            add_column("created_at", lambda df: datetime.now(timezone.utc)),
             categorise_columns(
                 "site_name",
                 "site_code",

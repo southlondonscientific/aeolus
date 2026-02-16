@@ -29,7 +29,7 @@ Data License: Open Government Licence v3.0
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from logging import warning
 from typing import Any
 
@@ -324,7 +324,7 @@ def create_breathe_london_normalizer():
     def parse_timestamps(df: pd.DataFrame) -> pd.DataFrame:
         """Convert timestamp strings to datetime."""
         if "date_time" in df.columns:
-            df["date_time"] = pd.to_datetime(df["date_time"], errors="coerce")
+            df["date_time"] = pd.to_datetime(df["date_time"], utc=True, errors="coerce")
 
         return df
 
@@ -377,7 +377,7 @@ def create_breathe_london_normalizer():
         add_quality_flag,
         filter_invalid_rows,
         add_column("source_network", "Breathe London"),
-        add_column("created_at", datetime.now()),
+        add_column("created_at", datetime.now(timezone.utc)),
         select_columns(
             "site_code",
             "date_time",

@@ -34,7 +34,7 @@ Map: https://maps.sensor.community/
 
 import io
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from logging import getLogger, warning
 from typing import Any
 
@@ -667,7 +667,7 @@ def _normalize_sensor_data(
         pd.DataFrame: Normalized data with standard schema
     """
     records = []
-    fetch_time = datetime.now()
+    fetch_time = datetime.now(timezone.utc)
 
     # Determine which measurements this sensor type provides
     measurands = SENSOR_TYPE_MAP.get(sensor_type, ["PM2.5", "PM10"])
@@ -686,7 +686,7 @@ def _normalize_sensor_data(
         timestamp_str = row.get("timestamp")
 
         try:
-            timestamp = pd.to_datetime(timestamp_str)
+            timestamp = pd.to_datetime(timestamp_str, utc=True)
         except (ValueError, TypeError):
             continue
 
@@ -841,7 +841,7 @@ def fetch_sensor_community_realtime(
         return _empty_dataframe()
 
     records = []
-    fetch_time = datetime.now()
+    fetch_time = datetime.now(timezone.utc)
 
     for entry in data:
         sensor_id = str(entry.get("sensor", {}).get("id", ""))
@@ -851,7 +851,7 @@ def fetch_sensor_community_realtime(
             continue
 
         try:
-            timestamp = pd.to_datetime(timestamp_str)
+            timestamp = pd.to_datetime(timestamp_str, utc=True)
         except (ValueError, TypeError):
             continue
 

@@ -29,7 +29,7 @@ Data Platform: https://airqo.net/
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from logging import getLogger, warning
 from typing import Any
 
@@ -597,7 +597,7 @@ def create_airqo_normalizer():
     def parse_timestamps(df: pd.DataFrame) -> pd.DataFrame:
         """Convert timestamp strings to datetime."""
         if "time" in df.columns:
-            df["date_time"] = pd.to_datetime(df["time"], errors="coerce")
+            df["date_time"] = pd.to_datetime(df["time"], utc=True, errors="coerce")
         return df
 
     def add_units(df: pd.DataFrame) -> pd.DataFrame:
@@ -635,7 +635,7 @@ def create_airqo_normalizer():
         add_quality_flag,
         filter_invalid_rows,
         add_column("source_network", "AirQo"),
-        add_column("created_at", datetime.now()),
+        add_column("created_at", datetime.now(timezone.utc)),
         select_columns(
             "site_code",
             "site_name",

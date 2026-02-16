@@ -26,7 +26,7 @@ Data Platform: https://openaq.org/
 
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pandas as pd
 from openaq import OpenAQ
@@ -326,7 +326,7 @@ def _normalize(df: pd.DataFrame) -> pd.DataFrame:
     df.loc[mask, "measurand"] = df.loc[mask, "parameter"].str.upper()
 
     # Convert datetime
-    df["date_time"] = pd.to_datetime(df["date_time"], errors="coerce")
+    df["date_time"] = pd.to_datetime(df["date_time"], utc=True, errors="coerce")
 
     # Standardize units
     unit_map = {"µg/m³": "ug/m3", "μg/m³": "ug/m3"}
@@ -335,7 +335,7 @@ def _normalize(df: pd.DataFrame) -> pd.DataFrame:
     # Add standard columns
     df["source_network"] = "OpenAQ"
     df["ratification"] = "Unvalidated"
-    df["created_at"] = datetime.now()
+    df["created_at"] = datetime.now(timezone.utc)
 
     # Drop rows with missing essential data
     df = df.dropna(subset=["date_time", "value", "measurand"])

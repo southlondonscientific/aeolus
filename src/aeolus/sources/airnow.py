@@ -35,7 +35,7 @@ Data Coverage: United States, Canada, Mexico
 """
 
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from logging import getLogger, warning
 from typing import Any
 
@@ -216,8 +216,8 @@ def fetch_airnow_metadata(
 
     # Fetch current observations to get site list
     params = {
-        "startDate": datetime.now().strftime("%Y-%m-%dT%H"),
-        "endDate": datetime.now().strftime("%Y-%m-%dT%H"),
+        "startDate": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H"),
+        "endDate": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H"),
         "parameters": "OZONE,PM25,PM10,CO,NO2,SO2",
         "BBOX": f"{min_lon},{min_lat},{max_lon},{max_lat}",
         "dataType": "B",  # AQI and concentrations
@@ -319,7 +319,7 @@ def fetch_airnow_data(
         return _empty_dataframe()
 
     all_data = []
-    fetch_time = datetime.now()
+    fetch_time = datetime.now(timezone.utc)
 
     # AirNow historical endpoint works per-location
     # We need to query each site separately
@@ -397,9 +397,9 @@ def _fetch_site_historical(
 
                 try:
                     if "T" in str(date_str):
-                        dt = pd.to_datetime(date_str)
+                        dt = pd.to_datetime(date_str, utc=True)
                     else:
-                        dt = pd.to_datetime(date_str)
+                        dt = pd.to_datetime(date_str, utc=True)
                 except (ValueError, TypeError):
                     continue
 
@@ -491,7 +491,7 @@ def fetch_airnow_current(
         return _empty_dataframe()
 
     records = []
-    fetch_time = datetime.now()
+    fetch_time = datetime.now(timezone.utc)
 
     for obs in data:
         param = obs.get("ParameterName", "")
@@ -509,7 +509,7 @@ def fetch_airnow_current(
         date_str = obs.get("DateObserved", "")
         hour = obs.get("HourObserved", 0)
         try:
-            dt = pd.to_datetime(f"{date_str} {hour}:00:00")
+            dt = pd.to_datetime(f"{date_str} {hour}:00:00", utc=True)
         except (ValueError, TypeError):
             dt = fetch_time
 
