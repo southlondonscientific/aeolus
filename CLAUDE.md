@@ -160,6 +160,44 @@ Tests use `pytest` with `responses` for mocking HTTP calls. Test files mirror so
 
 Mock API responses are defined as pytest fixtures within each test file.
 
+## Release History
+
+### v0.3.0rc2 (current, February 2026)
+- **Timezone fixes**: All 7 data sources now produce UTC-aware `date_time` and `created_at` columns. Previously, naive timestamps caused `TypeError` when compared against tz-aware inputs.
+- **Schema consistency**: Data output is now a strict 8-column schema (see above). `site_name` was removed from data output (it remains in metadata). Categorical dtypes removed from regulatory sources (caused issues when concatenating across sources). Empty DataFrames now carry the standard schema columns.
+- **Release process**: Tag `v*` on main triggers GitHub Actions (`release.yml`) which builds a wheel via `uv build` and creates a GitHub Release. Docs deploy automatically on push to main via `docs.yml` (mkdocs).
+
+### v0.3.0 (unreleased, targets full release after rc testing)
+- See `CHANGELOG.md` for full v0.3.0 feature list (AirQo, Sensor.Community, PurpleAir, AirNow, metrics module, viz module).
+
+## Roadmap
+
+### v0.4.0 (planned)
+**User story notebooks** - 7 executable Jupyter notebooks exercising real-world workflows, mapped to 9 validated user personas. Full specification in `docs/dev/user_stories_v040.md`.
+
+Key notebooks:
+1. London roadside vs background NO2 (no API key needed)
+2. Monthly PM2.5 compliance report (no API key needed)
+3. Low-cost sensor vs reference monitor (PurpleAir key)
+4. UK city air quality ranking (no API key needed)
+5. Exposure assessment for health study (Breathe London key)
+6. African air quality with AirQo (AirQo key)
+7. Global sensor network comparison (PurpleAir + AirQo keys)
+
+**Quality of life features** anticipated:
+- `find_sites(near=(lat, lon), radius_km=N)` convenience function
+- Progress indicators for multi-site downloads
+- Local file caching for historical data
+
+**User personas** (documented in `docs/dev/user_stories_v040.md`):
+- Primary: Academic researcher, health/epidemiology researcher, environmental consultant
+- Secondary: Local authority officer, citizen scientist, educator/student
+- Strategic: AI/LLM agent, data journalist, smart city developer
+
+### Planning Documents
+- `docs/dev/user_stories_v040.md` - User story notebooks tech spec and persona research
+- `docs/dev/potential_data_sources.md` - Evaluated data sources for future integration (EEA, Open-Meteo, WAQI, etc.)
+
 ## Notes
 
 - Python 3.11+ required
@@ -167,3 +205,6 @@ Mock API responses are defined as pytest fixtures within each test file.
 - Time bins are left-closed: timestamp 13:00 represents [12:00, 13:00)
 - Low-cost sensor data marked as `ratification='Unvalidated'`
 - PurpleAir data has additional QA flags (`Validated`, `Single Channel`, etc.)
+- All timestamps are UTC-aware (enforced since v0.3.0rc2)
+- Data schema is strict 8 columns; `site_name` is in metadata only, not data output
+- Empty DataFrames always carry the standard schema columns (never bare `pd.DataFrame()`)
