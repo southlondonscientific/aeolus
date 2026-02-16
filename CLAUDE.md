@@ -2,7 +2,7 @@
 
 Air quality data downloading and standardization library for UK and international monitoring networks.
 
-**Current Version:** 0.3.0
+**Current Version:** 0.3.0rc2
 
 ## Quick Start
 
@@ -79,16 +79,15 @@ src/aeolus/
 
 ## Standard Data Schema
 
-All sources normalize to this schema:
+All sources normalize data to this 8-column schema:
 - `site_code` - Unique site identifier
-- `site_name` - Human-readable name (in metadata)
-- `date_time` - Timestamp (left-closed intervals)
+- `date_time` - Timestamp (UTC-aware, left-closed intervals)
 - `measurand` - Pollutant (PM2.5, NO2, O3, etc.)
 - `value` - Measurement value
 - `units` - Units (typically ug/m3)
 - `source_network` - Data source name
 - `ratification` - Data quality flag
-- `created_at` - When record was fetched
+- `created_at` - When record was fetched (UTC-aware)
 
 **Metadata schema** (from `get_metadata()` / `find_sites()`):
 - `site_code` - Unique site identifier (use for download)

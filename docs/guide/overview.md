@@ -42,9 +42,9 @@ data = aeolus.download(
 All sources return data in a consistent format:
 
 ```
-site_code | site_name | date_time | measurand | value | units | source_network | ratification
-----------|-----------|-----------|-----------|-------|-------|----------------|-------------
-MY1       | Marylebone| 2024-01-01| NO2       | 45.2  | ug/m3 | AURN           | Ratified
+site_code | date_time           | measurand | value | units | source_network | ratification | created_at
+----------|---------------------|-----------|-------|-------|----------------|--------------|--------------------
+MY1       | 2024-01-01 00:00:00 | NO2       | 45.2  | ug/m3 | AURN           | None         | 2026-02-16 12:00:00
 ```
 
 This makes it easy to combine and compare data from different sources.
