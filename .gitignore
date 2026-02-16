@@ -72,15 +72,24 @@ Thumbs.db
 *.rds
 
 # Development/documentation files (not for version control)
+ROADMAP.md
+STEP*_SUMMARY.md
+PHASE*_SUMMARY.md
 MIGRATION_*.md
 REFACTORING_*.md
 BREATHE_LONDON_*.md
 OPENAQ_*.md
+DEMO_*_README.md
+DEMO_README.md
 PHILOSOPHY.md
 TEST_UPDATE_SUMMARY.md
 example_*.py
+example.py
 demo_*.py
+demo.py
+demo_*.png
 /test_*.py
+tests/*_SUMMARY.md
 scripts/
 *.bak
 *_old.py
