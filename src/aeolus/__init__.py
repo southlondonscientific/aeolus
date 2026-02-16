@@ -68,7 +68,7 @@ Supported Portals:
 For more details, see: https://github.com/southlondonscientific/aeolus
 """
 
-__version__ = "0.3.0"
+__version__ = "0.3.0rc2"
 
 # Import submodules for networks, portals, metrics
 from . import metrics, networks, portals, transforms
