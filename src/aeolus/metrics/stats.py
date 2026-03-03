@@ -299,8 +299,8 @@ def aq_stats(
 
     # Apply filters
     if year is not None:
-        if isinstance(year, int):
-            year = [year]
+        if not isinstance(year, list):
+            year = [int(year)]
         df = df[df["year"].isin(year)]
 
     if pollutant is not None:
