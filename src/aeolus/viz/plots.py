@@ -1508,10 +1508,13 @@ def plot_trend(
     ax.plot(x_line, y_line, color=SLS_CHARCOAL, linewidth=LINE_WIDTH_MEDIUM,
             label=f"Trend: {tr.slope:+.2f}/yr", zorder=10)
 
-    # Confidence interval band
+    # Confidence interval band — fan from data centroid to avoid
+    # the y-axis blowup that comes from extrapolating slope CI from year 0
     if show_ci:
-        y_low = tr.ci_lower * x_line + tr.intercept
-        y_high = tr.ci_upper * x_line + tr.intercept
+        x_mid = x_years.mean()
+        y_mid = tr.slope * x_mid + tr.intercept
+        y_low = y_mid + tr.ci_lower * (x_line - x_mid)
+        y_high = y_mid + tr.ci_upper * (x_line - x_mid)
         ax.fill_between(x_line, y_low, y_high, color=SLS_CHARCOAL, alpha=0.1)
 
     # Annotation with slope and p-value
