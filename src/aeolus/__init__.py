@@ -77,6 +77,7 @@ from . import metrics, networks, portals, transforms
 from .api import (
     download,
     fetch,
+    find_sites,
     get_source_info,
     list_sources,
 )
@@ -93,6 +94,7 @@ __all__ = [
     # Top-level API
     "list_sources",
     "download",
+    "find_sites",
     "get_source_info",
     "fetch",
 ]

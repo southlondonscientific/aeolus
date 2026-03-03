@@ -48,6 +48,7 @@ src/aeolus/
 │   ├── purpleair.py     # PurpleAir global portal
 │   ├── sensor_community.py # Sensor.Community citizen science
 │   └── airnow.py        # EPA AirNow US network
+├── geo.py               # Geospatial utilities (haversine, bbox)
 ├── metrics/             # Air quality metrics calculations
 └── viz/                 # Visualization utilities
 ```
@@ -138,6 +139,15 @@ from datetime import datetime
 # List available sources
 aeolus.list_sources()
 
+# Find sites near a location (adds distance_km column, sorted nearest-first)
+sites = aeolus.find_sites("AURN", near=(51.5074, -0.1278), radius_km=20)
+
+# Find sites in a bounding box
+sites = aeolus.find_sites(["AURN", "SAQN"], bbox=(-0.5, 51.3, 0.3, 51.7))
+
+# Find sites from all free sources (no API key needed)
+sites = aeolus.find_sites()
+
 # Download data
 data = aeolus.download(
     sources="AURN",
@@ -157,6 +167,9 @@ Tests use `pytest` with `responses` for mocking HTTP calls. Test files mirror so
 - `tests/test_purpleair.py` - PurpleAir tests
 - `tests/test_sensor_community.py` - Sensor.Community tests
 - `tests/test_airnow.py` - EPA AirNow tests
+
+- `tests/test_find_sites.py` - find_sites() unified site discovery
+- `tests/test_geo.py` - Geospatial utilities
 
 Mock API responses are defined as pytest fixtures within each test file.
 
@@ -184,8 +197,14 @@ Key notebooks:
 6. African air quality with AirQo (AirQo key)
 7. Global sensor network comparison (PurpleAir + AirQo keys)
 
-**Quality of life features** anticipated:
-- `find_sites(near=(lat, lon), radius_km=N)` convenience function
+**Analysis functions** (high priority):
+- `time_average()` — time averaging with data capture thresholds (foundation for other analysis)
+- `aq_stats()` — annual regulatory statistics, exceedance counts, data capture (LAQM Annual Status Report output)
+- `trend()` — Theil-Sen non-parametric trend with CI, p-value, deseasonalisation
+- `time_variation()` plot — combined 4-panel temporal decomposition (hourly, daily, monthly, hour×weekday)
+
+**Data access features** (high priority):
+- ~~`find_sites(near=(lat, lon), radius_km=N)` convenience function~~ (done)
 - Progress indicators for multi-site downloads
 - Local file caching for historical data
 
@@ -197,6 +216,7 @@ Key notebooks:
 ### Planning Documents
 - `docs/dev/user_stories_v040.md` - User story notebooks tech spec and persona research
 - `docs/dev/potential_data_sources.md` - Evaluated data sources for future integration (EEA, Open-Meteo, WAQI, etc.)
+- `docs/dev/openair_comparison.md` - Feature comparison with R openair, gap analysis, and prioritisation
 
 ## Notes
 

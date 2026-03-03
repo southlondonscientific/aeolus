@@ -45,6 +45,7 @@ Basic usage:
     ... )
 """
 
+import warnings
 from datetime import datetime
 from typing import Any
 
@@ -55,6 +56,8 @@ from . import sources as _sources
 from .registry import get_source, source_exists
 from .registry import list_sources as _list_sources
 from .types import DATA_COLUMNS as _STANDARD_COLUMNS
+from .types import METADATA_COLUMNS as _METADATA_COLUMNS
+from .types import empty_metadata_frame as _empty_metadata_frame
 
 
 def list_sources() -> list[str]:
@@ -346,3 +349,196 @@ def fetch(
         ... )
     """
     return download(sources, sites, start_date, end_date, **kwargs)
+
+
+# ============================================================================
+# find_sites() — Unified Site Discovery
+# ============================================================================
+
+# Networks whose fetch_metadata accepts a ``bbox`` keyword argument.
+_BBOX_AWARE_NETWORKS = {"SENSOR_COMMUNITY", "AIRNOW"}
+
+
+def _fetch_network_sites(
+    name: str, spec: dict, search_bbox: tuple | None, filters: dict
+) -> pd.DataFrame:
+    """Fetch site metadata from a network source."""
+    kwargs = dict(filters)
+    if search_bbox is not None and name in _BBOX_AWARE_NETWORKS:
+        kwargs["bbox"] = search_bbox
+    try:
+        return spec["fetch_metadata"](**kwargs)
+    except TypeError:
+        # Source's fetch_metadata doesn't accept these kwargs — call bare.
+        return spec["fetch_metadata"]()
+
+
+def _fetch_portal_sites(
+    name: str, spec: dict, search_bbox: tuple | None, filters: dict
+) -> pd.DataFrame:
+    """Fetch site metadata from a portal source."""
+    kwargs = dict(filters)
+    if search_bbox is not None:
+        kwargs["bbox"] = search_bbox
+    if not kwargs:
+        warnings.warn(
+            f"Skipping {name}: portal source requires spatial or keyword filters",
+            UserWarning,
+        )
+        return _empty_metadata_frame()
+    fetch_fn = spec.get("fetch_metadata") or spec.get("search")
+    return fetch_fn(**kwargs)
+
+
+def find_sites(
+    source: str | list[str] | None = None,
+    near: tuple[float, float] | None = None,
+    radius_km: float = 50.0,
+    bbox: tuple[float, float, float, float] | None = None,
+    include_all: bool = False,
+    **filters,
+) -> pd.DataFrame:
+    """
+    Find air quality monitoring sites across one or more data sources.
+
+    This is the main convenience function for discovering sites.  It unifies
+    network and portal sources behind a single call and supports optional
+    spatial filtering.
+
+    Source selection:
+        - ``source="AURN"`` — single source
+        - ``source=["AURN", "SAQN"]`` — multiple named sources
+        - ``source=None`` (default) — free sources only (no API key required)
+        - ``source=None, include_all=True`` — all sources; warns on failures
+
+    Spatial filtering:
+        - ``near=(lat, lon)`` + ``radius_km`` — circular search.
+          Adds ``distance_km`` column, sorted nearest-first.
+        - ``bbox=(min_lon, min_lat, max_lon, max_lat)`` — rectangular filter.
+        - Mutually exclusive (``ValueError`` if both).
+        - No spatial args — return all sites for the selected source(s).
+
+    Args:
+        source: Source name(s).  ``None`` defaults to free sources.
+        near: ``(latitude, longitude)`` for circular search.
+        radius_km: Radius in km when *near* is used (default 50).
+        bbox: ``(min_lon, min_lat, max_lon, max_lat)`` rectangular filter.
+        include_all: When *source* is ``None``, include sources that require
+            an API key and warn on failures.
+        **filters: Source-specific keyword filters (e.g. ``country``,
+            ``sensor_type``, ``location_type``).
+
+    Returns:
+        DataFrame with core columns
+        ``[site_code, site_name, latitude, longitude, source_network]``
+        plus ``distance_km`` when *near* is used, plus any source-specific
+        extras.  Output feeds directly into ``aeolus.download()``.
+
+    Raises:
+        ValueError: If *near* and *bbox* are both provided, or if an
+            unknown source is requested.
+
+    Examples:
+        >>> import aeolus
+        >>> # All free-source sites near central London
+        >>> sites = aeolus.find_sites(near=(51.5074, -0.1278), radius_km=20)
+        >>> # AURN sites only
+        >>> sites = aeolus.find_sites("AURN")
+        >>> # Multiple sources with bbox
+        >>> sites = aeolus.find_sites(
+        ...     ["AURN", "SAQN"],
+        ...     bbox=(-0.5, 51.3, 0.3, 51.7),
+        ... )
+    """
+    # --- validate inputs ---
+    if near is not None and bbox is not None:
+        raise ValueError(
+            "near and bbox are mutually exclusive. "
+            "Use near=(lat, lon) for circular search or "
+            "bbox=(min_lon, min_lat, max_lon, max_lat) for rectangular."
+        )
+
+    # --- determine source list ---
+    if source is not None:
+        if isinstance(source, str):
+            source_names = [source.upper()]
+        else:
+            source_names = [s.upper() for s in source]
+        for name in source_names:
+            if not source_exists(name):
+                available = ", ".join(_list_sources())
+                raise ValueError(
+                    f"Unknown source: {name}\nAvailable sources: {available}"
+                )
+    else:
+        source_names = []
+        for name in _list_sources():
+            spec = get_source(name)
+            if include_all or not spec["requires_api_key"]:
+                source_names.append(name)
+
+    # --- compute search bbox from near if needed ---
+    search_bbox: tuple | None = None
+    if near is not None:
+        from .geo import near_to_bbox
+
+        search_bbox = near_to_bbox(near[0], near[1], radius_km)
+    elif bbox is not None:
+        search_bbox = bbox
+
+    # --- fetch from each source ---
+    results: list[pd.DataFrame] = []
+    for name in source_names:
+        spec = get_source(name)
+        source_type = spec.get("type", "network")
+        try:
+            if source_type == "portal":
+                df = _fetch_portal_sites(name, spec, search_bbox, filters)
+            else:
+                df = _fetch_network_sites(name, spec, search_bbox, filters)
+            if df is not None and not df.empty:
+                results.append(df)
+        except Exception as e:
+            warnings.warn(
+                f"Failed to fetch sites from {name}: {e}",
+                UserWarning,
+            )
+
+    if not results:
+        return _empty_metadata_frame()
+
+    combined = pd.concat(results, ignore_index=True)
+
+    # --- spatial post-filtering ---
+    if near is not None:
+        from .geo import haversine_distance
+
+        lat, lon = near
+        has_coords = combined["latitude"].notna() & combined["longitude"].notna()
+        combined = combined[has_coords].copy()
+        combined["distance_km"] = combined.apply(
+            lambda row: haversine_distance(lat, lon, row["latitude"], row["longitude"]),
+            axis=1,
+        )
+        combined = combined[combined["distance_km"] <= radius_km]
+        combined = combined.sort_values("distance_km").reset_index(drop=True)
+    elif bbox is not None:
+        min_lon, min_lat, max_lon, max_lat = bbox
+        has_coords = combined["latitude"].notna() & combined["longitude"].notna()
+        mask = (
+            has_coords
+            & combined["latitude"].between(min_lat, max_lat)
+            & combined["longitude"].between(min_lon, max_lon)
+        )
+        combined = combined[mask].reset_index(drop=True)
+
+    # --- order columns: core -> distance_km -> extras ---
+    core = list(_METADATA_COLUMNS)
+    if "distance_km" in combined.columns:
+        ordered = core + ["distance_km"]
+    else:
+        ordered = list(core)
+    extras = [c for c in combined.columns if c not in ordered]
+    combined = combined[ordered + extras]
+
+    return combined
