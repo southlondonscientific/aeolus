@@ -1246,3 +1246,298 @@ def plot_calendar(
     plt.tight_layout()
 
     return fig
+
+
+# =============================================================================
+# Time Variation (4-panel combined plot)
+# =============================================================================
+
+
+def _plot_diurnal_panel(
+    ax: plt.Axes, df: pd.DataFrame, pollutant: str, show_ci: bool, ci_level: float
+) -> None:
+    """Plot diurnal (hourly) panel for plot_time_variation."""
+    colour = get_pollutant_colour(pollutant)
+    df["hour"] = df["date_time"].dt.hour
+    hourly = df.groupby("hour")["value"].agg(["mean", "std", "count"])
+    hours = np.arange(24)
+
+    ax.plot(
+        hours,
+        hourly["mean"],
+        color=colour,
+        linewidth=LINE_WIDTH_MEDIUM,
+        marker="o",
+        markersize=3,
+    )
+
+    if show_ci:
+        from scipy import stats
+
+        ci_mult = stats.t.ppf((1 + ci_level) / 2, hourly["count"] - 1)
+        ci = ci_mult * hourly["std"] / np.sqrt(hourly["count"])
+        ci = ci.fillna(0)
+        ax.fill_between(hours, hourly["mean"] - ci, hourly["mean"] + ci,
+                        color=colour, alpha=0.2)
+
+    ax.set_xlabel("Hour of Day")
+    ax.set_ylabel(pollutant)
+    ax.set_title("Diurnal")
+    ax.set_xticks(hours[::4])
+    ax.set_xticklabels([f"{h:02d}" for h in hours[::4]])
+    ax.set_xlim(-0.5, 23.5)
+
+
+def _plot_weekly_panel(
+    ax: plt.Axes, df: pd.DataFrame, pollutant: str
+) -> None:
+    """Plot weekly (day-of-week) panel for plot_time_variation."""
+    colour = get_pollutant_colour(pollutant)
+    df["weekday"] = df["date_time"].dt.dayofweek
+    daily = df.groupby("weekday")["value"].mean()
+    days = np.arange(7)
+    day_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+    ax.bar(days, daily.reindex(days), color=colour, alpha=0.8)
+    ax.set_xlabel("Day of Week")
+    ax.set_ylabel(pollutant)
+    ax.set_title("Weekly")
+    ax.set_xticks(days)
+    ax.set_xticklabels(day_labels)
+
+
+def _plot_monthly_panel(
+    ax: plt.Axes, df: pd.DataFrame, pollutant: str
+) -> None:
+    """Plot monthly panel for plot_time_variation."""
+    colour = get_pollutant_colour(pollutant)
+    df["month"] = df["date_time"].dt.month
+    monthly = df.groupby("month")["value"].mean()
+    months = np.arange(1, 13)
+    month_labels = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"]
+
+    ax.bar(months, monthly.reindex(months), color=colour, alpha=0.8)
+    ax.set_xlabel("Month")
+    ax.set_ylabel(pollutant)
+    ax.set_title("Monthly")
+    ax.set_xticks(months)
+    ax.set_xticklabels(month_labels)
+
+
+def _plot_heatmap_panel(
+    ax: plt.Axes, df: pd.DataFrame, pollutant: str
+) -> plt.matplotlib.image.AxesImage:
+    """Plot hour x weekday heatmap panel for plot_time_variation."""
+    df["hour"] = df["date_time"].dt.hour
+    df["weekday"] = df["date_time"].dt.dayofweek
+
+    pivot = df.pivot_table(
+        index="hour", columns="weekday", values="value", aggfunc="mean"
+    )
+    # Ensure all hours and weekdays present
+    pivot = pivot.reindex(index=range(24), columns=range(7))
+
+    cmap = get_aeolus_cmap()
+    im = ax.imshow(
+        pivot.values,
+        aspect="auto",
+        cmap=cmap,
+        origin="lower",
+        interpolation="nearest",
+    )
+
+    ax.set_xlabel("Day of Week")
+    ax.set_ylabel("Hour of Day")
+    ax.set_title("Hour x Weekday")
+    ax.set_xticks(range(7))
+    ax.set_xticklabels(["M", "Tu", "W", "Th", "F", "Sa", "Su"])
+    ax.set_yticks(range(0, 24, 4))
+    ax.set_yticklabels([f"{h:02d}" for h in range(0, 24, 4)])
+
+    return im
+
+
+def plot_time_variation(
+    data: pd.DataFrame,
+    pollutant: str,
+    show_ci: bool = True,
+    ci_level: float = 0.95,
+    title: str | None = None,
+    figsize: tuple[float, float] | str | None = None,
+    apply_style: bool = True,
+) -> plt.Figure:
+    """
+    Combined 2x2 temporal variation plot (diurnal, weekly, monthly, heatmap).
+
+    This is equivalent to the classic openair ``timeVariation`` plot, showing
+    four facets of temporal patterns in a single figure:
+        - Top-left: Diurnal (hourly mean +/- CI)
+        - Top-right: Weekly (bar chart by day of week)
+        - Bottom-left: Monthly (bar chart by month)
+        - Bottom-right: Hour x Weekday heatmap
+
+    Args:
+        data: DataFrame from aeolus.download() with standard schema.
+        pollutant: Single pollutant to analyse (e.g. "NO2", "PM2.5").
+        show_ci: Show confidence interval on the diurnal panel.
+        ci_level: Confidence level for CI (default 0.95).
+        title: Overall figure title. Auto-generated if None.
+        figsize: Figure size as (width, height) or preset name.
+        apply_style: Apply Aeolus matplotlib style.
+
+    Returns:
+        matplotlib Figure with 4 subplots.
+
+    Raises:
+        ValueError: If the requested pollutant is not in the data.
+    """
+    if apply_style:
+        apply_aeolus_style()
+
+    # Filter to requested pollutant
+    df = data[data["measurand"] == pollutant].copy()
+    if df.empty:
+        raise ValueError(f"No data found for pollutant: {pollutant}")
+
+    df["date_time"] = pd.to_datetime(df["date_time"])
+
+    # Create figure
+    if figsize is None:
+        figsize = (10, 8)
+    elif isinstance(figsize, str):
+        figsize = FIGURE_SIZES.get(figsize, (10, 8))
+
+    fig, axes = plt.subplots(2, 2, figsize=figsize)
+
+    _plot_diurnal_panel(axes[0, 0], df.copy(), pollutant, show_ci, ci_level)
+    _plot_weekly_panel(axes[0, 1], df.copy(), pollutant)
+    _plot_monthly_panel(axes[1, 0], df.copy(), pollutant)
+    im = _plot_heatmap_panel(axes[1, 1], df.copy(), pollutant)
+
+    # Colorbar for heatmap
+    fig.colorbar(im, ax=axes[1, 1], shrink=0.8, pad=0.02)
+
+    # Title
+    if title:
+        fig.suptitle(title, fontsize=14, y=1.02)
+    else:
+        site_label = _get_site_label(data)
+        if site_label:
+            fig.suptitle(f"{pollutant} Time Variation - {site_label}", fontsize=14, y=1.02)
+        else:
+            fig.suptitle(f"{pollutant} Time Variation", fontsize=14, y=1.02)
+
+    plt.tight_layout()
+
+    return fig
+
+
+# =============================================================================
+# Trend Plot
+# =============================================================================
+
+
+def plot_trend(
+    data: pd.DataFrame,
+    trend_result: "TrendResult",
+    show_ci: bool = True,
+    title: str | None = None,
+    figsize: tuple[float, float] | str | None = None,
+    ax: plt.Axes | None = None,
+    apply_style: bool = True,
+) -> plt.Figure:
+    """
+    Plot trend analysis results: scatter of aggregated data with Theil-Sen line.
+
+    Args:
+        data: DataFrame from aeolus.download() (same data used for trend()).
+        trend_result: TrendResult from metrics.trend().
+        show_ci: Show confidence interval band around the trend line.
+        title: Plot title. Auto-generated if None.
+        figsize: Figure size as (width, height) or preset name.
+        ax: Existing Axes to plot on (creates new figure if None).
+        apply_style: Apply Aeolus matplotlib style.
+
+    Returns:
+        matplotlib Figure.
+    """
+    if apply_style:
+        apply_aeolus_style()
+
+    tr = trend_result
+    pollutant = tr.pollutant
+    site = tr.site_code
+
+    # Filter and aggregate data to match trend analysis
+    df = data[
+        (data["measurand"] == pollutant) & (data["site_code"] == site)
+    ].copy()
+    df["date_time"] = pd.to_datetime(df["date_time"])
+    df = df.set_index("date_time").sort_index()
+
+    freq_map = {"month": "MS", "season": "QS-DEC", "year": "YS"}
+    freq = freq_map[tr.avg_time]
+
+    agg_mean = df["value"].resample(freq).mean().dropna()
+
+    # Convert to fractional years
+    x_years = (
+        agg_mean.index.year
+        + (agg_mean.index.dayofyear - 1) / 365.25
+    ).values.astype(float)
+    y = agg_mean.values
+
+    # Create figure
+    if ax is None:
+        if figsize is None:
+            figsize = FIGURE_SIZES.get("wide", (10, 4))
+        elif isinstance(figsize, str):
+            figsize = FIGURE_SIZES.get(figsize, FIGURE_SIZES["wide"])
+        fig, ax = plt.subplots(figsize=figsize)
+    else:
+        fig = ax.figure
+
+    colour = get_pollutant_colour(pollutant)
+
+    # Scatter plot of aggregated data
+    ax.scatter(x_years, y, color=colour, alpha=0.6, s=30, zorder=5, label=f"{tr.avg_time}ly mean")
+
+    # Theil-Sen trend line
+    x_line = np.array([x_years.min(), x_years.max()])
+    y_line = tr.slope * x_line + tr.intercept
+    ax.plot(x_line, y_line, color=SLS_CHARCOAL, linewidth=LINE_WIDTH_MEDIUM,
+            label=f"Trend: {tr.slope:+.2f}/yr", zorder=10)
+
+    # Confidence interval band
+    if show_ci:
+        y_low = tr.ci_lower * x_line + tr.intercept
+        y_high = tr.ci_upper * x_line + tr.intercept
+        ax.fill_between(x_line, y_low, y_high, color=SLS_CHARCOAL, alpha=0.1)
+
+    # Annotation with slope and p-value
+    sig = "***" if tr.p_value < 0.001 else "**" if tr.p_value < 0.01 else "*" if tr.p_value < 0.05 else "n.s."
+    annotation = f"slope = {tr.slope:+.2f}/yr ({sig}, p={tr.p_value:.3f})"
+    ax.annotate(
+        annotation,
+        xy=(0.02, 0.95),
+        xycoords="axes fraction",
+        fontsize=9,
+        va="top",
+        color=COLOUR_TEXT,
+    )
+
+    # Labels
+    ax.set_xlabel("Year")
+    units_col = data["units"].iloc[0] if "units" in data.columns else ""
+    ax.set_ylabel(f"{pollutant} ({units_col})" if units_col else pollutant)
+
+    if title:
+        ax.set_title(title)
+    else:
+        ax.set_title(f"{pollutant} Trend - {site}")
+
+    ax.legend(loc="upper right", framealpha=0.9)
+
+    plt.tight_layout()
+
+    return fig

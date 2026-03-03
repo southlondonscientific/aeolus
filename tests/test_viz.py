@@ -1344,3 +1344,176 @@ class TestVisualisationIntegration:
         assert hasattr(viz, "plot_aqi_card")
         assert hasattr(viz, "plot_aqi_comparison")
         assert hasattr(viz, "AEOLUS_6_BAND")
+        assert hasattr(viz, "plot_time_variation")
+        assert hasattr(viz, "plot_trend")
+
+
+# =============================================================================
+# Time Variation Tests
+# =============================================================================
+
+
+class TestPlotTimeVariation:
+    """Tests for plot_time_variation function."""
+
+    @pytest.fixture
+    def sample_data(self):
+        """Create sample data spanning a full year with diurnal/weekly patterns."""
+        rng = np.random.default_rng(42)
+        dates = pd.date_range("2024-01-01", periods=8760, freq="h")
+        values = (
+            40.0
+            + 10.0 * np.sin(np.arange(8760) * 2 * np.pi / 24)  # diurnal
+            + rng.normal(0, 5, 8760)
+        )
+        return pd.DataFrame(
+            {
+                "site_code": "MY1",
+                "date_time": dates,
+                "measurand": "NO2",
+                "value": values,
+                "units": "ug/m3",
+                "source_network": "AURN",
+                "ratification": "Provisional",
+                "created_at": pd.Timestamp.now(tz="UTC"),
+            }
+        )
+
+    def test_returns_figure(self, sample_data):
+        """Test that plot_time_variation returns a Figure."""
+        from aeolus.viz import plot_time_variation
+
+        fig = plot_time_variation(sample_data, pollutant="NO2")
+        assert isinstance(fig, plt.Figure)
+        plt.close(fig)
+
+    def test_has_four_or_more_axes(self, sample_data):
+        """Test that figure has at least 4 axes (4 panels + colorbar)."""
+        from aeolus.viz import plot_time_variation
+
+        fig = plot_time_variation(sample_data, pollutant="NO2")
+        # 4 subplots + 1 colorbar axis = 5
+        assert len(fig.axes) >= 4
+        plt.close(fig)
+
+    def test_raises_on_missing_pollutant(self, sample_data):
+        """Test error for missing pollutant."""
+        from aeolus.viz import plot_time_variation
+
+        with pytest.raises(ValueError, match="No data found"):
+            plot_time_variation(sample_data, pollutant="O3")
+
+    def test_show_ci_false(self, sample_data):
+        """Test that show_ci=False runs without error."""
+        from aeolus.viz import plot_time_variation
+
+        fig = plot_time_variation(sample_data, pollutant="NO2", show_ci=False)
+        assert isinstance(fig, plt.Figure)
+        plt.close(fig)
+
+    def test_custom_title(self, sample_data):
+        """Test custom title."""
+        from aeolus.viz import plot_time_variation
+
+        fig = plot_time_variation(
+            sample_data, pollutant="NO2", title="Custom Title"
+        )
+        assert isinstance(fig, plt.Figure)
+        plt.close(fig)
+
+    def test_custom_figsize(self, sample_data):
+        """Test custom figure size."""
+        from aeolus.viz import plot_time_variation
+
+        fig = plot_time_variation(
+            sample_data, pollutant="NO2", figsize=(12, 10)
+        )
+        assert isinstance(fig, plt.Figure)
+        plt.close(fig)
+
+
+# =============================================================================
+# Trend Plot Tests
+# =============================================================================
+
+
+class TestPlotTrend:
+    """Tests for plot_trend function."""
+
+    @pytest.fixture
+    def trend_data_and_result(self):
+        """Create sample data and a matching TrendResult."""
+        from aeolus.metrics.stats import TrendResult, trend
+
+        rng = np.random.default_rng(42)
+        frames = []
+        for yr in range(2016, 2024):
+            dates = pd.date_range(f"{yr}-01-01", f"{yr}-12-31 23:00", freq="h", tz="UTC")
+            vals = 40.0 + 2.0 * (yr - 2016) + rng.normal(0, 3, len(dates))
+            frames.append(
+                pd.DataFrame(
+                    {
+                        "site_code": "MY1",
+                        "date_time": dates,
+                        "measurand": "NO2",
+                        "value": vals,
+                        "units": "ug/m3",
+                        "source_network": "AURN",
+                        "ratification": "Provisional",
+                        "created_at": pd.Timestamp.now(tz="UTC"),
+                    }
+                )
+            )
+        data = pd.concat(frames, ignore_index=True)
+        result = trend(data, pollutant="NO2", avg_time="year", deseason=False)
+        return data, result
+
+    def test_returns_figure(self, trend_data_and_result):
+        """Test that plot_trend returns a Figure."""
+        from aeolus.viz import plot_trend
+
+        data, tr = trend_data_and_result
+        fig = plot_trend(data, tr)
+        assert isinstance(fig, plt.Figure)
+        plt.close(fig)
+
+    def test_show_ci_false(self, trend_data_and_result):
+        """Test plot_trend with show_ci=False."""
+        from aeolus.viz import plot_trend
+
+        data, tr = trend_data_and_result
+        fig = plot_trend(data, tr, show_ci=False)
+        assert isinstance(fig, plt.Figure)
+        plt.close(fig)
+
+    def test_custom_title(self, trend_data_and_result):
+        """Test custom title."""
+        from aeolus.viz import plot_trend
+
+        data, tr = trend_data_and_result
+        fig = plot_trend(data, tr, title="Custom Trend Title")
+        ax = fig.axes[0]
+        assert ax.get_title() == "Custom Trend Title"
+        plt.close(fig)
+
+    def test_on_existing_axes(self, trend_data_and_result):
+        """Test plotting on existing axes."""
+        from aeolus.viz import plot_trend
+
+        data, tr = trend_data_and_result
+        fig_orig, ax_orig = plt.subplots()
+        fig = plot_trend(data, tr, ax=ax_orig)
+        assert fig is fig_orig
+        plt.close(fig)
+
+    def test_has_annotation(self, trend_data_and_result):
+        """Test that trend annotation is present."""
+        from aeolus.viz import plot_trend
+
+        data, tr = trend_data_and_result
+        fig = plot_trend(data, tr)
+        ax = fig.axes[0]
+        annotations = [c for c in ax.get_children()
+                       if isinstance(c, plt.Annotation)]
+        assert len(annotations) > 0
+        plt.close(fig)

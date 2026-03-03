@@ -56,7 +56,9 @@ from .plots import (
     plot_distribution,
     plot_diurnal,
     plot_monthly,
+    plot_time_variation,
     plot_timeseries,
+    plot_trend,
     plot_weekly,
 )
 from .theme import (
@@ -94,6 +96,8 @@ __all__ = [
     "plot_weekly",
     "plot_monthly",
     "plot_calendar",
+    "plot_time_variation",
+    "plot_trend",
     # Brand
     "SLS_YELLOW",
     "SLS_CHARCOAL",

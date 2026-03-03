@@ -64,6 +64,7 @@ from .base import (
 )
 from .indices import get_index
 from .indices import list_indices as _list_indices
+from .stats import TrendResult, aq_stats, time_average, trend
 
 # Re-export key types
 __all__ = [
@@ -73,9 +74,14 @@ __all__ = [
     "aqi_check_who",
     "list_indices",
     "get_index_info",
+    # Analysis functions
+    "time_average",
+    "aq_stats",
+    "trend",
     # Types
     "AQIResult",
     "IndexInfo",
+    "TrendResult",
 ]
 
 
