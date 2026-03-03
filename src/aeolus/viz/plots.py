@@ -51,6 +51,27 @@ from .theme import (
 )
 
 # =============================================================================
+# Pollutant Label Formatting
+# =============================================================================
+
+# Matplotlib mathtext subscripts for common pollutant names
+_POLLUTANT_LABELS = {
+    "NO2": r"NO$_2$",
+    "O3": r"O$_3$",
+    "PM2.5": r"PM$_{2.5}$",
+    "PM10": r"PM$_{10}$",
+    "SO2": r"SO$_2$",
+    "NOX": r"NO$_x$",
+    "NH3": r"NH$_3$",
+}
+
+
+def _format_pollutant(name: str) -> str:
+    """Format pollutant name with proper subscripts for plot labels."""
+    return _POLLUTANT_LABELS.get(name, name)
+
+
+# =============================================================================
 # Helper Functions
 # =============================================================================
 
@@ -1281,7 +1302,7 @@ def _plot_diurnal_panel(
                         color=colour, alpha=0.2)
 
     ax.set_xlabel("Hour of Day")
-    ax.set_ylabel(pollutant)
+    ax.set_ylabel(_format_pollutant(pollutant))
     ax.set_title("Diurnal")
     ax.set_xticks(hours[::4])
     ax.set_xticklabels([f"{h:02d}" for h in hours[::4]])
@@ -1300,7 +1321,7 @@ def _plot_weekly_panel(
 
     ax.bar(days, daily.reindex(days), color=colour, alpha=0.8)
     ax.set_xlabel("Day of Week")
-    ax.set_ylabel(pollutant)
+    ax.set_ylabel(_format_pollutant(pollutant))
     ax.set_title("Weekly")
     ax.set_xticks(days)
     ax.set_xticklabels(day_labels)
@@ -1318,7 +1339,7 @@ def _plot_monthly_panel(
 
     ax.bar(months, monthly.reindex(months), color=colour, alpha=0.8)
     ax.set_xlabel("Month")
-    ax.set_ylabel(pollutant)
+    ax.set_ylabel(_format_pollutant(pollutant))
     ax.set_title("Monthly")
     ax.set_xticks(months)
     ax.set_xticklabels(month_labels)
@@ -1421,11 +1442,12 @@ def plot_time_variation(
     if title:
         fig.suptitle(title, fontsize=14, y=1.02)
     else:
+        label = _format_pollutant(pollutant)
         site_label = _get_site_label(data)
         if site_label:
-            fig.suptitle(f"{pollutant} Time Variation - {site_label}", fontsize=14, y=1.02)
+            fig.suptitle(f"{label} Time Variation - {site_label}", fontsize=14, y=1.02)
         else:
-            fig.suptitle(f"{pollutant} Time Variation", fontsize=14, y=1.02)
+            fig.suptitle(f"{label} Time Variation", fontsize=14, y=1.02)
 
     plt.tight_layout()
 
@@ -1441,6 +1463,7 @@ def plot_trend(
     data: pd.DataFrame,
     trend_result: "TrendResult",
     show_ci: bool = True,
+    show_year_bands: bool = True,
     title: str | None = None,
     figsize: tuple[float, float] | str | None = None,
     ax: plt.Axes | None = None,
@@ -1452,7 +1475,8 @@ def plot_trend(
     Args:
         data: DataFrame from aeolus.download() (same data used for trend()).
         trend_result: TrendResult from metrics.trend().
-        show_ci: Show confidence interval band around the trend line.
+        show_ci: Show confidence interval as dashed lines around the trend.
+        show_year_bands: Show alternating grey bands for each calendar year.
         title: Plot title. Auto-generated if None.
         figsize: Figure size as (width, height) or preset name.
         ax: Existing Axes to plot on (creates new figure if None).
@@ -1498,9 +1522,19 @@ def plot_trend(
         fig = ax.figure
 
     colour = get_pollutant_colour(pollutant)
+    label = _format_pollutant(pollutant)
+
+    # Alternating year bands (like openair's grey/white stripes)
+    if show_year_bands:
+        year_min = int(np.floor(x_years.min()))
+        year_max = int(np.ceil(x_years.max()))
+        for yr in range(year_min, year_max + 1):
+            if yr % 2 == 0:
+                ax.axvspan(yr, yr + 1, color=SLS_LIGHT_GREY, alpha=0.15, zorder=0)
 
     # Scatter plot of aggregated data
-    ax.scatter(x_years, y, color=colour, alpha=0.6, s=30, zorder=5, label=f"{tr.avg_time}ly mean")
+    ax.scatter(x_years, y, color=colour, alpha=0.6, s=30, zorder=5,
+               label=f"{tr.avg_time}ly mean")
 
     # Theil-Sen trend line
     x_line = np.array([x_years.min(), x_years.max()])
@@ -1508,14 +1542,16 @@ def plot_trend(
     ax.plot(x_line, y_line, color=SLS_CHARCOAL, linewidth=LINE_WIDTH_MEDIUM,
             label=f"Trend: {tr.slope:+.2f}/yr", zorder=10)
 
-    # Confidence interval band — fan from data centroid to avoid
-    # the y-axis blowup that comes from extrapolating slope CI from year 0
+    # Confidence interval — dashed lines fanning from data centroid
     if show_ci:
         x_mid = x_years.mean()
         y_mid = tr.slope * x_mid + tr.intercept
         y_low = y_mid + tr.ci_lower * (x_line - x_mid)
         y_high = y_mid + tr.ci_upper * (x_line - x_mid)
-        ax.fill_between(x_line, y_low, y_high, color=SLS_CHARCOAL, alpha=0.1)
+        ax.plot(x_line, y_low, color=SLS_CHARCOAL, linewidth=LINE_WIDTH_THIN,
+                linestyle="--", alpha=0.5)
+        ax.plot(x_line, y_high, color=SLS_CHARCOAL, linewidth=LINE_WIDTH_THIN,
+                linestyle="--", alpha=0.5)
 
     # Annotation with slope and p-value
     sig = "***" if tr.p_value < 0.001 else "**" if tr.p_value < 0.01 else "*" if tr.p_value < 0.05 else "n.s."
@@ -1532,12 +1568,12 @@ def plot_trend(
     # Labels
     ax.set_xlabel("Year")
     units_col = data["units"].iloc[0] if "units" in data.columns else ""
-    ax.set_ylabel(f"{pollutant} ({units_col})" if units_col else pollutant)
+    ax.set_ylabel(f"{label} ({units_col})" if units_col else label)
 
     if title:
         ax.set_title(title)
     else:
-        ax.set_title(f"{pollutant} Trend - {site}")
+        ax.set_title(f"{label} Trend - {site}")
 
     ax.legend(loc="upper right", framealpha=0.9)
 
