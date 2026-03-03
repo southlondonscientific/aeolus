@@ -499,6 +499,7 @@ class TestFetchOpenaqData:
         # Check measurements.list was called with correct params
         mock_client.measurements.list.assert_called_once_with(
             sensors_id=7117,
+            data="measurements",
             datetime_from=start,
             datetime_to=end,
             limit=1000,

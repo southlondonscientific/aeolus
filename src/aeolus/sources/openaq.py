@@ -247,6 +247,7 @@ def fetch_openaq_data(
             try:
                 measurements = client.measurements.list(
                     sensors_id=sensor_id,
+                    data="measurements",
                     datetime_from=start_date,
                     datetime_to=end_date,
                     limit=1000,

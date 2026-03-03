@@ -355,6 +355,20 @@ The notebooks will likely reveal friction points. Based on the user research, we
 | **Date range shorthand** (`last="30d"`) | 02 | S1, S2 |
 | **Consistent API key error messages** | 03, 06, 07 | All |
 
+### OpenAQ SDK Upgrade (v1.0.0)
+
+The OpenAQ Python SDK is releasing v1.0.0 (currently at rc2, Feb 2026). Upgrading from 0.7.0 unlocks several features that directly support the notebooks and QoL goals:
+
+| Feature | SDK Feature | Supports Notebooks | Supports Personas |
+|---------|------------|-------------------|-------------------|
+| **Server-side rollups** | `data="hours"/"days"`, `rollup="hourly"/"daily"` | 01 (diurnal profiles), 02 (daily stats), 04 (city means) | P1, P3, S1 |
+| **Auto rate-limit waiting** | `auto_wait=True` (default) | 04, 05 (bulk downloads) | All |
+| **Async multi-site downloads** | `AsyncOpenAQ` client | 04 (100+ sites), 05 (many monitors) | P1, P2 |
+| **Cyclical aggregations** | `rollup="hourofday"/"dayofweek"` | 01 (diurnal/weekly patterns) | P1, T2 |
+| **Connection tuning** | `timeout`/`limits` config on client | 04, 05 (large downloads) | P1, P2 |
+
+**Breaking change handled:** `measurements.list()` now requires `data` parameter (added in v0.3.0rc2 prep). Pin should move to `openaq>=1.0.0` once stable.
+
 ### Lower Priority (consider for v0.5.0)
 
 | Feature | Supports Notebooks | Supports Personas |
