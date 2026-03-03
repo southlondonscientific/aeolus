@@ -81,22 +81,6 @@ from .api import (
     list_sources,
 )
 
-# Database operations (deprecated - will be removed in v0.4.0)
-# These functions are kept for backwards compatibility but are not actively maintained.
-# Consider using pandas to_sql() or similar for database storage needs.
-from .database_operations import (
-    add_data_to_database,
-    add_sites_to_database,
-)
-from .database_operations import (
-    get_site_metadata as db_get_site_metadata,
-)
-
-# Meteorology (deprecated - will be removed in v0.4.0)
-# This function is kept for backwards compatibility but is not actively maintained.
-# Consider using the Open-Meteo Python SDK directly for meteorological data.
-from .meteorology import get_meteo_data
-
 # Define what gets exported with "from aeolus import *"
 __all__ = [
     # Version
@@ -111,10 +95,4 @@ __all__ = [
     "download",
     "get_source_info",
     "fetch",
-    # Database operations
-    "add_sites_to_database",
-    "add_data_to_database",
-    "db_get_site_metadata",
-    # Meteorology
-    "get_meteo_data",
 ]

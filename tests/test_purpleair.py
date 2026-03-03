@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
+from purpleair_api.PurpleAirAPIError import PurpleAirAPIError
 
 from aeolus.sources.purpleair import (
     DEFAULT_HISTORY_FIELDS,
@@ -451,7 +452,7 @@ class TestFetchPurpleairMetadata:
     def test_returns_empty_on_api_error(self, mock_get_client):
         """Test that API errors return empty DataFrame with warning."""
         mock_client = MagicMock()
-        mock_client.request_multiple_sensors_data.side_effect = Exception("API Error")
+        mock_client.request_multiple_sensors_data.side_effect = PurpleAirAPIError("API Error")
         mock_get_client.return_value = mock_client
 
         result = fetch_purpleair_metadata()
@@ -546,7 +547,7 @@ class TestFetchPurpleairData:
         mock_client = MagicMock()
         # First site fails, second succeeds
         mock_client.request_sensor_historic_data.side_effect = [
-            Exception("API Error"),
+            PurpleAirAPIError("API Error"),
             mock_historic_response,
         ]
         mock_get_client.return_value = mock_client
@@ -563,7 +564,7 @@ class TestFetchPurpleairData:
     def test_returns_empty_on_all_failures(self, mock_get_client):
         """Test that empty DataFrame returned when all sites fail."""
         mock_client = MagicMock()
-        mock_client.request_sensor_historic_data.side_effect = Exception("API Error")
+        mock_client.request_sensor_historic_data.side_effect = PurpleAirAPIError("API Error")
         mock_get_client.return_value = mock_client
 
         result = fetch_purpleair_data(

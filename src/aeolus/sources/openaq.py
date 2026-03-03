@@ -30,6 +30,7 @@ from datetime import datetime, timezone
 
 import pandas as pd
 from openaq import OpenAQ
+from openaq.shared.exceptions import OpenAQError
 
 from ..registry import register_source
 from ..transforms import add_column, compose, select_columns
@@ -228,7 +229,7 @@ def fetch_openaq_data(
         try:
             sensors_response = client.locations.sensors(location_id_int)
             sensors = sensors_response.results if sensors_response.results else []
-        except Exception as e:
+        except (OpenAQError, KeyError, ValueError, AttributeError) as e:
             logger.warning(f"Failed to get sensors for location {location_id}: {e}")
             continue
 
@@ -275,7 +276,7 @@ def fetch_openaq_data(
                         f"Sensor {sensor_id}: fetched {len(measurements.results)} measurements"
                     )
 
-            except Exception as e:
+            except (OpenAQError, KeyError, ValueError, AttributeError) as e:
                 logger.warning(f"Failed to fetch data for sensor {sensor_id}: {e}")
                 continue
 

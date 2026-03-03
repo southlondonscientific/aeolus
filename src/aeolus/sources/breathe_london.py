@@ -147,7 +147,7 @@ def fetch_breathe_london_metadata(**filters) -> pd.DataFrame:
 
     try:
         data = _call_breathe_london_api("ListSensors", params)
-    except Exception as e:
+    except (requests.RequestException, ValueError, KeyError, TypeError) as e:
         warning(f"Failed to fetch Breathe London metadata: {e}")
         warnings.warn(
             f"Failed to fetch Breathe London metadata: {e}",
@@ -259,7 +259,7 @@ def fetch_breathe_london_data(
                     df = normalizer(df)
                     all_data.append(df)
 
-        except Exception as e:
+        except (requests.RequestException, ValueError, KeyError, TypeError) as e:
             warning(f"Failed to fetch Breathe London data for site {site}: {e}")
             # Continue with other sites even if one fails
             continue

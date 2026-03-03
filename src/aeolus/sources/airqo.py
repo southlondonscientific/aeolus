@@ -160,7 +160,7 @@ def fetch_airqo_metadata(**filters) -> pd.DataFrame:
     """
     try:
         data = _call_airqo_api("devices/metadata/sites")
-    except Exception as e:
+    except (requests.RequestException, ValueError, KeyError, TypeError) as e:
         warning(f"Failed to fetch AirQo metadata: {e}")
         warnings.warn(
             f"Failed to fetch AirQo metadata: {e}",
@@ -211,7 +211,7 @@ def fetch_airqo_metadata(**filters) -> pd.DataFrame:
                             )
                 sites = all_sites
                 logger.info(f"Retrieved {len(sites)} sites from grids/summary")
-        except Exception as e:
+        except (requests.RequestException, ValueError, KeyError, TypeError) as e:
             logger.warning(f"Grids fallback also failed: {e}")
 
     if not sites:
@@ -256,7 +256,7 @@ def fetch_airqo_grids() -> pd.DataFrame:
     """
     try:
         data = _call_airqo_api("devices/metadata/grids")
-    except Exception as e:
+    except (requests.RequestException, ValueError, KeyError, TypeError) as e:
         warning(f"Failed to fetch AirQo grids: {e}")
         warnings.warn(
             f"Failed to fetch AirQo grids: {e}",
@@ -413,7 +413,7 @@ def fetch_airqo_data(
                 df = normalizer(df)
                 all_data.append(df)
 
-        except Exception as e:
+        except (requests.RequestException, ValueError, KeyError, TypeError) as e:
             warning(f"Failed to fetch AirQo data for site {site_id}: {e}")
             continue
 
@@ -493,7 +493,7 @@ def fetch_airqo_data_by_grid(
         normalizer = create_airqo_normalizer()
         return normalizer(df)
 
-    except Exception as e:
+    except (requests.RequestException, ValueError, KeyError, TypeError) as e:
         warning(f"Failed to fetch AirQo data for grid {grid_id}: {e}")
         return _empty_dataframe()
 

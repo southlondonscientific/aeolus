@@ -37,11 +37,13 @@ from logging import getLogger, warning
 from typing import Any
 
 import pandas as pd
+import requests
 
 from ..decorators import retry_on_network_error
 from ..registry import register_source
 from ..transforms import add_column, compose, select_columns
 from ..types import AeolusDataWarning, empty_data_frame
+from purpleair_api.PurpleAirAPIError import PurpleAirAPIError
 
 logger = getLogger(__name__)
 
@@ -211,7 +213,7 @@ def fetch_purpleair_metadata(**filters) -> pd.DataFrame:
 
     try:
         response = client.request_multiple_sensors_data(**params)
-    except Exception as e:
+    except (PurpleAirAPIError, requests.RequestException, ValueError, KeyError) as e:
         warning(f"Failed to fetch PurpleAir metadata: {e}")
         warnings.warn(
             f"Failed to fetch PurpleAir metadata: {e}",
@@ -412,7 +414,7 @@ def fetch_purpleair_data(
             else:
                 logger.warning(f"No data returned for sensor {sensor_index}")
 
-        except Exception as e:
+        except (PurpleAirAPIError, requests.RequestException, ValueError, KeyError) as e:
             warning(f"Failed to fetch PurpleAir data for sensor {sensor_index}: {e}")
             continue
 

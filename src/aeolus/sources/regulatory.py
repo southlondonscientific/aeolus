@@ -31,6 +31,7 @@ All networks follow the same data format (RData files from OpenAir), so they
 share common fetching and normalisation functions.
 """
 
+import struct
 import warnings
 from datetime import datetime, timezone
 from logging import warning
@@ -157,7 +158,7 @@ def fetch_rdata(url: str) -> pd.DataFrame | None:
         # RData returns a dict with one key - get the first (only) value
         data = converted[next(iter(converted))]
         return pd.DataFrame(data)
-    except Exception as e:
+    except (ValueError, KeyError, TypeError, StopIteration, struct.error, RuntimeError) as e:
         warning(f"Failed to parse RData from {url}: {e}")
         return None
 

@@ -654,7 +654,7 @@ def _fetch_sensor_archive(
             sep=";",
             low_memory=False,
         )
-    except Exception as e:
+    except (pd.errors.ParserError, ValueError, UnicodeDecodeError) as e:
         logger.debug(f"Failed to parse archive CSV {filename}: {e}")
         warnings.warn(
             f"Failed to parse Sensor.Community archive CSV {filename}: {e}",

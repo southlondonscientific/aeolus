@@ -9,6 +9,7 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
+from openaq.shared.exceptions import OpenAQError
 import pytest
 
 from aeolus.types import empty_data_frame as _empty_dataframe
@@ -395,7 +396,7 @@ class TestFetchOpenaqData:
         mock_get_client.return_value = mock_client
 
         # Mock sensors to raise exception
-        mock_client.locations.sensors.side_effect = Exception("API Error")
+        mock_client.locations.sensors.side_effect = OpenAQError("API Error")
 
         result = fetch_openaq_data(
             sites=["2708"],
@@ -436,7 +437,7 @@ class TestFetchOpenaqData:
         mock_client.locations.sensors.return_value = sensors_response
 
         # Mock measurements to raise exception
-        mock_client.measurements.list.side_effect = Exception("API Error")
+        mock_client.measurements.list.side_effect = OpenAQError("API Error")
 
         result = fetch_openaq_data(
             sites=["2708"],
