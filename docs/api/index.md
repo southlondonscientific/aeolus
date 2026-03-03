@@ -6,10 +6,10 @@ This section provides detailed documentation for all Aeolus functions and classe
 
 | Module | Description |
 |--------|-------------|
-| [`aeolus`](aeolus.md) | Top-level API (download, list_sources, etc.) |
+| [`aeolus`](aeolus.md) | Top-level API (find_sites, download, list_sources) |
 | [`aeolus.networks`](networks.md) | Network-specific functions |
-| [`aeolus.portals`](portals.md) | Portal-specific functions (OpenAQ) |
-| [`aeolus.metrics`](metrics.md) | Air quality index calculations |
+| [`aeolus.portals`](portals.md) | Portal-specific functions (OpenAQ, PurpleAir) |
+| [`aeolus.metrics`](metrics.md) | Air quality indices and analysis functions |
 
 ## Quick Reference
 
@@ -17,6 +17,12 @@ This section provides detailed documentation for all Aeolus functions and classe
 
 ```python
 import aeolus
+
+# Find nearby monitoring sites
+aeolus.find_sites("AURN", near=(51.5, -0.1), radius_km=20)
+
+# Find sites in a bounding box
+aeolus.find_sites(bbox=(-0.5, 51.3, 0.3, 51.7))
 
 # List available data sources
 aeolus.list_sources()
@@ -48,7 +54,22 @@ aeolus.portals.find_sites("OPENAQ", country="GB")
 aeolus.portals.download("OPENAQ", sites, start, end)
 ```
 
-### Metrics Functions
+### Analysis Functions
+
+```python
+from aeolus import metrics
+
+# Time-average with data capture thresholds
+daily = metrics.time_average(data, freq="D", data_thresh=0.75)
+
+# Annual regulatory statistics (LAQM-ready)
+stats = metrics.aq_stats(data, year=2024)
+
+# Non-parametric trend analysis (Theil-Sen + Mann-Kendall)
+result = metrics.trend(data, pollutant="NO2")
+```
+
+### AQI Functions
 
 ```python
 from aeolus import metrics
@@ -64,4 +85,17 @@ metrics.aqi_check_who(data)
 
 # List available indices
 metrics.list_indices()
+```
+
+### Visualization Functions
+
+```python
+from aeolus import viz, metrics
+
+# Time variation (openair-style 2x2 plot)
+fig = viz.plot_time_variation(data, pollutant="NO2")
+
+# Trend plot
+result = metrics.trend(data, pollutant="NO2")
+fig = viz.plot_trend(data, result)
 ```

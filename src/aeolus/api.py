@@ -396,7 +396,7 @@ def find_sites(
     radius_km: float = 50.0,
     bbox: tuple[float, float, float, float] | None = None,
     include_all: bool = False,
-    **filters,
+    **filters: Any,
 ) -> pd.DataFrame:
     """
     Find air quality monitoring sites across one or more data sources.

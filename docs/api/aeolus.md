@@ -4,6 +4,10 @@ Top-level API for downloading and working with air quality data.
 
 ## Functions
 
+::: aeolus.find_sites
+    options:
+      show_root_heading: false
+
 ::: aeolus.list_sources
     options:
       show_root_heading: false
@@ -21,6 +25,44 @@ Top-level API for downloading and working with air quality data.
       show_root_heading: false
 
 ## Usage Examples
+
+### Find Nearby Sites
+
+```python
+import aeolus
+
+# Find AURN sites within 20 km of central London
+sites = aeolus.find_sites("AURN", near=(51.5074, -0.1278), radius_km=20)
+print(sites[["site_code", "site_name", "distance_km"]])
+```
+
+### Find Sites in a Bounding Box
+
+```python
+# Find sites from any free source within a bounding box
+sites = aeolus.find_sites(bbox=(-0.5, 51.3, 0.3, 51.7))
+
+# Or specify sources explicitly
+sites = aeolus.find_sites(["AURN", "SAQN"], bbox=(-0.5, 51.3, 0.3, 51.7))
+```
+
+### Find Sites Then Download
+
+```python
+import aeolus
+from datetime import datetime
+
+# Discover nearby sites
+sites = aeolus.find_sites("AURN", near=(51.5074, -0.1278), radius_km=10)
+
+# Download data from the nearest sites
+data = aeolus.download(
+    "AURN",
+    sites=sites["site_code"].tolist(),
+    start_date=datetime(2024, 1, 1),
+    end_date=datetime(2024, 1, 31)
+)
+```
 
 ### List Available Sources
 

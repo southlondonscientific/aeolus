@@ -5,6 +5,31 @@ All notable changes to Aeolus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - Unreleased
+
+### Added
+
+#### Unified Site Discovery
+- **`aeolus.find_sites()`** - Top-level function that abstracts the network/portal distinction. Supports circular search (`near=(lat, lon)` + `radius_km`), rectangular filtering (`bbox`), and automatic source selection (free sources by default, opt-in for API-key sources via `include_all=True`). Returns metadata DataFrame with `distance_km` column when `near` is used, sorted nearest-first.
+- **`aeolus.geo`** module - Geospatial utilities: `haversine_distance()` (great-circle distance) and `near_to_bbox()` (point+radius to bounding box).
+- **`METADATA_COLUMNS`** constant and `empty_metadata_frame()` helper in `aeolus.types`.
+
+#### Analysis Functions (`aeolus.metrics`)
+- **`time_average()`** - Time-average air quality data with data capture thresholds. Supports flexible aggregation periods (daily, 8-hourly, weekly, monthly, yearly) and multiple statistics (mean, max, min, percentile). Foundation for regulatory statistics.
+- **`aq_stats()`** - Annual regulatory air quality statistics: annual mean, maxima, percentiles (p95, p99), data capture, and pollutant-specific exceedance counts (NO2 hourly >200, PM10 daily >50, O3 8h rolling >120). Output suitable for LAQM Annual Status Reports.
+- **`trend()`** - Non-parametric trend analysis using Theil-Sen slope with Mann-Kendall significance test. Supports deseasonalisation (STL decomposition), autocorrelation correction, and configurable confidence intervals. Returns `TrendResult` dataclass.
+
+#### Visualization (`aeolus.viz`)
+- **`plot_time_variation()`** - Combined 2x2 temporal variation plot (diurnal, weekly, monthly, hour x weekday heatmap), equivalent to R openair's `timeVariation`.
+- **`plot_trend()`** - Trend analysis plot: scatter of aggregated data with Theil-Sen line, optional CI bands (dashed), and alternating year shading.
+
+### Fixed
+- **`aq_stats()` year filter** - Handle numpy integer types when filtering by year.
+- **`plot_trend()` CI band** - CI band now fans from the data centroid rather than the y-intercept.
+- **Plot rendering** - Pollutant subscripts (NO₂, PM₂.₅), year-band shading, and dashed CI lines on trend plots.
+- **Empty DataFrame schema** - All sources enforce the standard 8-column schema on empty DataFrames, preventing concat failures.
+- **Deprecated exports** - Removed deprecated module re-exports; narrowed exception handling across sources.
+
 ## [0.3.0rc2] - 2026-02-16
 
 ### Fixed

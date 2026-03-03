@@ -1,8 +1,22 @@
 # aeolus.metrics
 
-Air Quality Index calculations and metrics.
+Air quality analysis functions, regulatory statistics, and AQI calculations.
 
-## Functions
+## Analysis Functions
+
+::: aeolus.metrics.time_average
+    options:
+      show_root_heading: false
+
+::: aeolus.metrics.aq_stats
+    options:
+      show_root_heading: false
+
+::: aeolus.metrics.trend
+    options:
+      show_root_heading: false
+
+## AQI Functions
 
 ::: aeolus.metrics.aqi_summary
     options:

@@ -1,6 +1,93 @@
 # Metrics & Analysis
 
-Aeolus includes built-in functions for calculating Air Quality Indices (AQI) from multiple international standards.
+Aeolus includes analysis functions for regulatory statistics, trend detection, and air quality index calculation.
+
+## Time Averaging
+
+Use `time_average()` to resample data to a coarser time resolution with data capture thresholds. Periods with insufficient valid observations are set to NaN:
+
+```python
+from aeolus import metrics
+
+# Daily averages (at least 75% data capture required)
+daily = metrics.time_average(data, freq="D", data_thresh=0.75)
+
+# Monthly averages
+monthly = metrics.time_average(data, freq="ME")
+
+# Daily maximum
+daily_max = metrics.time_average(data, freq="D", statistic="max")
+
+# 95th percentile, no threshold
+p95 = metrics.time_average(data, freq="D", statistic="percentile", percentile=95, data_thresh=0)
+
+# Only specific pollutants
+no2_daily = metrics.time_average(data, freq="D", pollutants=["NO2"])
+```
+
+The output includes a `data_capture` column showing the fraction of valid observations in each period.
+
+## Annual Statistics
+
+Use `aq_stats()` to calculate regulatory statistics suitable for LAQM Annual Status Reports:
+
+```python
+# All years and pollutants
+stats = metrics.aq_stats(data)
+
+# Specific year
+stats = metrics.aq_stats(data, year=2024)
+
+# Specific pollutant
+stats = metrics.aq_stats(data, pollutant="NO2")
+```
+
+Output columns:
+
+| Column | Description |
+|--------|-------------|
+| `annual_mean` | Annual mean concentration |
+| `max_hourly` | Maximum hourly value |
+| `max_daily_mean` | Maximum daily mean |
+| `max_8h_rolling_mean` | Maximum 8-hour rolling mean |
+| `p95`, `p99` | 95th and 99th percentiles |
+| `data_capture` | Fraction of valid hours |
+| `exceedance_hours_200` | Hours > 200 µg/m³ (NO2) |
+| `exceedance_days_50` | Days with daily mean > 50 µg/m³ (PM10) |
+| `exceedance_days_120` | Days where max 8h rolling mean > 120 µg/m³ (O3) |
+
+## Trend Analysis
+
+Use `trend()` for non-parametric trend detection using Theil-Sen slope and Mann-Kendall significance test:
+
+```python
+# Monthly trend with deseasonalisation
+result = metrics.trend(data, pollutant="NO2")
+
+print(f"Slope: {result.slope:.2f} µg/m³/year")
+print(f"Change: {result.slope_pct:.1f}%/year")
+print(f"p-value: {result.p_value:.4f}")
+print(f"95% CI: [{result.ci_lower:.2f}, {result.ci_upper:.2f}]")
+
+# Seasonal aggregation
+result = metrics.trend(data, pollutant="PM2.5", avg_time="season")
+
+# Annual aggregation (no deseasonalisation)
+result = metrics.trend(data, pollutant="O3", avg_time="year")
+
+# Multi-site data returns a list
+results = metrics.trend(multi_site_data, pollutant="NO2")
+for r in results:
+    print(f"{r.site_code}: {r.slope:.2f} ({r.p_value:.3f})")
+```
+
+Visualise the result with `plot_trend()`:
+
+```python
+from aeolus import viz
+
+fig = viz.plot_trend(data, result)
+```
 
 ## Supported AQI Systems
 

@@ -20,7 +20,24 @@ data = aeolus.download(
 
 ## Finding Sites
 
-Before downloading, you'll often want to explore available sites:
+Before downloading, you'll often want to explore available sites. The `find_sites()` function works across all sources:
+
+```python
+# Find sites near a location (sorted by distance)
+sites = aeolus.find_sites("AURN", near=(51.5074, -0.1278), radius_km=20)
+print(sites[["site_code", "site_name", "distance_km"]])
+
+# Find sites in a bounding box
+sites = aeolus.find_sites("AURN", bbox=(-0.5, 51.3, 0.3, 51.7))
+
+# Find sites from all free sources
+sites = aeolus.find_sites(near=(51.5, -0.1), radius_km=10)
+
+# Include API-key sources too (warns on failures)
+sites = aeolus.find_sites(near=(51.5, -0.1), radius_km=10, include_all=True)
+```
+
+You can also access network-specific metadata directly:
 
 ```python
 # Get all sites for a network

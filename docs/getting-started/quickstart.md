@@ -28,17 +28,25 @@ All data sources return a standardised pandas DataFrame with these columns:
 | Column | Description |
 |--------|-------------|
 | `site_code` | Unique identifier for the monitoring site |
-| `site_name` | Human-readable site name |
 | `date_time` | Timestamp (start of measurement period) |
 | `measurand` | Pollutant name (PM2.5, NO2, O3, etc.) |
 | `value` | Measured concentration |
 | `units` | Measurement units (typically µg/m³) |
 | `source_network` | Data source identifier |
 | `ratification` | Data quality flag |
+| `created_at` | When the record was fetched |
 
 ## Finding Available Sites
 
-List all available sites for a network:
+Find monitoring sites near a location:
+
+```python
+# Find AURN sites within 20 km of central London
+sites = aeolus.find_sites("AURN", near=(51.5074, -0.1278), radius_km=20)
+print(sites[['site_code', 'site_name', 'distance_km']])
+```
+
+Or list all sites for a network:
 
 ```python
 # Get metadata for all AURN sites

@@ -78,6 +78,38 @@ Visualize data as a calendar (requires specifying a pollutant):
 fig = viz.plot_calendar(data, pollutant="NO2", year=2024)
 ```
 
+### Time Variation (2x2 Panel)
+
+The classic temporal decomposition plot, equivalent to R openair's `timeVariation`. Shows four facets: diurnal (hourly mean with CI), weekly (day-of-week bars), monthly (bars), and hour x weekday heatmap:
+
+```python
+# Standard 2x2 temporal variation
+fig = viz.plot_time_variation(data, pollutant="NO2")
+
+# Without confidence interval on diurnal panel
+fig = viz.plot_time_variation(data, pollutant="PM2.5", show_ci=False)
+
+# Custom title
+fig = viz.plot_time_variation(data, pollutant="O3", title="Ozone Temporal Patterns")
+```
+
+### Trend Plot
+
+Visualise trend analysis results: scatter of aggregated data with Theil-Sen regression line, optional CI bands, and year shading:
+
+```python
+from aeolus import metrics
+
+# First run trend analysis
+result = metrics.trend(data, pollutant="NO2")
+
+# Then plot it
+fig = viz.plot_trend(data, result)
+
+# Without CI bands or year shading
+fig = viz.plot_trend(data, result, show_ci=False, show_year_bands=False)
+```
+
 ### Distribution Plots
 
 Compare distributions across sites or time periods:
