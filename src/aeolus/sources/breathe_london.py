@@ -29,6 +29,7 @@ Data License: Open Government Licence v3.0
 """
 
 import os
+import warnings
 from datetime import datetime, timezone
 from logging import warning
 from typing import Any
@@ -39,6 +40,7 @@ import requests
 from ..decorators import retry_on_network_error
 from ..registry import register_source
 from ..transforms import add_column, compose, rename_columns, select_columns
+from ..types import AeolusDataWarning, empty_data_frame
 
 # Configuration
 BREATHE_LONDON_API_BASE = "https://breathe-london-7x54d7qf.ew.gateway.dev"
@@ -147,10 +149,15 @@ def fetch_breathe_london_metadata(**filters) -> pd.DataFrame:
         data = _call_breathe_london_api("ListSensors", params)
     except Exception as e:
         warning(f"Failed to fetch Breathe London metadata: {e}")
-        return pd.DataFrame()
+        warnings.warn(
+            f"Failed to fetch Breathe London metadata: {e}",
+            AeolusDataWarning,
+            stacklevel=2,
+        )
+        return empty_data_frame()
 
     if not data:
-        return pd.DataFrame()
+        return empty_data_frame()
 
     # Convert to DataFrame
     df = pd.DataFrame(data)

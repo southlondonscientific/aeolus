@@ -54,18 +54,7 @@ import pandas as pd
 from . import sources as _sources
 from .registry import get_source, source_exists
 from .registry import list_sources as _list_sources
-
-# Standard data schema columns for consistent empty DataFrames
-_STANDARD_COLUMNS = [
-    "site_code",
-    "date_time",
-    "measurand",
-    "value",
-    "units",
-    "source_network",
-    "ratification",
-    "created_at",
-]
+from .types import DATA_COLUMNS as _STANDARD_COLUMNS
 
 
 def list_sources() -> list[str]:

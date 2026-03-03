@@ -61,7 +61,7 @@ from ..transforms import (
     rename_columns,
     reset_index,
 )
-from ..types import DataFetcher, MetadataFetcher, Normaliser
+from ..types import AeolusDataWarning, DataFetcher, MetadataFetcher, Normaliser, empty_data_frame
 
 # Configuration - URLs for each network
 METADATA_URLS = {
@@ -259,7 +259,12 @@ def make_metadata_fetcher(network_name: str) -> MetadataFetcher:
         df = fetch_rdata(url)
 
         if df is None:
-            return pd.DataFrame()
+            warnings.warn(
+                f"Failed to fetch metadata for {network_name.upper()}",
+                AeolusDataWarning,
+                stacklevel=2,
+            )
+            return empty_data_frame()
 
         normaliser = normalise_regulatory_metadata(network_name)
         return normaliser(df)
@@ -301,7 +306,13 @@ def make_data_fetcher(network_name: str) -> DataFetcher:
                         results.append(df)
 
         if not results:
-            return pd.DataFrame()
+            warnings.warn(
+                f"No data retrieved for {network_name.upper()} "
+                f"(sites={sites}, years={list(years)})",
+                AeolusDataWarning,
+                stacklevel=2,
+            )
+            return empty_data_frame()
 
         # Concatenate all results
         combined = pd.concat(results, ignore_index=True)

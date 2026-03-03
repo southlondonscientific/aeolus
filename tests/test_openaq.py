@@ -11,9 +11,10 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
+from aeolus.types import empty_data_frame as _empty_dataframe
+
 from aeolus.sources.openaq import (
     PARAMETER_MAP,
-    _empty_dataframe,
     _get_client,
     _normalize,
     fetch_openaq_data,

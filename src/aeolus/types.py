@@ -177,5 +177,28 @@ DATA_COLUMNS = [
     "source_network",
     "ratification",
     "created_at",
-    "updated_at",
 ]
+
+
+# =============================================================================
+# Warning class and empty DataFrame helper
+# =============================================================================
+
+
+class AeolusDataWarning(UserWarning):
+    """Warning issued when a data request returns no results due to an error.
+
+    Users can filter these with::
+
+        import warnings
+        warnings.filterwarnings("ignore", category=AeolusDataWarning)
+    """
+
+
+def empty_data_frame() -> pd.DataFrame:
+    """Return an empty DataFrame with the standard 8-column data schema.
+
+    Use this instead of bare ``pd.DataFrame()`` so that concatenation
+    with valid data never fails due to missing columns.
+    """
+    return pd.DataFrame(columns=DATA_COLUMNS)

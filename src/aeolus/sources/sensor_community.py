@@ -34,6 +34,7 @@ Map: https://maps.sensor.community/
 
 import io
 import time
+import warnings
 from datetime import datetime, timedelta, timezone
 from logging import getLogger, warning
 from typing import Any
@@ -43,6 +44,7 @@ import requests
 
 from ..decorators import retry_on_network_error
 from ..registry import register_source
+from ..types import AeolusDataWarning, empty_data_frame
 
 logger = getLogger(__name__)
 
@@ -369,16 +371,26 @@ def fetch_sensor_community_metadata(
 
     response = _make_request(url)
     if response is None:
-        return pd.DataFrame()
+        warnings.warn(
+            "Sensor.Community metadata request failed",
+            AeolusDataWarning,
+            stacklevel=2,
+        )
+        return empty_data_frame()
 
     try:
         data = response.json()
     except ValueError:
         warning("Failed to parse JSON response")
-        return pd.DataFrame()
+        warnings.warn(
+            "Failed to parse Sensor.Community metadata JSON response",
+            AeolusDataWarning,
+            stacklevel=2,
+        )
+        return empty_data_frame()
 
     if not data:
-        return pd.DataFrame()
+        return empty_data_frame()
 
     # Extract unique sensors from the response
     sensors = {}
@@ -405,7 +417,7 @@ def fetch_sensor_community_metadata(
         }
 
     if not sensors:
-        return pd.DataFrame()
+        return empty_data_frame()
 
     df = pd.DataFrame(list(sensors.values()))
 
@@ -634,7 +646,7 @@ def _fetch_sensor_archive(
 
     response = _make_request(url, timeout=60)
     if response is None:
-        return pd.DataFrame()
+        return empty_data_frame()
 
     try:
         df = pd.read_csv(
@@ -644,10 +656,15 @@ def _fetch_sensor_archive(
         )
     except Exception as e:
         logger.debug(f"Failed to parse archive CSV {filename}: {e}")
-        return pd.DataFrame()
+        warnings.warn(
+            f"Failed to parse Sensor.Community archive CSV {filename}: {e}",
+            AeolusDataWarning,
+            stacklevel=2,
+        )
+        return empty_data_frame()
 
     if df.empty:
-        return pd.DataFrame()
+        return empty_data_frame()
 
     return _normalize_sensor_data(df, sensor_type, sensor_id)
 
@@ -721,7 +738,7 @@ def _normalize_sensor_data(
             )
 
     if not records:
-        return pd.DataFrame()
+        return empty_data_frame()
 
     return pd.DataFrame(records)
 

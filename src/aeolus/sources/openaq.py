@@ -33,6 +33,7 @@ from openaq import OpenAQ
 
 from ..registry import register_source
 from ..transforms import add_column, compose, select_columns
+from ..types import empty_data_frame
 
 logger = logging.getLogger(__name__)
 
@@ -280,7 +281,7 @@ def fetch_openaq_data(
 
     if not all_measurements:
         logger.warning("No measurements found for any location")
-        return _empty_dataframe()
+        return empty_data_frame()
 
     # Convert to DataFrame and normalize
     df = pd.DataFrame(all_measurements)
@@ -292,22 +293,6 @@ def fetch_openaq_data(
 # ============================================================================
 # NORMALIZATION
 # ============================================================================
-
-
-def _empty_dataframe() -> pd.DataFrame:
-    """Return empty DataFrame with standard schema."""
-    return pd.DataFrame(
-        columns=[
-            "site_code",
-            "date_time",
-            "measurand",
-            "value",
-            "units",
-            "source_network",
-            "ratification",
-            "created_at",
-        ]
-    )
 
 
 def _normalize(df: pd.DataFrame) -> pd.DataFrame:

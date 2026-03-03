@@ -29,6 +29,7 @@ Data Platform: https://airqo.net/
 """
 
 import os
+import warnings
 from datetime import datetime, timezone
 from logging import getLogger, warning
 from typing import Any
@@ -41,6 +42,7 @@ import requests
 from ..decorators import retry_on_network_error
 from ..registry import register_source
 from ..transforms import add_column, compose, rename_columns, select_columns
+from ..types import AeolusDataWarning, empty_data_frame
 
 # Configuration
 AIRQO_API_BASE = "https://api.airqo.net/api/v2"
@@ -160,13 +162,23 @@ def fetch_airqo_metadata(**filters) -> pd.DataFrame:
         data = _call_airqo_api("devices/metadata/sites")
     except Exception as e:
         warning(f"Failed to fetch AirQo metadata: {e}")
-        return pd.DataFrame()
+        warnings.warn(
+            f"Failed to fetch AirQo metadata: {e}",
+            AeolusDataWarning,
+            stacklevel=2,
+        )
+        return empty_data_frame()
 
     if not data.get("success") or "sites" not in data:
         warning(
             f"AirQo API returned unexpected response: {data.get('message', 'Unknown error')}"
         )
-        return pd.DataFrame()
+        warnings.warn(
+            f"AirQo API returned unexpected response: {data.get('message', 'Unknown error')}",
+            AeolusDataWarning,
+            stacklevel=2,
+        )
+        return empty_data_frame()
 
     sites = data["sites"]
 
@@ -203,7 +215,7 @@ def fetch_airqo_metadata(**filters) -> pd.DataFrame:
             logger.warning(f"Grids fallback also failed: {e}")
 
     if not sites:
-        return pd.DataFrame()
+        return empty_data_frame()
 
     # Convert to DataFrame
     df = pd.DataFrame(sites)
@@ -246,14 +258,24 @@ def fetch_airqo_grids() -> pd.DataFrame:
         data = _call_airqo_api("devices/metadata/grids")
     except Exception as e:
         warning(f"Failed to fetch AirQo grids: {e}")
-        return pd.DataFrame()
+        warnings.warn(
+            f"Failed to fetch AirQo grids: {e}",
+            AeolusDataWarning,
+            stacklevel=2,
+        )
+        return empty_data_frame()
 
     if not data.get("success") or "grids" not in data:
-        return pd.DataFrame()
+        warnings.warn(
+            f"AirQo grids API returned unexpected response: {data.get('message', 'Unknown error')}",
+            AeolusDataWarning,
+            stacklevel=2,
+        )
+        return empty_data_frame()
 
     grids = data["grids"]
     if not grids:
-        return pd.DataFrame()
+        return empty_data_frame()
 
     df = pd.DataFrame(grids)
 

@@ -35,6 +35,7 @@ Data Coverage: United States, Canada, Mexico
 """
 
 import os
+import warnings
 from datetime import datetime, timedelta, timezone
 from logging import getLogger, warning
 from typing import Any
@@ -44,6 +45,7 @@ import requests
 
 from ..decorators import retry_on_network_error
 from ..registry import register_source
+from ..types import AeolusDataWarning, empty_data_frame
 
 logger = getLogger(__name__)
 
@@ -227,7 +229,13 @@ def fetch_airnow_metadata(
     data = _call_airnow_api("data/", params)
 
     if not data:
-        return pd.DataFrame()
+        if data is None:
+            warnings.warn(
+                "AirNow metadata request failed; check API key and network",
+                AeolusDataWarning,
+                stacklevel=2,
+            )
+        return empty_data_frame()
 
     # Extract unique sites
     sites = {}
@@ -254,7 +262,7 @@ def fetch_airnow_metadata(
         }
 
     if not sites:
-        return pd.DataFrame()
+        return empty_data_frame()
 
     return pd.DataFrame(list(sites.values()))
 
@@ -430,7 +438,7 @@ def _fetch_site_historical(
         current_date = next_date
 
     if not records:
-        return pd.DataFrame()
+        return empty_data_frame()
 
     return pd.DataFrame(records)
 

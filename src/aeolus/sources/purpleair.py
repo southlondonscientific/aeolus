@@ -31,6 +31,7 @@ QA/QC Methodology: See REFERENCES.md for sources.
 """
 
 import os
+import warnings
 from datetime import datetime, timezone
 from logging import getLogger, warning
 from typing import Any
@@ -40,6 +41,7 @@ import pandas as pd
 from ..decorators import retry_on_network_error
 from ..registry import register_source
 from ..transforms import add_column, compose, select_columns
+from ..types import AeolusDataWarning, empty_data_frame
 
 logger = getLogger(__name__)
 
@@ -175,7 +177,8 @@ def fetch_purpleair_metadata(**filters) -> pd.DataFrame:
         client = _get_purpleair_client()
     except ValueError as e:
         warning(str(e))
-        return pd.DataFrame()
+        warnings.warn(str(e), AeolusDataWarning, stacklevel=2)
+        return empty_data_frame()
 
     # Build API parameters
     params = {
@@ -210,10 +213,20 @@ def fetch_purpleair_metadata(**filters) -> pd.DataFrame:
         response = client.request_multiple_sensors_data(**params)
     except Exception as e:
         warning(f"Failed to fetch PurpleAir metadata: {e}")
-        return pd.DataFrame()
+        warnings.warn(
+            f"Failed to fetch PurpleAir metadata: {e}",
+            AeolusDataWarning,
+            stacklevel=2,
+        )
+        return empty_data_frame()
 
     if not response or "data" not in response:
-        return pd.DataFrame()
+        warnings.warn(
+            "PurpleAir metadata response was empty or malformed",
+            AeolusDataWarning,
+            stacklevel=2,
+        )
+        return empty_data_frame()
 
     # Convert response to DataFrame
     # Response format: {"fields": [...], "data": [[...], [...], ...]}
@@ -221,7 +234,7 @@ def fetch_purpleair_metadata(**filters) -> pd.DataFrame:
     data = response.get("data", [])
 
     if not data:
-        return pd.DataFrame()
+        return empty_data_frame()
 
     # Use fields directly from API response (sensor_index is included)
     df = pd.DataFrame(data, columns=fields)
@@ -441,7 +454,7 @@ def _parse_historic_response(response: dict, sensor_index: str) -> pd.DataFrame:
     data = response.get("data", [])
 
     if not data or not fields:
-        return pd.DataFrame()
+        return empty_data_frame()
 
     # Create DataFrame with field names as columns
     df = pd.DataFrame(data, columns=fields)
