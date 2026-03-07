@@ -35,11 +35,23 @@ import struct
 import warnings
 from datetime import datetime, timezone
 from logging import warning
-from typing import Callable
 
 import pandas as pd
 import rdata
 import requests
+
+from ..decorators import retry_on_network_error
+from ..registry import register_source
+from ..transforms import (
+    add_column,
+    compose,
+    convert_timestamps,
+    drop_columns,
+    melt_measurands,
+    rename_columns,
+    reset_index,
+)
+from ..types import DataFetcher, MetadataFetcher, Normaliser
 
 # Suppress harmless rdata warnings about POSIXct/POSIXt conversion
 # These occur when parsing R datetime objects but don't affect functionality
@@ -300,9 +312,6 @@ def make_data_fetcher(network_name: str) -> DataFetcher:
                 df = fetch_rdata(url)
 
                 if df is not None:
-                    # Parse the data key (format: SITECODE_YEAR)
-                    site_key = f"{site.upper()}_{year}"
-
                     # RData file contains data with this key structure
                     # The fetch_rdata already extracted it, so we can use df directly
                     if not df.empty:

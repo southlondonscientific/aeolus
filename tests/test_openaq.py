@@ -209,7 +209,7 @@ class TestFetchOpenaqMetadata:
         mock_client.locations.list.return_value = mock_response
 
         bbox = (-0.5, 51.3, 0.3, 51.7)
-        result = fetch_openaq_metadata(bbox=bbox)
+        fetch_openaq_metadata(bbox=bbox)
 
         mock_client.locations.list.assert_called_once_with(bbox=bbox, limit=100)
 
@@ -240,7 +240,7 @@ class TestFetchOpenaqMetadata:
         mock_response.results = [mock_location]
         mock_client.locations.list.return_value = mock_response
 
-        result = fetch_openaq_metadata(coordinates=(51.5, -0.1), radius=5000)
+        fetch_openaq_metadata(coordinates=(51.5, -0.1), radius=5000)
 
         mock_client.locations.list.assert_called_once_with(
             coordinates=(51.5, -0.1), radius=5000, limit=100
@@ -380,7 +380,7 @@ class TestFetchOpenaqData:
         measurements_response.results = [mock_measurement]
         mock_client.measurements.list.return_value = measurements_response
 
-        result = fetch_openaq_data(
+        fetch_openaq_data(
             sites=["2708", "3272"],
             start_date=datetime(2024, 1, 1),
             end_date=datetime(2024, 1, 31),

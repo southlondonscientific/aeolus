@@ -37,7 +37,6 @@ import time
 import warnings
 from datetime import datetime, timedelta, timezone
 from logging import getLogger, warning
-from typing import Any
 
 import pandas as pd
 import requests
@@ -580,8 +579,6 @@ def fetch_sensor_community_data(
     current_date = start_date
 
     while current_date <= end_date:
-        date_str = current_date.strftime("%Y-%m-%d")
-
         # Fetch data for each sensor type group
         from ..progress import track
 

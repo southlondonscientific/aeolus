@@ -33,8 +33,15 @@ Pollutants and averaging periods:
 All concentrations are in µg/m³.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from ..base import AQIResult, Breakpoint, IndexInfo, calculate_aqi_from_breakpoints
 from . import register_index
+
+if TYPE_CHECKING:
+    import numpy as np
 
 # =============================================================================
 # Index Metadata

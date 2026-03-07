@@ -13,14 +13,7 @@ import pytest
 from purpleair_api.PurpleAirAPIError import PurpleAirAPIError
 
 from aeolus.sources.purpleair import (
-    DEFAULT_HISTORY_FIELDS,
-    METADATA_FIELDS,
     PARAMETER_MAP,
-    PM_ABSOLUTE_AGREEMENT_THRESHOLD,
-    PM_LOW_CONCENTRATION_THRESHOLD,
-    PM_LOWER_DETECTION_LIMIT,
-    PM_RELATIVE_AGREEMENT_THRESHOLD,
-    PM_UPPER_SATURATION_LIMIT,
     _apply_pm_bounds_check,
     _calculate_channel_value,
     _calculate_channel_value_simple,
@@ -300,7 +293,7 @@ class TestGetPurpleairClient:
         monkeypatch.setenv("PURPLEAIR_API_KEY", "test_key_123")
 
         with patch("purpleair_api.PurpleAirAPI.PurpleAirReadAPI") as mock_cls:
-            client = _get_purpleair_client()
+            _get_purpleair_client()
             mock_cls.assert_called_once_with("test_key_123")
 
 

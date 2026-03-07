@@ -36,7 +36,6 @@ Example:
     >>> df_normalised = normalise(df_raw)
 """
 
-from datetime import datetime
 from functools import reduce
 from typing import Any, Callable
 

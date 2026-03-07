@@ -32,9 +32,6 @@ import os
 import warnings
 from datetime import datetime, timezone
 from logging import getLogger, warning
-from typing import Any
-
-logger = getLogger(__name__)
 
 import pandas as pd
 import requests
@@ -43,6 +40,8 @@ from ..decorators import retry_on_network_error
 from ..registry import register_source
 from ..transforms import add_column, compose, rename_columns, select_columns
 from ..types import AeolusDataWarning, empty_data_frame
+
+logger = getLogger(__name__)
 
 # Configuration
 AIRQO_API_BASE = "https://api.airqo.net/api/v2"
