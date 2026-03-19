@@ -331,7 +331,9 @@ def fetch_airnow_data(
 
     # AirNow historical endpoint works per-location
     # We need to query each site separately
-    for site_code, (lat, lon) in site_coords.items():
+    from ..progress import track
+
+    for site_code, (lat, lon) in track(site_coords.items(), "Downloading AirNow"):
         logger.info(f"Fetching AirNow data for site {site_code}...")
 
         site_data = _fetch_site_historical(

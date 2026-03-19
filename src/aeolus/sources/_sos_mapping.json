@@ -1,0 +1,7250 @@
+{
+  "_generated": "2026-03-19T11:42:35.345197+00:00",
+  "aurn": {
+    "BEL2": [
+      {
+        "ts_id": "59",
+        "measurand": "CO",
+        "uom": "mg/m-3"
+      },
+      {
+        "ts_id": "65",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "60",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "64",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "63",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "61",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "62",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1935",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1930",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1934",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4006",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "CARD": [
+      {
+        "ts_id": "123",
+        "measurand": "CO",
+        "uom": "mg/m-3"
+      },
+      {
+        "ts_id": "129",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "124",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "128",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "127",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "125",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "126",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1996",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1991",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1995",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4023",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BALM": [
+      {
+        "ts_id": "43",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1919",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4001",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3599",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3600",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BAR3": [
+      {
+        "ts_id": "47",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "46",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "44",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "45",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4002",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5073",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5074",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "CLL2": [
+      {
+        "ts_id": "152",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "147",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "151",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "150",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "148",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "149",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2013",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2017",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4030",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "ACTH": [
+      {
+        "ts_id": "23",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "25",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "24",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1906",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1908",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BPLE": [
+      {
+        "ts_id": "96",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "97",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1964",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1965",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BEL1": [
+      {
+        "ts_id": "56",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "57",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "58",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2393",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4005",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BURW": [
+      {
+        "ts_id": "108",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "109",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "110",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4017",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "ARM6": [
+      {
+        "ts_id": "40",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "41",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "42",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1916",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1917",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1918",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4000",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BRS8": [
+      {
+        "ts_id": "98",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "102",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "101",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "99",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "100",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1966",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1970",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4015",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "CA1": [
+      {
+        "ts_id": "2",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4019",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "CHP": [
+      {
+        "ts_id": "138",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "141",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "139",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "140",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2005",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2008",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2006",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2007",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4028",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "CHS7": [
+      {
+        "ts_id": "143",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "146",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "144",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "145",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2009",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2012",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2010",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2011",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4029",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "COAL": [
+      {
+        "ts_id": "157",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "156",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "154",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "155",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2022",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4031",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4784",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      }
+    ],
+    "AGRN": [
+      {
+        "ts_id": "36",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "35",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "33",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "34",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3998",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4769",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BEX": [
+      {
+        "ts_id": "68",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "66",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "67",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4007",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4848",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BLC2": [
+      {
+        "ts_id": "88",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "87",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "85",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "86",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1957",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4012",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4785",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      }
+    ],
+    "AH": [
+      {
+        "ts_id": "39",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "37",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "38",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3999",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BUSH": [
+      {
+        "ts_id": "113",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "111",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "112",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4018",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BORN": [
+      {
+        "ts_id": "94",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "91",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "93",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4014",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4612",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BRT3": [
+      {
+        "ts_id": "105",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "103",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "104",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4016",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5215",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      }
+    ],
+    "CANT": [
+      {
+        "ts_id": "122",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "120",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "121",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4022",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4932",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4939",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BLAR": [
+      {
+        "ts_id": "83",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "84",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4011",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BOLD": [
+      {
+        "ts_id": "89",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "90",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4013",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5531",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5532",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "ABD7": [
+      {
+        "ts_id": "11",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "12",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3996",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BIL": [
+      {
+        "ts_id": "70",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "71",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "CAM": [
+      {
+        "ts_id": "116",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "117",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1983",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1984",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4021",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "CHAT": [
+      {
+        "ts_id": "135",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "136",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2001",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2004",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4025",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "ED3": [
+      {
+        "ts_id": "191",
+        "measurand": "CO",
+        "uom": "mg/m-3"
+      },
+      {
+        "ts_id": "197",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "192",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "196",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "195",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "193",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "194",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2057",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2052",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2056",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4041",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "KC1": [
+      {
+        "ts_id": "273",
+        "measurand": "CO",
+        "uom": "mg/m-3"
+      },
+      {
+        "ts_id": "279",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "274",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "278",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "277",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "275",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "276",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4065",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "LB": [
+      {
+        "ts_id": "283",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "282",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "280",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "281",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2140",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4066",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5192",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5193",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "GRAN": [
+      {
+        "ts_id": "226",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "222",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "225",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "223",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "224",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2086",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2082",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2085",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2083",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2084",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4052",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "HUL2": [
+      {
+        "ts_id": "267",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "266",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "265",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "263",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "264",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "594",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2127",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2126",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4062",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "GLKP": [
+      {
+        "ts_id": "215",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "219",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "218",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "216",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "217",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2075",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2079",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4050",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "EA8": [
+      {
+        "ts_id": "174",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      }
+    ],
+    "EAGL": [
+      {
+        "ts_id": "175",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "182",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "176",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "177",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4038",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "EB": [
+      {
+        "ts_id": "183",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "186",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "184",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "185",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2043",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2046",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4039",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5131",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      }
+    ],
+    "ECCL": [
+      {
+        "ts_id": "187",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "190",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "188",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "189",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1285",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2047",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2050",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2048",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2049",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4040",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "HOPE": [
+      {
+        "ts_id": "249",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "252",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "250",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "251",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4058",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "LEAM": [
+      {
+        "ts_id": "284",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "288",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "287",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "285",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "286",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2141",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2145",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2144",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2142",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2143",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4067",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "ESK": [
+      {
+        "ts_id": "200",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "198",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "199",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4042",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "GLAZ": [
+      {
+        "ts_id": "214",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "212",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "213",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4049",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4940",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4941",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "HM": [
+      {
+        "ts_id": "246",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "244",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "245",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4056",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4942",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4943",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "EX": [
+      {
+        "ts_id": "203",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "201",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "202",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4043",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "FW": [
+      {
+        "ts_id": "206",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "204",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "205",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4044",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "HG4": [
+      {
+        "ts_id": "240",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "238",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "239",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4054",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "HIL": [
+      {
+        "ts_id": "243",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "241",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "242",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4055",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4911",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4914",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "HRL": [
+      {
+        "ts_id": "261",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "259",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "260",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2118",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2122",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4061",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "CW": [
+      {
+        "ts_id": "158",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "159",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4032",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "GGWR": [
+      {
+        "ts_id": "208",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "209",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4045",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "HULR": [
+      {
+        "ts_id": "269",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "270",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4063",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5352",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "DUMB": [
+      {
+        "ts_id": "170",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "171",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2034",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2035",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4036",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "DUMF": [
+      {
+        "ts_id": "172",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "173",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4037",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "GLA4": [
+      {
+        "ts_id": "210",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "211",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4048",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "GRA2": [
+      {
+        "ts_id": "220",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "221",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4051",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "HG1": [
+      {
+        "ts_id": "235",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "236",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4053",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "HONI": [
+      {
+        "ts_id": "247",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "248",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4057",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4907",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4908",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5078",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      }
+    ],
+    "HORE": [
+      {
+        "ts_id": "253",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "254",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4059",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5211",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5209",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "HORS": [
+      {
+        "ts_id": "255",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "256",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1296",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4060",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4692",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "INV2": [
+      {
+        "ts_id": "271",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "272",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4064",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4714",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4725",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "MY1": [
+      {
+        "ts_id": "354",
+        "measurand": "CO",
+        "uom": "mg/m-3"
+      },
+      {
+        "ts_id": "360",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "355",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "359",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "358",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "356",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "357",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4085",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "LEED": [
+      {
+        "ts_id": "301",
+        "measurand": "CO",
+        "uom": "mg/m-3"
+      },
+      {
+        "ts_id": "307",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "302",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "306",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "305",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "303",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "304",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2159",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2163",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4071",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "LVP": [
+      {
+        "ts_id": "333",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "328",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "332",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "331",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "329",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "330",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2190",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2185",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2189",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4079",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "MAN3": [
+      {
+        "ts_id": "341",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "340",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "339",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "337",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "338",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2198",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2197",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4082",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4831",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      }
+    ],
+    "MID": [
+      {
+        "ts_id": "350",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "345",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "349",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "348",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "346",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "347",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2207",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2202",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2206",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2203",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2204",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4083",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "NOTT": [
+      {
+        "ts_id": "380",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "375",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "379",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "378",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "376",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "377",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "LH": [
+      {
+        "ts_id": "315",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "314",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "312",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "313",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4074",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4944",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4945",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "NEWC": [
+      {
+        "ts_id": "365",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "369",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "368",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "366",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "367",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2222",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2226",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4087",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "NO12": [
+      {
+        "ts_id": "370",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "374",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "373",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "371",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "372",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2227",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2231",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4088",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "NPT3": [
+      {
+        "ts_id": "381",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "384",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "382",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "383",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2238",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2241",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2239",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2240",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4090",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "OX8": [
+      {
+        "ts_id": "393",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "396",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "394",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "395",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2250",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2253",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2251",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2252",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4095",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5088",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      }
+    ],
+    "LEAR": [
+      {
+        "ts_id": "289",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "292",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "290",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "291",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2146",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2149",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4068",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "LED6": [
+      {
+        "ts_id": "297",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "300",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "298",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "299",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2154",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2157",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4070",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "LON6": [
+      {
+        "ts_id": "323",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "322",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "320",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "321",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4076",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4866",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      }
+    ],
+    "LECU": [
+      {
+        "ts_id": "296",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "295",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "293",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "294",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2153",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4069",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4847",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      }
+    ],
+    "LERW": [
+      {
+        "ts_id": "311",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      }
+    ],
+    "LN": [
+      {
+        "ts_id": "319",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2175",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4726",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "MACK": [
+      {
+        "ts_id": "336",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "334",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "335",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2193",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4080",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4954",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4955",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "OSY": [
+      {
+        "ts_id": "390",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "388",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "389",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4093",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4909",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4910",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "LEOM": [
+      {
+        "ts_id": "310",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "308",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "309",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4073",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "NCA3": [
+      {
+        "ts_id": "363",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "364",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4086",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5382",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "OX": [
+      {
+        "ts_id": "391",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "392",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2248",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2249",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4094",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "LIN3": [
+      {
+        "ts_id": "316",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "317",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4075",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "PT4": [
+      {
+        "ts_id": "419",
+        "measurand": "CO",
+        "uom": "mg/m-3"
+      },
+      {
+        "ts_id": "425",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "420",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "424",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "423",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "421",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "422",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2277",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2281",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4101",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "SCN2": [
+      {
+        "ts_id": "442",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "439",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "440",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "441",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2296",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2297",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2298",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4106",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5506",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "SOUT": [
+      {
+        "ts_id": "469",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "464",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "468",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "467",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "465",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "466",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2326",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2321",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2325",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4113",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "THUR": [
+      {
+        "ts_id": "498",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "494",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "497",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "495",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "496",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4123",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5012",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "PEMB": [
+      {
+        "ts_id": "404",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "400",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "403",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "401",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "402",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2261",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2257",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4097",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4713",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "ROCH": [
+      {
+        "ts_id": "436",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "431",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "435",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "434",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "432",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "433",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2293",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2288",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2292",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4104",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "PLYM": [
+      {
+        "ts_id": "405",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "409",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "408",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "406",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "407",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2262",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2266",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4098",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "PMTH": [
+      {
+        "ts_id": "410",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "414",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "413",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "411",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "412",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2267",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2271",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4099",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "REA1": [
+      {
+        "ts_id": "426",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "430",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "429",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "427",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "428",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2283",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2287",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4102",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "SDY": [
+      {
+        "ts_id": "443",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "446",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "444",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "445",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "SK5": [
+      {
+        "ts_id": "459",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "460",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "461",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4111",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "SWA1": [
+      {
+        "ts_id": "484",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "487",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "485",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "486",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2340",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4120",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "SASH": [
+      {
+        "ts_id": "437",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "438",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2294",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2295",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "SHDG": [
+      {
+        "ts_id": "451",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "455",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "454",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "452",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "453",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2308",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2312",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4109",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "PRES": [
+      {
+        "ts_id": "418",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "417",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "415",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "416",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2275",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4100",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4786",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      }
+    ],
+    "SEND": [
+      {
+        "ts_id": "450",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "449",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "447",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "448",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2307",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4108",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4789",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      }
+    ],
+    "STOK": [
+      {
+        "ts_id": "474",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "473",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "471",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "472",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3442",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2330",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4116",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "SUN2": [
+      {
+        "ts_id": "482",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "481",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "479",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "480",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2338",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2335",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2336",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4118",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4800",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      }
+    ],
+    "TRAN": [
+      {
+        "ts_id": "502",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "501",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "499",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "500",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2358",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4124",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4788",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      }
+    ],
+    "TED2": [
+      {
+        "ts_id": "491",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2347",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4846",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      }
+    ],
+    "PEEB": [
+      {
+        "ts_id": "399",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "397",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "398",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4096",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "SIB": [
+      {
+        "ts_id": "458",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5172",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5173",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "SV": [
+      {
+        "ts_id": "483",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      }
+    ],
+    "SHE": [
+      {
+        "ts_id": "456",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "457",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4110",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4912",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4913",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5047",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      }
+    ],
+    "STOR": [
+      {
+        "ts_id": "476",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "477",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4117",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "TH2": [
+      {
+        "ts_id": "492",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "493",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4122",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "WAL4": [
+      {
+        "ts_id": "503",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "504",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "505",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4125",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "WREX": [
+      {
+        "ts_id": "521",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "519",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "520",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2377",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4129",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4715",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4727",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "WFEN": [
+      {
+        "ts_id": "514",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "513",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "511",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "512",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4127",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4956",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4957",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "LEIR": [
+      {
+        "ts_id": "1403",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1404",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1405",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4072",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5371",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "WAR": [
+      {
+        "ts_id": "506",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "509",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "507",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "508",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2362",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2365",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4126",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "YK10": [
+      {
+        "ts_id": "522",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "523",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2378",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2379",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4170",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4171",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4172",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5089",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      }
+    ],
+    "YK11": [
+      {
+        "ts_id": "524",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "527",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "525",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "526",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2380",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2383",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2381",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2382",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4131",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "CHLG": [
+      {
+        "ts_id": "1286",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1307",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1287",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1288",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4027",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5043",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      }
+    ],
+    "WIG5": [
+      {
+        "ts_id": "518",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "517",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "515",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "516",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2374",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2371",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2372",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4128",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4787",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      }
+    ],
+    "GHSR": [
+      {
+        "ts_id": "1270",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1268",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1269",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3444",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4046",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "WEYB": [
+      {
+        "ts_id": "510",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5022",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5023",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "YW": [
+      {
+        "ts_id": "530",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "528",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "529",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4132",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4971",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4972",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "SUNR": [
+      {
+        "ts_id": "1271",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1272",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4119",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5306",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "WSMR": [
+      {
+        "ts_id": "1273",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1274",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4130",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "LUTR": [
+      {
+        "ts_id": "1289",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1290",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4077",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5331",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "STKR": [
+      {
+        "ts_id": "1407",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1408",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3443",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4114",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5351",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "DCST": [
+      {
+        "ts_id": "1895",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1896",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4034",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5360",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BDMA": [
+      {
+        "ts_id": "1893",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1894",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4004",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "CHBO": [
+      {
+        "ts_id": "3454",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3455",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3456",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3458",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4026",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3480",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3457",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      }
+    ],
+    "CAE6": [
+      {
+        "ts_id": "2396",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2397",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4020",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "SOTR": [
+      {
+        "ts_id": "2394",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2395",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3543",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4112",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "DERR": [
+      {
+        "ts_id": "3559",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4035",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3552",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3558",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3557",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3553",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3554",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "ABD8": [
+      {
+        "ts_id": "3997",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3526",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3527",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "NWBV": [
+      {
+        "ts_id": "3521",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3522",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3523",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4092",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5344",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "SA33": [
+      {
+        "ts_id": "3473",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3471",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3472",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4105",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5394",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "REA5": [
+      {
+        "ts_id": "3598",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3562",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3563",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4103",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "MAHG": [
+      {
+        "ts_id": "3520",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3518",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3519",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4081",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5206",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5207",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "GKA8": [
+      {
+        "ts_id": "3983",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3984",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4047",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4598",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4498",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "CHBR": [
+      {
+        "ts_id": "4147",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4148",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4149",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4597",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BBRD": [
+      {
+        "ts_id": "4157",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4158",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4159",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5370",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BIRR": [
+      {
+        "ts_id": "4161",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4160",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4167",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4166",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4162",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4163",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "SHBR": [
+      {
+        "ts_id": "4135",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4133",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4134",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4613",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BMLD": [
+      {
+        "ts_id": "4734",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4729",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4728",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4733",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4732",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4730",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4731",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "CANK": [
+      {
+        "ts_id": "4445",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4446",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4447",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5333",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "SHLW": [
+      {
+        "ts_id": "4458",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4506",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4454",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4455",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "WTHG": [
+      {
+        "ts_id": "4459",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4691",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4456",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4457",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BAAR": [
+      {
+        "ts_id": "4550",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4551",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4552",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BR11": [
+      {
+        "ts_id": "4632",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4633",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4634",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5271",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "COBR": [
+      {
+        "ts_id": "4528",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4527",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4529",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4530",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5281",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "DESA": [
+      {
+        "ts_id": "4484",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4485",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4486",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5330",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "DCC1": [
+      {
+        "ts_id": "4553",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4554",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4555",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "NTN4": [
+      {
+        "ts_id": "4515",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4514",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4513",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4511",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4512",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "PLYR": [
+      {
+        "ts_id": "4474",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4472",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4473",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BDMP": [
+      {
+        "ts_id": "4564",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4565",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4566",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4890",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4892",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "HSAW": [
+      {
+        "ts_id": "4581",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4582",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4584",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4928",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4929",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5045",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      }
+    ],
+    "IMGM": [
+      {
+        "ts_id": "4608",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4609",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4611",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4930",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4931",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5046",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      }
+    ],
+    "TDHD": [
+      {
+        "ts_id": "4626",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4624",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4625",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5001",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5000",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5048",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      }
+    ],
+    "EDNS": [
+      {
+        "ts_id": "4651",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4652",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4653",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BOTR": [
+      {
+        "ts_id": "4670",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4671",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4672",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4982",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4969",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5042",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      }
+    ],
+    "CNPR": [
+      {
+        "ts_id": "4686",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4685",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4687",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4688",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "DYAG": [
+      {
+        "ts_id": "4699",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4700",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4701",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4983",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4970",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5044",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      }
+    ],
+    "POAR": [
+      {
+        "ts_id": "4667",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4668",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4669",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5316",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "SWHO": [
+      {
+        "ts_id": "4675",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4673",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4674",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4958",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4959",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5050",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      }
+    ],
+    "WBKP": [
+      {
+        "ts_id": "4757",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4755",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4756",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5049",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      }
+    ],
+    "HP1": [
+      {
+        "ts_id": "4743",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4744",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5205",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      }
+    ],
+    "TOFT": [
+      {
+        "ts_id": "5126",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5125",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5130",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5129",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5127",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5128",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BHA4": [
+      {
+        "ts_id": "4830",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4828",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4829",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "COPP": [
+      {
+        "ts_id": "4815",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4998",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4999",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5035",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4813",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4814",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "CWMC": [
+      {
+        "ts_id": "4865",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4862",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4863",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4864",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "ABD9": [
+      {
+        "ts_id": "4885",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4884",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4889",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4888",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4886",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4887",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "CARM": [
+      {
+        "ts_id": "4868",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4867",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4871",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4869",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4870",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "CAEB": [
+      {
+        "ts_id": "5115",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5114",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5116",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "MKCC": [
+      {
+        "ts_id": "5061",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5063",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5062",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BLAP": [
+      {
+        "ts_id": "5097",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5099",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5098",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      }
+    ],
+    "NOTK": [
+      {
+        "ts_id": "5180",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5175",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5174",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5179",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5178",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5176",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5177",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BIHG": [
+      {
+        "ts_id": "5229",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5228",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5233",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5232",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5230",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5231",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "WOEA": [
+      {
+        "ts_id": "5208",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5210",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "ROED": [
+      {
+        "ts_id": "5236",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5237",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "MALA": [
+      {
+        "ts_id": "5234",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5235",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "PEGE": [
+      {
+        "ts_id": "5251",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5252",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "TALL": [
+      {
+        "ts_id": "5157",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5159",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5158",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      }
+    ],
+    "KIEW": [
+      {
+        "ts_id": "5395",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5396",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5410",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BRAS": [
+      {
+        "ts_id": "5424",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5425",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "MAID": [
+      {
+        "ts_id": "5380",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5381",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "SHUN": [
+      {
+        "ts_id": "5267",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5268",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "FARC": [
+      {
+        "ts_id": "5483",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5484",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "GLOT": [
+      {
+        "ts_id": "5481",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5482",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "LONM": [
+      {
+        "ts_id": "5489",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5490",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "LOTA": [
+      {
+        "ts_id": "5543",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5520",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "SOUS": [
+      {
+        "ts_id": "5487",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5488",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "WAKA": [
+      {
+        "ts_id": "5553",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5554",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "WORT": [
+      {
+        "ts_id": "5485",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5486",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "DESB": [
+      {
+        "ts_id": "5139",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5141",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5140",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BLWD": [
+      {
+        "ts_id": "5295",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "MIMW": [
+      {
+        "ts_id": "5332",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "RRKL": [
+      {
+        "ts_id": "5296",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "CHGR": [
+      {
+        "ts_id": "5467",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "TAMM": [
+      {
+        "ts_id": "5491",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "AYLA": [
+      {
+        "ts_id": "5579",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ]
+  },
+  "saqn": {
+    "ACTH": [
+      {
+        "ts_id": "23",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "25",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "24",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1906",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1908",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BUSH": [
+      {
+        "ts_id": "113",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "111",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "112",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4018",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "ABD3": [
+      {
+        "ts_id": "11",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "12",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3996",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "ED3": [
+      {
+        "ts_id": "191",
+        "measurand": "CO",
+        "uom": "mg/m-3"
+      },
+      {
+        "ts_id": "197",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "192",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "196",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "195",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "193",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "194",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2057",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2052",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2056",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4041",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "GRAN": [
+      {
+        "ts_id": "226",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "222",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "225",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "223",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "224",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2086",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2082",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2085",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2083",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2084",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4052",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "GLKP": [
+      {
+        "ts_id": "215",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "219",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "218",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "216",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "217",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2075",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2079",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4050",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "ESK": [
+      {
+        "ts_id": "200",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "198",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "199",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4042",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "FW": [
+      {
+        "ts_id": "206",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "204",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "205",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4044",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "GGWR": [
+      {
+        "ts_id": "208",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "209",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4045",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "WDB4": [
+      {
+        "ts_id": "170",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "171",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2034",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2035",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4036",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "DUMF": [
+      {
+        "ts_id": "172",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "173",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4037",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "GLA4": [
+      {
+        "ts_id": "210",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "211",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4048",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "GRA2": [
+      {
+        "ts_id": "220",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "221",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4051",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "INV2": [
+      {
+        "ts_id": "271",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "272",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4064",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4714",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4725",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "LERW": [
+      {
+        "ts_id": "311",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      }
+    ],
+    "PEEB": [
+      {
+        "ts_id": "399",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "397",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "398",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4096",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "SV": [
+      {
+        "ts_id": "483",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      }
+    ],
+    "GHSR": [
+      {
+        "ts_id": "1270",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1268",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1269",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3444",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4046",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "ABD8": [
+      {
+        "ts_id": "3997",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3526",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3527",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "INC2": [
+      {
+        "ts_id": "3983",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3984",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4047",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4598",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4498",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "DUN1": [
+      {
+        "ts_id": "4553",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4554",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4555",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "EDNS": [
+      {
+        "ts_id": "4651",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4652",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4653",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "ABD9": [
+      {
+        "ts_id": "4885",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4884",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4889",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4888",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4886",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4887",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ]
+  },
+  "waqn": {
+    "CARD": [
+      {
+        "ts_id": "123",
+        "measurand": "CO",
+        "uom": "mg/m-3"
+      },
+      {
+        "ts_id": "129",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "124",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "128",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "127",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "125",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "126",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1996",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1991",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1995",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4023",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "CHEP": [
+      {
+        "ts_id": "138",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "141",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "139",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "140",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2005",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2008",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2006",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2007",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4028",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "AH": [
+      {
+        "ts_id": "39",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "37",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "38",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3999",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "NPT1": [
+      {
+        "ts_id": "381",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "384",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "382",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "383",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2238",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2241",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2239",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2240",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4090",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "PT4": [
+      {
+        "ts_id": "419",
+        "measurand": "CO",
+        "uom": "mg/m-3"
+      },
+      {
+        "ts_id": "425",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "420",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "424",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "423",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "421",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "422",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2277",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2281",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4101",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "PEMB": [
+      {
+        "ts_id": "404",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "400",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "403",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "401",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "402",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2261",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2257",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4097",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4713",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "SWA1": [
+      {
+        "ts_id": "484",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "487",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "485",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "486",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2340",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4120",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "WREX": [
+      {
+        "ts_id": "521",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "519",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "520",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2377",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4129",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4715",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4727",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "CAE6": [
+      {
+        "ts_id": "2396",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2397",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4020",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "CNPR": [
+      {
+        "ts_id": "4686",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4685",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4687",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4688",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "CWMC": [
+      {
+        "ts_id": "4865",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4862",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4863",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4864",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "CAEB": [
+      {
+        "ts_id": "5115",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5114",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5116",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ]
+  },
+  "ni": {
+    "BEL2": [
+      {
+        "ts_id": "59",
+        "measurand": "CO",
+        "uom": "mg/m-3"
+      },
+      {
+        "ts_id": "65",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "60",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "64",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "63",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "61",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "62",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1935",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1930",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1934",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4006",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BALY": [
+      {
+        "ts_id": "43",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1919",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4001",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3599",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3600",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BEL1": [
+      {
+        "ts_id": "56",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "57",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "58",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2393",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4005",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "ARM5": [
+      {
+        "ts_id": "40",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "41",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "42",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1916",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1917",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1918",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4000",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "LN": [
+      {
+        "ts_id": "319",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2175",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4726",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "DERR": [
+      {
+        "ts_id": "3559",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4035",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3552",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3558",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3557",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3553",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3554",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "BAAR": [
+      {
+        "ts_id": "4550",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4551",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4552",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ]
+  },
+  "aqe": {
+    "EA011": [
+      {
+        "ts_id": "174",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      }
+    ],
+    "ECC3": [
+      {
+        "ts_id": "187",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "190",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "188",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "189",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1285",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2047",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2050",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2048",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2049",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4040",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "CW": [
+      {
+        "ts_id": "158",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "159",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4032",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "RG1": [
+      {
+        "ts_id": "253",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "254",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4059",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5211",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5209",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "MAN7": [
+      {
+        "ts_id": "341",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "340",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "339",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "337",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "338",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2198",
+        "measurand": "SO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2197",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4082",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4831",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      }
+    ],
+    "OX3": [
+      {
+        "ts_id": "393",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "396",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "394",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "395",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2250",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2253",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2251",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2252",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4095",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5088",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      }
+    ],
+    "HB115": [
+      {
+        "ts_id": "443",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "446",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "444",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "445",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      }
+    ],
+    "SWK09": [
+      {
+        "ts_id": "459",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "460",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "461",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4111",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "TH2P": [
+      {
+        "ts_id": "492",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "493",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4122",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "WAR": [
+      {
+        "ts_id": "506",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "509",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "507",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "508",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2362",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2365",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4126",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "WIG7": [
+      {
+        "ts_id": "518",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "517",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "515",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "516",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2374",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2371",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "2372",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4128",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4787",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      }
+    ],
+    "WID1": [
+      {
+        "ts_id": "1273",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "1274",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4130",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      }
+    ],
+    "MAHG": [
+      {
+        "ts_id": "3520",
+        "measurand": "O3",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3518",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "3519",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4081",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5206",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "5207",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "HB014": [
+      {
+        "ts_id": "4564",
+        "measurand": "NO",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4565",
+        "measurand": "NO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4566",
+        "measurand": "NOXasNO2",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4890",
+        "measurand": "PM10",
+        "uom": "ug/m-3"
+      },
+      {
+        "ts_id": "4892",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ],
+    "TS001": [
+      {
+        "ts_id": "5491",
+        "measurand": "PM2.5",
+        "uom": "ug/m-3"
+      }
+    ]
+  }
+}

@@ -291,8 +291,10 @@ def make_data_fetcher(network_name: str) -> DataFetcher:
         base_url = DATA_BASE_URLS[network_name.lower()]
         years = range(start_date.year, end_date.year + 1)
 
+        from ..progress import track
+
         results = []
-        for site in sites:
+        for site in track(sites, f"Downloading {network_name.upper()}"):
             for year in years:
                 url = f"{base_url}{site.upper()}_{year}.RData"
                 df = fetch_rdata(url)

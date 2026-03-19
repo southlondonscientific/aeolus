@@ -6,7 +6,9 @@ calls, consistent with other test files in this project.
 """
 
 import importlib
-from datetime import datetime, timezone
+import json
+import tempfile
+from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 import pytest
@@ -598,3 +600,122 @@ class TestGetCurrent:
 
         df = api.get_current("AURN", sites=["CLL2"])
         assert list(df.columns) == DATA_COLUMNS
+
+
+# ============================================================================
+# Static mapping
+# ============================================================================
+
+
+MOCK_STATIC_MAPPING = {
+    "_generated": datetime.now(tz=timezone.utc).isoformat(),
+    "aurn": {
+        "MY1": [{"ts_id": "100", "measurand": "NO2", "uom": "ug/m3"}],
+        "CLL2": [{"ts_id": "3", "measurand": "NO2", "uom": "ug/m3"}],
+    },
+    "saqn": {},
+}
+
+
+class TestStaticMapping:
+    def test_load_static_mapping(self, tmp_path, monkeypatch):
+        """_load_static_mapping reads JSON file correctly."""
+        mapping_file = tmp_path / "_sos_mapping.json"
+        mapping_file.write_text(json.dumps(MOCK_STATIC_MAPPING))
+        monkeypatch.setattr(sos, "_MAPPING_FILE", mapping_file)
+
+        result = sos._load_static_mapping()
+        assert result is not None
+        assert "aurn" in result
+        assert "MY1" in result["aurn"]
+
+    def test_load_returns_none_when_missing(self, tmp_path, monkeypatch):
+        """_load_static_mapping returns None when file doesn't exist."""
+        monkeypatch.setattr(sos, "_MAPPING_FILE", tmp_path / "nonexistent.json")
+        assert sos._load_static_mapping() is None
+
+    def test_load_returns_none_on_corrupt_json(self, tmp_path, monkeypatch):
+        """_load_static_mapping returns None on invalid JSON."""
+        bad_file = tmp_path / "_sos_mapping.json"
+        bad_file.write_text("not valid json {{{")
+        monkeypatch.setattr(sos, "_MAPPING_FILE", bad_file)
+        assert sos._load_static_mapping() is None
+
+    def test_staleness_warning(self, tmp_path, monkeypatch):
+        """Warns when static mapping is older than 90 days."""
+        old_date = (datetime.now(tz=timezone.utc) - timedelta(days=100)).isoformat()
+        old_mapping = dict(MOCK_STATIC_MAPPING)
+        old_mapping["_generated"] = old_date
+
+        mapping_file = tmp_path / "_sos_mapping.json"
+        mapping_file.write_text(json.dumps(old_mapping))
+        monkeypatch.setattr(sos, "_MAPPING_FILE", mapping_file)
+
+        with pytest.warns(sos.AeolusDataWarning, match="days old"):
+            sos._load_static_mapping()
+
+    def test_no_warning_when_fresh(self, tmp_path, monkeypatch):
+        """No warning when mapping is recent."""
+        mapping_file = tmp_path / "_sos_mapping.json"
+        mapping_file.write_text(json.dumps(MOCK_STATIC_MAPPING))
+        monkeypatch.setattr(sos, "_MAPPING_FILE", mapping_file)
+
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            result = sos._load_static_mapping()
+
+        assert result is not None
+
+    def test_get_network_mapping_uses_static(self, tmp_path, monkeypatch):
+        """_get_network_mapping uses static file when available."""
+        mapping_file = tmp_path / "_sos_mapping.json"
+        mapping_file.write_text(json.dumps(MOCK_STATIC_MAPPING))
+        monkeypatch.setattr(sos, "_MAPPING_FILE", mapping_file)
+
+        result = sos._get_network_mapping("aurn")
+        assert "MY1" in result
+        assert result["MY1"][0]["ts_id"] == "100"
+
+    def test_get_network_mapping_falls_back_to_live(self, tmp_path, monkeypatch):
+        """_get_network_mapping falls back when network not in static file."""
+        # Static mapping only has aurn and saqn
+        mapping_file = tmp_path / "_sos_mapping.json"
+        mapping_file.write_text(json.dumps(MOCK_STATIC_MAPPING))
+        monkeypatch.setattr(sos, "_MAPPING_FILE", mapping_file)
+
+        # Mock _build_station_mapping for the fallback
+        monkeypatch.setattr(
+            sos,
+            "_build_station_mapping",
+            lambda net: {"LIVE1": [{"ts_id": "999", "measurand": "O3", "uom": "ug/m3"}]},
+        )
+
+        result = sos._get_network_mapping("waqn")
+        assert "LIVE1" in result
+
+    @responses.activate
+    def test_rebuild_sos_mapping(self, tmp_path, monkeypatch):
+        """rebuild_sos_mapping writes valid JSON with expected structure."""
+        mapping_file = tmp_path / "_sos_mapping.json"
+        monkeypatch.setattr(sos, "_MAPPING_FILE", mapping_file)
+
+        # Mock _build_station_mapping to avoid real API calls
+        monkeypatch.setattr(
+            sos,
+            "_build_station_mapping",
+            lambda net: {"SITE1": [{"ts_id": "1", "measurand": "NO2", "uom": "ug/m3"}]},
+        )
+
+        path = sos.rebuild_sos_mapping()
+        assert path == mapping_file
+        assert mapping_file.exists()
+
+        with open(mapping_file) as f:
+            data = json.load(f)
+
+        assert "_generated" in data
+        for net in ["aurn", "saqn", "waqn", "ni", "aqe"]:
+            assert net in data
+            assert "SITE1" in data[net]

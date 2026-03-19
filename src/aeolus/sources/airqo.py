@@ -381,7 +381,9 @@ def fetch_airqo_data(
     start_str = start_date.strftime("%Y-%m-%dT00:00:00.000Z")
     end_str = end_date.strftime("%Y-%m-%dT23:59:59.000Z")
 
-    for site_id in sites:
+    from ..progress import track
+
+    for site_id in track(sites, "Downloading AirQo"):
         logger.debug(f"Fetching AirQo data for site {site_id}")
 
         try:

@@ -26,12 +26,16 @@ license-files = ["LICEN[CS]E*"]
 Homepage = "https://github.com/southlondonscientific/aeolus"
 
 [project.optional-dependencies]
+progress = [
+    "tqdm>=4.60",
+]
 dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
     "pytest-mock>=3.11.1",
     "responses>=0.23.0",
     "freezegun>=1.2.2",
+    "tqdm>=4.60",
 ]
 docs = [
     "mkdocs>=1.5.0",

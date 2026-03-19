@@ -47,8 +47,11 @@ src/aeolus/
 │   ├── airqo.py         # AirQo African network
 │   ├── purpleair.py     # PurpleAir global portal
 │   ├── sensor_community.py # Sensor.Community citizen science
-│   └── airnow.py        # EPA AirNow US network
+│   ├── airnow.py        # EPA AirNow US network
+│   ├── sos.py           # UK-AIR SOS near-real-time API (AURN-SOS, SAQN-SOS, etc.)
+│   └── _sos_mapping.json # Static SOS station mapping (auto-generated)
 ├── geo.py               # Geospatial utilities (haversine, bbox)
+├── progress.py          # Optional tqdm progress bars (fallback to logging)
 ├── metrics/             # Air quality metrics calculations
 └── viz/                 # Visualization utilities
 ```
@@ -148,6 +151,12 @@ sites = aeolus.find_sites(["AURN", "SAQN"], bbox=(-0.5, 51.3, 0.3, 51.7))
 # Find sites from all free sources (no API key needed)
 sites = aeolus.find_sites()
 
+# Get current (near-real-time) readings via SOS API
+latest = aeolus.get_current("AURN", sites=["MY1", "KC1"])
+
+# List all sources including SOS backends
+aeolus.list_sources(include_all=True)
+
 # Download data
 data = aeolus.download(
     sources="AURN",
@@ -168,7 +177,9 @@ Tests use `pytest` with `responses` for mocking HTTP calls. Test files mirror so
 - `tests/test_sensor_community.py` - Sensor.Community tests
 - `tests/test_airnow.py` - EPA AirNow tests
 
+- `tests/test_sos.py` - SOS near-real-time API tests
 - `tests/test_find_sites.py` - find_sites() unified site discovery
+- `tests/test_progress.py` - Progress indicator wrapper tests
 - `tests/test_geo.py` - Geospatial utilities
 
 Mock API responses are defined as pytest fixtures within each test file.
@@ -198,14 +209,15 @@ Key notebooks:
 7. Global sensor network comparison (PurpleAir + AirQo keys)
 
 **Analysis functions** (high priority):
-- `time_average()` — time averaging with data capture thresholds (foundation for other analysis)
-- `aq_stats()` — annual regulatory statistics, exceedance counts, data capture (LAQM Annual Status Report output)
-- `trend()` — Theil-Sen non-parametric trend with CI, p-value, deseasonalisation
+- ~~`time_average()` — time averaging with data capture thresholds~~ (done)
+- ~~`aq_stats()` — annual regulatory statistics, exceedance counts, data capture~~ (done)
+- ~~`trend()` — Theil-Sen non-parametric trend with CI, p-value, deseasonalisation~~ (done)
 - `time_variation()` plot — combined 4-panel temporal decomposition (hourly, daily, monthly, hour×weekday)
 
 **Data access features** (high priority):
 - ~~`find_sites(near=(lat, lon), radius_km=N)` convenience function~~ (done)
-- Progress indicators for multi-site downloads
+- ~~`get_current()` near-real-time data via UK-AIR SOS API~~ (done)
+- ~~Progress indicators for multi-site downloads~~ (done, optional `tqdm`)
 - Local file caching for historical data
 
 **User personas** (documented in `docs/dev/user_stories_v040.md`):
@@ -228,3 +240,7 @@ Key notebooks:
 - All timestamps are UTC-aware (enforced since v0.3.0rc2)
 - Data schema is strict 8 columns; `site_name` is in metadata only, not data output
 - Empty DataFrames always carry the standard schema columns (never bare `pd.DataFrame()`)
+- SOS sources (AURN-SOS, etc.) are registered with `primary=False` — hidden from `list_sources()` and `find_sites()` by default, pass `include_all=True` to see them
+- `get_current()` auto-routes AURN→AURN-SOS for near-real-time readings
+- SOS station mapping is shipped as `_sos_mapping.json`; refresh with `from aeolus.sources.sos import rebuild_sos_mapping; rebuild_sos_mapping()`
+- Progress bars require `pip install tqdm` (or `pip install aeolus[progress]`); without it, falls back to logging

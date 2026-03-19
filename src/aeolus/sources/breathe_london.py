@@ -240,7 +240,9 @@ def fetch_breathe_london_data(
     all_data = []
     normalizer = create_breathe_london_normalizer()
 
-    for site in sites:
+    from ..progress import track
+
+    for site in track(sites, "Downloading Breathe London"):
         # Build query parameters for this site
         # Note: API uses camelCase for parameters (SiteCode, startTime, endTime)
         params = {

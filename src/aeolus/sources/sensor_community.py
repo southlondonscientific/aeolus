@@ -583,8 +583,10 @@ def fetch_sensor_community_data(
         date_str = current_date.strftime("%Y-%m-%d")
 
         # Fetch data for each sensor type group
+        from ..progress import track
+
         for sensor_type, type_sites in sites_by_type.items():
-            for site_id in type_sites:
+            for site_id in track(type_sites, f"Sensor.Community {date_str}"):
                 df = _fetch_sensor_archive(current_date, sensor_type, site_id)
                 if not df.empty:
                     all_data.append(df)

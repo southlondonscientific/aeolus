@@ -29,10 +29,12 @@ RData metadata sites by geographic proximity (<200m).
 """
 
 import functools
+import json
 import logging
 import re
 import warnings
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pandas as pd
 import requests
@@ -60,6 +62,9 @@ EIONET_POLLUTANT_MAP = {
 
 # Sentinel value used by SOS for missing data
 _MISSING_SENTINEL = -99.0
+
+# Networks that have SOS backends
+_SOS_NETWORKS = ["aurn", "saqn", "waqn", "ni", "aqe"]
 
 
 # ============================================================================
@@ -232,12 +237,93 @@ def _build_station_mapping(
 # Per-network mapping caches
 _network_mappings: dict[str, dict[str, list[dict]]] = {}
 
+_MAPPING_FILE = Path(__file__).parent / "_sos_mapping.json"
+_STALENESS_DAYS = 90
+
+
+def _load_static_mapping() -> dict | None:
+    """Load the static SOS mapping from the shipped JSON file.
+
+    Returns the full mapping dict (with ``_generated`` key), or ``None``
+    if the file is missing or corrupt.  Warns if the mapping is older
+    than 90 days.
+    """
+    if not _MAPPING_FILE.exists():
+        return None
+
+    try:
+        with open(_MAPPING_FILE) as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        logger.warning("Failed to load static SOS mapping: %s", e)
+        return None
+
+    # Check staleness
+    generated = data.get("_generated")
+    if generated:
+        try:
+            gen_dt = datetime.fromisoformat(generated)
+            if gen_dt.tzinfo is None:
+                gen_dt = gen_dt.replace(tzinfo=timezone.utc)
+            age = datetime.now(tz=timezone.utc) - gen_dt
+            if age.days > _STALENESS_DAYS:
+                warnings.warn(
+                    f"SOS station mapping is {age.days} days old "
+                    f"(generated {generated}). Consider running "
+                    f"rebuild_sos_mapping() to refresh it.",
+                    AeolusDataWarning,
+                    stacklevel=3,
+                )
+        except (ValueError, TypeError):
+            pass
+
+    return data
+
 
 def _get_network_mapping(network: str) -> dict[str, list[dict]]:
-    """Get or build the station mapping for a network."""
-    if network not in _network_mappings:
-        _network_mappings[network] = _build_station_mapping(network)
+    """Get the station mapping for a network.
+
+    Tries the static JSON file first, then falls back to live
+    coordinate matching via the SOS API.
+    """
+    if network in _network_mappings:
+        return _network_mappings[network]
+
+    # Try static mapping
+    static = _load_static_mapping()
+    if static is not None and network in static:
+        _network_mappings[network] = static[network]
+        return _network_mappings[network]
+
+    # Fall back to live mapping
+    _network_mappings[network] = _build_station_mapping(network)
     return _network_mappings[network]
+
+
+def rebuild_sos_mapping() -> Path:
+    """Rebuild the static SOS station mapping file.
+
+    Fetches all SOS timeseries and matches them to RData metadata
+    for each network.  Writes the result to ``_sos_mapping.json``
+    in the package directory.
+
+    This is a maintainer tool — call it periodically (e.g. in CI)
+    to keep the mapping fresh.
+
+    Returns:
+        Path to the written mapping file.
+    """
+    mapping = {"_generated": datetime.now(tz=timezone.utc).isoformat()}
+
+    for net in _SOS_NETWORKS:
+        logger.info("Building SOS mapping for %s...", net.upper())
+        mapping[net] = _build_station_mapping(net)
+
+    with open(_MAPPING_FILE, "w") as f:
+        json.dump(mapping, f, indent=2)
+
+    logger.info("SOS mapping written to %s", _MAPPING_FILE)
+    return _MAPPING_FILE
 
 
 # ============================================================================
@@ -271,8 +357,10 @@ def make_sos_data_fetcher(network: str):
             f"{end_date.strftime('%Y-%m-%dT%H:%M:%SZ')}"
         )
 
+        from ..progress import track
+
         results = []
-        for site_code in sites:
+        for site_code in track(sites, f"Fetching {network.upper()} SOS"):
             ts_list = mapping.get(site_code.upper())
             if not ts_list:
                 logger.warning(
@@ -356,9 +444,6 @@ def make_sos_latest_fetcher(network: str):
 # ============================================================================
 # Registration
 # ============================================================================
-
-_SOS_NETWORKS = ["aurn", "saqn", "waqn", "ni", "aqe"]
-
 
 def _register_sos_sources():
     """Register all SOS network variants."""
