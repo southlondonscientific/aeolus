@@ -140,18 +140,32 @@ Returns:
 """
 
 
-class SourceSpec(TypedDict):
-    """
-    Specification for a data source.
-
-    A SourceSpec is a bundle of functions that together define how to
-    interact with a particular air quality data source.
-    """
+class _SourceSpecRequired(TypedDict):
+    """Required fields for a data source specification."""
     name: str
     fetch_metadata: MetadataFetcher
     fetch_data: DataFetcher
     normalise: Normaliser
     requires_api_key: bool
+
+
+class SourceSpec(_SourceSpecRequired, total=False):
+    """
+    Specification for a data source.
+
+    A SourceSpec is a bundle of functions that together define how to
+    interact with a particular air quality data source.
+
+    Optional fields:
+        type: "network" or "portal" (default "network")
+        primary: Whether this source appears in default listings (default True).
+            Set to False for alternative backends (e.g. SOS) that duplicate
+            a primary source's stations.
+        fetch_latest: Function that fetches the most recent readings.
+    """
+    type: str
+    primary: bool
+    fetch_latest: DataFetcher
 
 
 # Standard column names - for reference and validation

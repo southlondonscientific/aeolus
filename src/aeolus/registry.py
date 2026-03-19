@@ -127,9 +127,16 @@ def get_source(name: str) -> SourceSpec | None:
     return _SOURCES.get(normalized_name)
 
 
-def list_sources() -> list[str]:
+def list_sources(include_all: bool = False) -> list[str]:
     """
-    Get a list of all registered source names.
+    Get a list of registered source names.
+
+    By default, only *primary* sources are returned. Sources with
+    ``primary=False`` (e.g. SOS alternative backends) are hidden unless
+    *include_all* is ``True``.
+
+    Args:
+        include_all: If True, include non-primary sources too.
 
     Returns:
         list[str]: List of registered source names (uppercase)
@@ -139,7 +146,12 @@ def list_sources() -> list[str]:
         >>> print(sources)
         ['AURN', 'SAQN', 'BREATHE_LONDON']
     """
-    return sorted(_SOURCES.keys())
+    if include_all:
+        return sorted(_SOURCES.keys())
+    return sorted(
+        name for name, spec in _SOURCES.items()
+        if spec.get("primary", True)
+    )
 
 
 def source_exists(name: str) -> bool:

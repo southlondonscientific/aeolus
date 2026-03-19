@@ -383,3 +383,58 @@ def test_case_insensitive_source(register_free_network):
     """Source name lookup is case-insensitive."""
     result = api.find_sites("free_net")
     assert len(result) == 4
+
+
+# ============================================================================
+# Primary flag
+# ============================================================================
+
+
+def test_non_primary_excluded_from_default(register_free_network):
+    """Sources with primary=False are excluded from find_sites() default."""
+    non_primary_sites = [
+        ("NP1", "Non-Primary Site", 51.50, -0.13),
+    ]
+    register_source(
+        "NON_PRIMARY_NET",
+        {
+            "type": "network",
+            "name": "Non-Primary",
+            "primary": False,
+            "fetch_metadata": lambda **kw: _make_metadata(
+                non_primary_sites, "NON_PRIMARY_NET"
+            ),
+            "fetch_data": lambda sites, s, e: pd.DataFrame(),
+            "normalise": lambda df: df,
+            "requires_api_key": False,
+        },
+    )
+
+    result = api.find_sites()
+    assert "FREE_NET" in set(result["source_network"])
+    assert "NON_PRIMARY_NET" not in set(result["source_network"])
+
+
+def test_non_primary_included_when_explicit(register_free_network):
+    """Non-primary sources can still be queried explicitly by name."""
+    non_primary_sites = [
+        ("NP1", "Non-Primary Site", 51.50, -0.13),
+    ]
+    register_source(
+        "NON_PRIMARY_NET",
+        {
+            "type": "network",
+            "name": "Non-Primary",
+            "primary": False,
+            "fetch_metadata": lambda **kw: _make_metadata(
+                non_primary_sites, "NON_PRIMARY_NET"
+            ),
+            "fetch_data": lambda sites, s, e: pd.DataFrame(),
+            "normalise": lambda df: df,
+            "requires_api_key": False,
+        },
+    )
+
+    result = api.find_sites("NON_PRIMARY_NET")
+    assert len(result) == 1
+    assert result["source_network"].iloc[0] == "NON_PRIMARY_NET"

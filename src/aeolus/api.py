@@ -60,9 +60,16 @@ from .types import METADATA_COLUMNS as _METADATA_COLUMNS
 from .types import empty_metadata_frame as _empty_metadata_frame
 
 
-def list_sources() -> list[str]:
+def list_sources(include_all: bool = False) -> list[str]:
     """
-    List all available data sources (networks and portals).
+    List available data sources (networks and portals).
+
+    By default, only *primary* sources are listed.  Pass
+    ``include_all=True`` to include alternative backends such as the
+    SOS variants of UK regulatory networks.
+
+    Args:
+        include_all: If True, include non-primary sources.
 
     Returns:
         list[str]: List of registered source names
@@ -72,7 +79,7 @@ def list_sources() -> list[str]:
         >>> print(sources)
         ['AURN', 'SAQN', 'BREATHE_LONDON', 'OPENAQ', ...]
     """
-    return _list_sources()
+    return _list_sources(include_all=include_all)
 
 
 def download(
@@ -472,7 +479,7 @@ def find_sites(
                 )
     else:
         source_names = []
-        for name in _list_sources():
+        for name in _list_sources(include_all=include_all):
             spec = get_source(name)
             if include_all or not spec["requires_api_key"]:
                 source_names.append(name)
@@ -542,3 +549,79 @@ def find_sites(
     combined = combined[ordered + extras]
 
     return combined
+
+
+# ============================================================================
+# get_current() — Near-Real-Time Data via SOS
+# ============================================================================
+
+_SOS_BACKENDS = {
+    "AURN": "AURN-SOS",
+    "SAQN": "SAQN-SOS",
+    "WAQN": "WAQN-SOS",
+    "NI": "NI-SOS",
+    "AQE": "AQE-SOS",
+}
+
+
+def get_current(
+    source: str,
+    sites: list[str],
+) -> pd.DataFrame:
+    """
+    Get the most recent readings for the given sites.
+
+    For UK regulatory networks (AURN, SAQN, WAQN, NI, AQE), this
+    automatically routes to the SOS backend which provides near-real-time
+    data via the UK-AIR Sensor Observation Service.
+
+    Args:
+        source: Source name (e.g. ``"AURN"``).  Automatically routes to
+            the SOS backend if one exists, or accepts the SOS name
+            directly (e.g. ``"AURN-SOS"``).
+        sites: List of site codes to fetch current data for.
+
+    Returns:
+        DataFrame with the standard 8-column schema, containing only
+        the most recent reading per site+measurand.
+
+    Raises:
+        ValueError: If the source is not recognised.
+
+    Example:
+        >>> latest = aeolus.get_current("AURN", sites=["MY1", "KC1"])
+        >>> print(latest[["site_code", "date_time", "measurand", "value"]])
+    """
+    source_upper = source.upper()
+
+    # Route to SOS backend if available
+    backend = _SOS_BACKENDS.get(source_upper, source_upper)
+
+    spec = get_source(backend)
+    if spec is None:
+        available = ", ".join(list_sources(include_all=True))
+        raise ValueError(
+            f"Unknown source: {source}\nAvailable sources: {available}"
+        )
+
+    # Use fetch_latest if available, otherwise fall back to fetch_data
+    # with a short window
+    fetch_latest = spec.get("fetch_latest")
+    if fetch_latest is not None:
+        return fetch_latest(sites)
+
+    # Fallback: fetch last 4 hours and keep the latest reading
+    from datetime import timedelta
+
+    now = datetime.now(tz=__import__("datetime").timezone.utc)
+    start = now - timedelta(hours=4)
+
+    from .networks import download as network_download
+
+    df = network_download(backend, sites, start, now)
+    if df.empty:
+        return df
+
+    # Keep only the most recent reading per site + measurand
+    idx = df.groupby(["site_code", "measurand"])["date_time"].idxmax()
+    return df.loc[idx].reset_index(drop=True)

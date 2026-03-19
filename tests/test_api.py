@@ -179,6 +179,66 @@ def test_list_sources_with_registered_sources(register_both_sources):
     assert len(result) == 2
 
 
+def test_list_sources_hides_non_primary():
+    """list_sources() excludes sources with primary=False."""
+    register_source(
+        "PRIMARY_SRC",
+        {
+            "type": "network",
+            "name": "Primary",
+            "fetch_metadata": lambda **kw: pd.DataFrame(),
+            "fetch_data": lambda sites, s, e: pd.DataFrame(),
+            "normalise": lambda df: df,
+            "requires_api_key": False,
+        },
+    )
+    register_source(
+        "HIDDEN_SRC",
+        {
+            "type": "network",
+            "name": "Hidden",
+            "primary": False,
+            "fetch_metadata": lambda **kw: pd.DataFrame(),
+            "fetch_data": lambda sites, s, e: pd.DataFrame(),
+            "normalise": lambda df: df,
+            "requires_api_key": False,
+        },
+    )
+    result = api.list_sources()
+    assert "PRIMARY_SRC" in result
+    assert "HIDDEN_SRC" not in result
+
+
+def test_list_sources_include_all_shows_non_primary():
+    """list_sources(include_all=True) includes non-primary sources."""
+    register_source(
+        "PRIMARY_SRC",
+        {
+            "type": "network",
+            "name": "Primary",
+            "fetch_metadata": lambda **kw: pd.DataFrame(),
+            "fetch_data": lambda sites, s, e: pd.DataFrame(),
+            "normalise": lambda df: df,
+            "requires_api_key": False,
+        },
+    )
+    register_source(
+        "HIDDEN_SRC",
+        {
+            "type": "network",
+            "name": "Hidden",
+            "primary": False,
+            "fetch_metadata": lambda **kw: pd.DataFrame(),
+            "fetch_data": lambda sites, s, e: pd.DataFrame(),
+            "normalise": lambda df: df,
+            "requires_api_key": False,
+        },
+    )
+    result = api.list_sources(include_all=True)
+    assert "PRIMARY_SRC" in result
+    assert "HIDDEN_SRC" in result
+
+
 # ============================================================================
 # download() - Single Source Tests
 # ============================================================================

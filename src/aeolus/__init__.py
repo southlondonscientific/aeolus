@@ -78,6 +78,7 @@ from .api import (
     download,
     fetch,
     find_sites,
+    get_current,
     get_source_info,
     list_sources,
 )
@@ -95,6 +96,7 @@ __all__ = [
     "list_sources",
     "download",
     "find_sites",
+    "get_current",
     "get_source_info",
     "fetch",
 ]

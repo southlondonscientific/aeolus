@@ -34,6 +34,7 @@ from . import (
     purpleair,  # noqa: F401
     regulatory,  # noqa: F401
     sensor_community,  # noqa: F401
+    sos,  # noqa: F401
 )
 
 __all__ = [
@@ -44,4 +45,5 @@ __all__ = [
     "purpleair",
     "regulatory",
     "sensor_community",
+    "sos",
 ]
