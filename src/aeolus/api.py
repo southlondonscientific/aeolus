@@ -60,6 +60,40 @@ from .types import METADATA_COLUMNS as _METADATA_COLUMNS
 from .types import empty_metadata_frame as _empty_metadata_frame
 
 
+def _fetch_single_source(
+    source_name: str, source_sites: list[str], start_date: datetime, end_date: datetime
+) -> pd.DataFrame:
+    """Fetch data from a single source, using cache if enabled."""
+    from . import cache as _cache
+
+    # Check cache
+    if _cache.is_enabled():
+        # Cache per (source, sorted-site-list, dates)
+        cache_site_key = ",".join(sorted(source_sites))
+        cached = _cache.get(source_name, cache_site_key, start_date, end_date)
+        if cached is not None:
+            return cached
+
+    # Fetch from network
+    source_spec = get_source(source_name)
+    source_type = source_spec.get("type", "network")
+
+    if source_type == "network":
+        from .networks import download as network_download
+        data = network_download(source_name, source_sites, start_date, end_date)
+    elif source_type == "portal":
+        from .portals import download as portal_download
+        data = portal_download(source_name, source_sites, start_date, end_date)
+    else:
+        raise ValueError(f"Unknown source type: {source_type}")
+
+    # Store in cache
+    if _cache.is_enabled():
+        _cache.put(source_name, cache_site_key, start_date, end_date, data)
+
+    return data
+
+
 def list_sources(include_all: bool = False) -> list[str]:
     """
     List available data sources (networks and portals).
@@ -190,18 +224,7 @@ def download(
                 f"Unknown source: {sources}\nAvailable sources: {available}"
             )
 
-        source_type = source_spec.get("type", "network")
-
-        if source_type == "network":
-            from .networks import download as network_download
-
-            return network_download(sources, sites, start_date, end_date)
-        elif source_type == "portal":
-            from .portals import download as portal_download
-
-            return portal_download(sources, sites, start_date, end_date)
-        else:
-            raise ValueError(f"Unknown source type: {source_type}")
+        return _fetch_single_source(sources, sites, start_date, end_date)
 
     # Case 2: Multiple sources (dict) - explicit mapping
     elif isinstance(sources, dict):
@@ -222,29 +245,13 @@ def download(
         for source_name, source_sites in sources.items():
             source_spec = get_source(source_name)
             if not source_spec:
-                import warnings
-
                 warnings.warn(f"Unknown source '{source_name}', skipping", UserWarning)
                 continue
 
-            source_type = source_spec.get("type", "network")
-
             try:
-                if source_type == "network":
-                    from .networks import download as network_download
-
-                    data = network_download(
-                        source_name, source_sites, start_date, end_date
-                    )
-                elif source_type == "portal":
-                    from .portals import download as portal_download
-
-                    data = portal_download(
-                        source_name, source_sites, start_date, end_date
-                    )
-                else:
-                    raise ValueError(f"Unknown source type: {source_type}")
-
+                data = _fetch_single_source(
+                    source_name, source_sites, start_date, end_date
+                )
                 all_data[source_name] = data
 
             except Exception as e:

@@ -99,11 +99,12 @@ Check the `source_network` column to understand data provenance.
 
 ## Rate Limits
 
-OpenAQ has API rate limits. Aeolus handles these automatically with:
+OpenAQ has API rate limits. Aeolus handles these automatically via the SDK's
+`auto_wait` feature (enabled by default since OpenAQ SDK 1.0). The SDK pauses
+requests when rate-limited rather than raising an error.
 
-- Request throttling
-- Automatic retry on rate limit errors
-- Chunked downloads for large date ranges
+Results are paginated transparently — Aeolus fetches all pages automatically,
+so you always get the complete dataset regardless of the time range.
 
 ## Example: Global Comparison
 

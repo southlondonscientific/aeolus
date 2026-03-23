@@ -14,6 +14,7 @@ Each notebook is self-contained, tells a complete story, and can be adapted for 
 | 05 | [Exposure Assessment for Health Study](05_exposure_assessment.ipynb) | `BL_API_KEY` | Health Researcher |
 | 06 | [African Air Quality with AirQo](06_african_air_quality.ipynb) | `AIRQO_API_KEY` | Researcher, Student |
 | 07 | [Global Sensor Network Comparison](07_global_sensor_comparison.ipynb) | `PURPLEAIR_API_KEY`, `AIRQO_API_KEY` | Researcher, IoT Developer |
+| 08 | [Multi-Year Trend Analysis](08_trend_analysis.ipynb) | None | Researcher, Consultant |
 
 ## Quick Start
 

@@ -2,7 +2,7 @@
 
 Air quality data downloading and standardization library for UK and international monitoring networks.
 
-**Current Version:** 0.3.0rc2
+**Current Version:** 0.4.0
 
 ## Quick Start
 
@@ -180,6 +180,7 @@ Tests use `pytest` with `responses` for mocking HTTP calls. Test files mirror so
 
 - `tests/test_sos.py` - SOS near-real-time API tests
 - `tests/test_find_sites.py` - find_sites() unified site discovery
+- `tests/test_cache.py` - Local file cache
 - `tests/test_progress.py` - Progress indicator wrapper tests
 - `tests/test_geo.py` - Geospatial utilities
 
@@ -187,13 +188,18 @@ Mock API responses are defined as pytest fixtures within each test file.
 
 ## Release History
 
-### v0.3.0rc2 (current, February 2026)
-- **Timezone fixes**: All 7 data sources now produce UTC-aware `date_time` and `created_at` columns. Previously, naive timestamps caused `TypeError` when compared against tz-aware inputs.
-- **Schema consistency**: Data output is now a strict 8-column schema (see above). `site_name` was removed from data output (it remains in metadata). Categorical dtypes removed from regulatory sources (caused issues when concatenating across sources). Empty DataFrames now carry the standard schema columns.
-- **Release process**: Tag `v*` on main triggers GitHub Actions (`release.yml`) which builds a wheel via `uv build` and creates a GitHub Release. Docs deploy automatically on push to main via `docs.yml` (mkdocs).
+### v0.4.0 (current, March 2026)
+- **User story notebooks**: 8 executable Jupyter notebooks in `notebooks/` covering real-world workflows.
+- **Local file caching**: `aeolus.cache` module for Parquet-based download caching.
+- **OpenAQ SDK 1.0rc2**: Auto rate-limit waiting, full pagination, improved connection tuning.
+- **Removed deprecated modules**: `database_operations.py`, `meteorology.py`, and `sqlmodel` dependency.
+- **Version jump**: Skipped v0.3.0 final; v0.4.0 supersedes v0.3.0rc2.
+- See `CHANGELOG.md` for full details.
 
-### v0.3.0 (unreleased, targets full release after rc testing)
-- See `CHANGELOG.md` for full v0.3.0 feature list (AirQo, Sensor.Community, PurpleAir, AirNow, metrics module, viz module).
+### v0.3.0rc2 (February 2026)
+- **Timezone fixes**: All 7 data sources now produce UTC-aware `date_time` and `created_at` columns.
+- **Schema consistency**: Strict 8-column data schema. Empty DataFrames carry standard columns.
+- **Release process**: Tag `v*` on main triggers GitHub Actions (`release.yml`).
 
 ## Roadmap
 

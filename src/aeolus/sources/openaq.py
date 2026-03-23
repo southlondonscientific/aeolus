@@ -90,7 +90,7 @@ def _get_client() -> OpenAQ:
             "Get a free key at: https://openaq.org/"
         )
 
-    _client = OpenAQ(api_key=api_key)
+    _client = OpenAQ(api_key=api_key, auto_wait=True)
     return _client
 
 
@@ -247,15 +247,22 @@ def fetch_openaq_data(
             logger.debug(f"Fetching data for sensor {sensor_id} ({param_name})")
 
             try:
-                measurements = client.measurements.list(
-                    sensors_id=sensor_id,
-                    data="measurements",
-                    datetime_from=start_date,
-                    datetime_to=end_date,
-                    limit=1000,
-                )
+                # Paginate through all results (API returns max 1000 per page)
+                page = 1
+                sensor_total = 0
+                while True:
+                    measurements = client.measurements.list(
+                        sensors_id=sensor_id,
+                        data="measurements",
+                        datetime_from=start_date,
+                        datetime_to=end_date,
+                        limit=1000,
+                        page=page,
+                    )
 
-                if measurements.results:
+                    if not measurements.results:
+                        break
+
                     for m in measurements.results:
                         all_measurements.append(
                             {
@@ -272,8 +279,16 @@ def fetch_openaq_data(
                             }
                         )
 
+                    sensor_total += len(measurements.results)
+
+                    # If we got fewer than the limit, we've reached the end
+                    if len(measurements.results) < 1000:
+                        break
+                    page += 1
+
+                if sensor_total > 0:
                     logger.debug(
-                        f"Sensor {sensor_id}: fetched {len(measurements.results)} measurements"
+                        f"Sensor {sensor_id}: fetched {sensor_total} measurements"
                     )
 
             except (OpenAQError, KeyError, ValueError, AttributeError) as e:
