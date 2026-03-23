@@ -1,6 +1,6 @@
-# Visualization
+# Visualisation
 
-Aeolus includes visualization tools for publication-ready air quality plots with sensible defaults.
+Aeolus includes visualisation tools for publication-ready air quality plots with sensible defaults.
 
 !!! tip "See it in action"
     - [Notebook 01](https://github.com/southlondonscientific/aeolus/tree/main/notebooks/01_london_no2_comparison.ipynb) uses `plot_diurnal()`, `plot_weekly()`, and `plot_time_variation()` for temporal decomposition
@@ -9,7 +9,7 @@ Aeolus includes visualization tools for publication-ready air quality plots with
 
 ## Built-in Plots
 
-The `aeolus.viz` module provides ready-made visualizations.
+The `aeolus.viz` module provides ready-made visualisations.
 
 ### Time Series
 

@@ -122,7 +122,7 @@ from aeolus.viz import plot_trend
 result = trend(data, pollutant="NO2", deseason=True, avg_time="month")
 # result.slope, result.p_value, result.ci_lower, result.ci_upper, etc.
 
-fig = plot_trend(data, pollutant="NO2", trend_result=result)
+fig = plot_trend(data, trend_result=result)
 ```
 
 **Differences:** openair's `TheilSen` combines analysis and plotting in one call. Aeolus separates them: `trend()` returns a `TrendResult` dataclass with the statistics, and `plot_trend()` handles visualisation. Both use Theil-Sen slope with Mann-Kendall significance and optional STL deseasonalisation.
@@ -141,7 +141,7 @@ timeVariation(data, pollutant = "no2")
 ```python
 from aeolus.viz import plot_time_variation
 
-fig = plot_time_variation(data, measurands=["NO2"])
+fig = plot_time_variation(data, pollutant="NO2")
 # Same 4-panel layout: diurnal, weekly, monthly, heatmap
 ```
 
@@ -157,9 +157,9 @@ fig = plot_time_variation(data, measurands=["NO2"])
 ```python
 from aeolus.viz import plot_diurnal, plot_weekly, plot_monthly
 
-fig = plot_diurnal(data, measurands=["NO2"])
-fig = plot_weekly(data, measurands=["NO2"])
-fig = plot_monthly(data, measurands=["NO2"])
+fig = plot_diurnal(data, pollutants=["NO2"])
+fig = plot_weekly(data, pollutants=["NO2"])
+fig = plot_monthly(data, pollutants=["NO2"])
 ```
 
 ## Time Series Plotting
@@ -173,7 +173,7 @@ timePlot(data, pollutant = c("no2", "pm25"))
 ```python
 from aeolus.viz import plot_timeseries
 
-fig = plot_timeseries(data, measurands=["NO2", "PM2.5"])
+fig = plot_timeseries(data, pollutants=["NO2", "PM2.5"])
 ```
 
 ## Calendar Heatmap

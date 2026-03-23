@@ -8,11 +8,14 @@ Aeolus provides a unified Python interface for accessing air quality data from m
 
 - **Unified API** - One interface for all data sources
 - **Site discovery** - Find nearby monitoring sites with `find_sites()`
+- **Near-real-time data** - Latest readings via `get_current()` (UK regulatory networks)
 - **Automatic normalisation** - Consistent data format regardless of source
 - **Multiple networks** - UK regulatory networks, global platforms, low-cost sensors
 - **Analysis functions** - Time averaging, regulatory statistics, trend detection
-- **Built-in metrics** - Calculate AQI from 6 international standards
-- **Visualization tools** - Publication-ready plots including openair-style temporal variation
+- **Built-in metrics** - Calculate AQI from 7 international standards
+- **Visualisation tools** - Publication-ready plots including openair-style temporal variation
+- **Local caching** - Parquet-based download cache for fast re-runs
+- **Progress indicators** - Optional tqdm progress bars for bulk downloads
 
 ## Supported Data Sources
 
@@ -57,7 +60,7 @@ See the [Installation Guide](getting-started/installation.md) for more options.
 
 ## User Story Notebooks
 
-Learn by example with 7 executable Jupyter notebooks covering real-world workflows:
+Learn by example with 8 executable Jupyter notebooks covering real-world workflows:
 
 | Notebook | Scenario | API Key |
 |----------|----------|---------|

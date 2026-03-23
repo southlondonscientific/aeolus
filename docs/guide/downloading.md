@@ -47,6 +47,30 @@ sites = aeolus.networks.get_metadata("AURN")
 london_sites = sites[sites['site_name'].str.contains('London')]
 ```
 
+## Date Range Shorthand
+
+For quick exploratory work, use `last=` instead of explicit start/end dates:
+
+```python
+# Last 30 days
+data = aeolus.download("AURN", ["MY1"], last="30d")
+
+# Last 6 months
+data = aeolus.download("AURN", ["MY1"], last="6m")
+
+# Also supports weeks ("2w") and years ("1y")
+```
+
+## Data Overview
+
+Use `summarise()` to quickly inspect downloaded data:
+
+```python
+data = aeolus.download("AURN", ["MY1", "KC1"], last="30d")
+aeolus.summarise(data)
+# Shows: site_code, source_network, measurand, start, end, records, valid, data_capture
+```
+
 ## Multiple Sources
 
 Download from multiple sources simultaneously:

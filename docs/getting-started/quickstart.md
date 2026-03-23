@@ -66,9 +66,38 @@ data = aeolus.download(
 )
 ```
 
+## Quick Data Overview
+
+Use `summarise()` to see what's in your data:
+
+```python
+aeolus.summarise(data)
+# Shows sites, pollutants, date ranges, record counts, and data capture
+```
+
+## Date Range Shorthand
+
+For quick exploratory work, use `last=` instead of explicit dates:
+
+```python
+# Last 30 days of data
+data = aeolus.download("AURN", ["MY1"], last="30d")
+
+# Also: "2w" (weeks), "6m" (months), "1y" (years)
+```
+
+## Near-Real-Time Data
+
+Get the latest readings from UK regulatory monitors:
+
+```python
+latest = aeolus.get_current("AURN", sites=["MY1", "KC1"])
+print(latest[["site_code", "date_time", "measurand", "value"]])
+```
+
 ## Next Steps
 
 - [Configuration](configuration.md) - Set up API keys for more data sources
 - [Data Sources](../guide/sources.md) - Learn about all available sources
 - [Downloading Data](../guide/downloading.md) - Advanced download options
-- [User Story Notebooks](https://github.com/southlondonscientific/aeolus/tree/main/notebooks/) - 7 executable notebooks covering real-world workflows (NO2 comparison, compliance reporting, sensor validation, city rankings, exposure assessment, and more)
+- [User Story Notebooks](https://github.com/southlondonscientific/aeolus/tree/main/notebooks/) - 8 executable notebooks covering real-world workflows (NO2 comparison, compliance reporting, sensor validation, city rankings, exposure assessment, trend analysis, and more)

@@ -87,7 +87,7 @@ metrics.aqi_check_who(data)
 metrics.list_indices()
 ```
 
-### Visualization Functions
+### Visualisation Functions
 
 ```python
 from aeolus import viz, metrics

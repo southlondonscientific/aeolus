@@ -41,7 +41,7 @@ aeolus/
 │   ├── transforms.py        # Data normalisation
 │   ├── sources/             # Data source implementations
 │   ├── metrics/             # Air quality calculations
-│   └── viz/                 # Visualization tools
+│   └── viz/                 # Visualisation tools
 ├── tests/                   # Test files
 ├── docs/                    # Documentation (this site)
 └── pyproject.toml           # Project configuration
