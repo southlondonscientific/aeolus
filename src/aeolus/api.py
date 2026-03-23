@@ -53,7 +53,7 @@ import pandas as pd
 
 # Import sources to trigger registration
 from . import sources as _sources  # noqa: F401
-from .registry import get_source
+from .registry import get_source, source_exists
 from .registry import list_sources as _list_sources
 from .types import DATA_COLUMNS as _STANDARD_COLUMNS
 from .types import METADATA_COLUMNS as _METADATA_COLUMNS
