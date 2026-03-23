@@ -35,6 +35,7 @@ source .venv/bin/activate
 ## Project Structure
 
 ```
+notebooks/                   # 7 user story Jupyter notebooks (v0.4.0)
 src/aeolus/
 ├── __init__.py          # Public API (download, list_sources, etc.)
 ├── api.py               # Main download() function implementation
@@ -197,22 +198,13 @@ Mock API responses are defined as pytest fixtures within each test file.
 ## Roadmap
 
 ### v0.4.0 (planned)
-**User story notebooks** - 7 executable Jupyter notebooks exercising real-world workflows, mapped to 9 validated user personas. Full specification in `docs/dev/user_stories_v040.md`.
-
-Key notebooks:
-1. London roadside vs background NO2 (no API key needed)
-2. Monthly PM2.5 compliance report (no API key needed)
-3. Low-cost sensor vs reference monitor (PurpleAir key)
-4. UK city air quality ranking (no API key needed)
-5. Exposure assessment for health study (Breathe London key)
-6. African air quality with AirQo (AirQo key)
-7. Global sensor network comparison (PurpleAir + AirQo keys)
+~~**User story notebooks**~~ (done) - 7 executable Jupyter notebooks in `notebooks/`, mapped to 9 validated user personas. Spec: `docs/dev/user_stories_v040.md`.
 
 **Analysis functions** (high priority):
 - ~~`time_average()` — time averaging with data capture thresholds~~ (done)
 - ~~`aq_stats()` — annual regulatory statistics, exceedance counts, data capture~~ (done)
 - ~~`trend()` — Theil-Sen non-parametric trend with CI, p-value, deseasonalisation~~ (done)
-- `time_variation()` plot — combined 4-panel temporal decomposition (hourly, daily, monthly, hour×weekday)
+- ~~`time_variation()` plot — combined 4-panel temporal decomposition~~ (done, as `plot_time_variation()`)
 
 **Data access features** (high priority):
 - ~~`find_sites(near=(lat, lon), radius_km=N)` convenience function~~ (done)

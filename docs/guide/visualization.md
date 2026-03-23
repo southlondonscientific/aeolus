@@ -2,6 +2,11 @@
 
 Aeolus includes visualization tools for publication-ready air quality plots with sensible defaults.
 
+!!! tip "See it in action"
+    - [Notebook 01](https://github.com/southlondonscientific/aeolus/tree/main/notebooks/01_london_no2_comparison.ipynb) uses `plot_diurnal()`, `plot_weekly()`, and `plot_time_variation()` for temporal decomposition
+    - [Notebook 02](https://github.com/southlondonscientific/aeolus/tree/main/notebooks/02_pm25_compliance_report.ipynb) uses `plot_timeseries()` with guideline overlay and `plot_calendar()` heatmap
+    - [Notebook 03](https://github.com/southlondonscientific/aeolus/tree/main/notebooks/03_sensor_vs_reference.ipynb) uses `plot_timeseries()` for multi-source overlay
+
 ## Built-in Plots
 
 The `aeolus.viz` module provides ready-made visualizations.

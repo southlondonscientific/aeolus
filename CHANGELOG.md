@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### User Story Notebooks
+- **7 executable Jupyter notebooks** covering real-world air quality workflows, mapped to validated user personas (researcher, consultant, local authority officer, citizen scientist, health researcher, journalist, IoT developer):
+  - `01_london_no2_comparison` - Roadside vs background NO2 with diurnal/weekly decomposition
+  - `02_pm25_compliance_report` - Monthly PM2.5 report with WHO guidelines and DAQI bands
+  - `03_sensor_vs_reference` - PurpleAir vs AURN cross-source comparison with R2/RMSE
+  - `04_uk_city_ranking` - Multi-network UK city ranking across 5 regulatory networks
+  - `05_exposure_assessment` - Health study exposure estimates using nearest-monitor assignment
+  - `06_african_air_quality` - AirQo network analysis with WHO compliance checking
+  - `07_global_sensor_comparison` - Cross-network comparison (PurpleAir, Sensor.Community, AirQo)
+
 #### Unified Site Discovery
 - **`aeolus.find_sites()`** - Top-level function that abstracts the network/portal distinction. Supports circular search (`near=(lat, lon)` + `radius_km`), rectangular filtering (`bbox`), and automatic source selection (free sources by default, opt-in for API-key sources via `include_all=True`). Returns metadata DataFrame with `distance_km` column when `near` is used, sorted nearest-first.
 - **`aeolus.geo`** module - Geospatial utilities: `haversine_distance()` (great-circle distance) and `near_to_bbox()` (point+radius to bounding box).
