@@ -579,6 +579,8 @@ def fetch_sensor_community_data(
     current_date = start_date
 
     while current_date <= end_date:
+        date_str = current_date.strftime("%Y-%m-%d")
+
         # Fetch data for each sensor type group
         from ..progress import track
 
