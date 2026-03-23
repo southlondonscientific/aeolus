@@ -40,19 +40,6 @@ import pandas as pd
 import rdata
 import requests
 
-from ..decorators import retry_on_network_error
-from ..registry import register_source
-from ..transforms import (
-    add_column,
-    compose,
-    convert_timestamps,
-    drop_columns,
-    melt_measurands,
-    rename_columns,
-    reset_index,
-)
-from ..types import DataFetcher, MetadataFetcher, Normaliser
-
 # Suppress harmless rdata warnings about POSIXct/POSIXt conversion
 # These occur when parsing R datetime objects but don't affect functionality
 warnings.filterwarnings(
@@ -66,7 +53,6 @@ from ..decorators import retry_on_network_error
 from ..registry import register_source
 from ..transforms import (
     add_column,
-    categorise_columns,
     compose,
     convert_timestamps,
     drop_columns,

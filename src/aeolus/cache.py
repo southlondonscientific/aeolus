@@ -81,9 +81,12 @@ def _cache_key(source: str, site: str, start_date: datetime, end_date: datetime)
 
 def _cache_path(source: str, site: str, start_date: datetime, end_date: datetime) -> Path:
     """Get the filesystem path for a cached dataset."""
+    import re
+
     cache_dir = _get_cache_dir()
     key = _cache_key(source, site, start_date, end_date)
-    return cache_dir / source.upper() / f"{site}_{key}.parquet"
+    safe_site = re.sub(r"[^\w\-]", "_", site)
+    return cache_dir / source.upper() / f"{safe_site}_{key}.parquet"
 
 
 def get(

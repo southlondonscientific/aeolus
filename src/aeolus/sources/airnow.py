@@ -156,7 +156,8 @@ def _call_airnow_api(
         warning(f"AirNow API request timed out: {endpoint}")
         return None
     except requests.exceptions.RequestException as e:
-        warning(f"AirNow API request failed: {e}")
+        # Avoid leaking API key embedded in the request URL
+        warning(f"AirNow API request failed: {endpoint} ({type(e).__name__})")
         return None
     except ValueError as e:
         # JSON parsing error or auth error

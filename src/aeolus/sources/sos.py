@@ -202,6 +202,7 @@ def _build_station_mapping(
         if len(coords) < 2:
             continue
 
+        # UK-AIR SOS returns [lat, lon, elevation] — not GeoJSON [lon, lat] order
         sos_lat, sos_lon = float(coords[0]), float(coords[1])
 
         # Parse pollutant from EIONET phenomenon

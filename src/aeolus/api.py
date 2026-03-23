@@ -98,8 +98,12 @@ def _parse_last(last: str) -> tuple[datetime, datetime]:
         m += 1
         day = min(end.day, [31, 29 if y % 4 == 0 and (y % 100 != 0 or y % 400 == 0) else 28,
                             31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1])
+        if y < 1:
+            raise ValueError(f"Date range goes before year 1: last='{n}m'")
         start = end.replace(year=y, month=m, day=day)
     elif unit == "years":
+        if end.year - n < 1:
+            raise ValueError(f"Date range goes before year 1: last='{n}y'")
         start = end.replace(year=end.year - n)
     else:
         raise ValueError(f"Unsupported unit: {unit}")

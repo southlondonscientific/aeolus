@@ -160,7 +160,7 @@ def fetch_airqo_metadata(**filters) -> pd.DataFrame:
     try:
         data = _call_airqo_api("devices/metadata/sites")
     except (requests.RequestException, ValueError, KeyError, TypeError) as e:
-        warning(f"Failed to fetch AirQo metadata: {e}")
+        warning(f"Failed to fetch AirQo metadata: {type(e).__name__}")
         warnings.warn(
             f"Failed to fetch AirQo metadata: {e}",
             AeolusDataWarning,
@@ -211,7 +211,7 @@ def fetch_airqo_metadata(**filters) -> pd.DataFrame:
                 sites = all_sites
                 logger.info(f"Retrieved {len(sites)} sites from grids/summary")
         except (requests.RequestException, ValueError, KeyError, TypeError) as e:
-            logger.warning(f"Grids fallback also failed: {e}")
+            logger.warning(f"Grids fallback also failed: {type(e).__name__}")
 
     if not sites:
         return empty_data_frame()
@@ -256,7 +256,7 @@ def fetch_airqo_grids() -> pd.DataFrame:
     try:
         data = _call_airqo_api("devices/metadata/grids")
     except (requests.RequestException, ValueError, KeyError, TypeError) as e:
-        warning(f"Failed to fetch AirQo grids: {e}")
+        warning(f"Failed to fetch AirQo grids: {type(e).__name__}")
         warnings.warn(
             f"Failed to fetch AirQo grids: {e}",
             AeolusDataWarning,
@@ -415,7 +415,7 @@ def fetch_airqo_data(
                 all_data.append(df)
 
         except (requests.RequestException, ValueError, KeyError, TypeError) as e:
-            warning(f"Failed to fetch AirQo data for site {site_id}: {e}")
+            warning(f"Failed to fetch AirQo data for site {site_id}: {type(e).__name__}")
             continue
 
     # Combine all site data
@@ -495,7 +495,7 @@ def fetch_airqo_data_by_grid(
         return normaliser(df)
 
     except (requests.RequestException, ValueError, KeyError, TypeError) as e:
-        warning(f"Failed to fetch AirQo data for grid {grid_id}: {e}")
+        warning(f"Failed to fetch AirQo data for grid {grid_id}: {type(e).__name__}")
         return _empty_dataframe()
 
 
