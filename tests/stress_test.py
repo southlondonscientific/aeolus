@@ -15,7 +15,6 @@ Examples:
 
 import argparse
 import gc
-import sys
 import time
 from datetime import datetime, timedelta
 from typing import Callable
@@ -506,7 +505,7 @@ def stress_test_edge_cases(profile: bool = False):
 def run_full_stress_test(n_rows: int = 1_000_000, profile: bool = False):
     """Run the complete stress test suite."""
     print("\n" + "=" * 60)
-    print(f"AEOLUS STRESS TEST SUITE")
+    print("AEOLUS STRESS TEST SUITE")
     print(f"Target rows: {n_rows:,}")
     print(f"Profiling: {'enabled' if profile else 'disabled'}")
     print("=" * 60)

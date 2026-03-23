@@ -24,7 +24,6 @@ from aeolus.sources.sensor_community import (
     USER_AGENT,
     VALUE_NAME_MAP,
     RateLimiter,
-    _apply_rate_limit,
     _empty_dataframe,
     _fetch_sensor_archive,
     _get_sensor_types_for_sites,

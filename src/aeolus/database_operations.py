@@ -22,11 +22,11 @@ Store air quality data and site data in a structured manner.
     Consider using pandas to_sql() or similar for database storage needs.
 """
 
-import os
-import site
 import warnings
 from datetime import datetime
-from logging import warning
+
+import pandas as pd
+from sqlmodel import Field, Session, SQLModel, create_engine
 
 # Deprecation warning shown on module import
 warnings.warn(
@@ -35,10 +35,6 @@ warnings.warn(
     DeprecationWarning,
     stacklevel=2,
 )
-
-import pandas as pd
-from sqlalchemy import text
-from sqlmodel import Field, Session, SQLModel, create_engine
 
 
 class AQ_site(SQLModel, table=True):

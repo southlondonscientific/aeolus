@@ -8,7 +8,6 @@ with mocked responses.
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
-import pandas as pd
 import pytest
 
 from aeolus.registry import _SOURCES
@@ -18,7 +17,6 @@ from aeolus.sources.airnow import (
     PARAMETER_MAP,
     _call_airnow_api,
     _empty_dataframe,
-    _fetch_site_historical,
     _get_api_key,
     fetch_airnow_current,
     fetch_airnow_data,
@@ -308,7 +306,7 @@ class TestFetchMetadata:
         """Test metadata fetching with bounding box."""
         mock_api.return_value = mock_metadata_response
 
-        df = fetch_airnow_metadata(bounding_box=(-124.0, 32.0, -114.0, 42.0))
+        fetch_airnow_metadata(bounding_box=(-124.0, 32.0, -114.0, 42.0))
 
         # Verify bounding box was passed to API
         call_args = mock_api.call_args

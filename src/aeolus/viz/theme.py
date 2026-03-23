@@ -32,7 +32,6 @@ requested via the `official_colours` parameter in plotting functions.
 """
 
 from pathlib import Path
-from typing import Literal
 
 # =============================================================================
 # Font Configuration

@@ -358,7 +358,7 @@ class TestFetchBreatheLondonMetadata:
             status=200,
         )
 
-        result = fetch_breathe_london_metadata(species="NO2")
+        fetch_breathe_london_metadata(species="NO2")
 
         assert "species=NO2" in responses.calls[0].request.url
 
@@ -374,7 +374,7 @@ class TestFetchBreatheLondonMetadata:
             status=200,
         )
 
-        result = fetch_breathe_london_metadata(
+        fetch_breathe_london_metadata(
             latitude=51.5074, longitude=-0.1278, radius_km=5
         )
 
@@ -430,7 +430,7 @@ class TestFetchBreatheLondonMetadata:
             status=200,
         )
 
-        result = fetch_breathe_london_metadata(borough="Camden", species=None)
+        fetch_breathe_london_metadata(borough="Camden", species=None)
 
         request_url = responses.calls[0].request.url
         assert "borough=Camden" in request_url
