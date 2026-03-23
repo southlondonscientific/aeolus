@@ -165,6 +165,12 @@ data = aeolus.download(
     start_date=datetime(2024, 1, 1),
     end_date=datetime(2024, 1, 31)
 )
+
+# Date range shorthand
+data = aeolus.download("AURN", ["MY1"], last="30d")
+
+# Quick data overview
+aeolus.summarize(data)
 ```
 
 ## Testing
@@ -216,7 +222,11 @@ Mock API responses are defined as pytest fixtures within each test file.
 - ~~`find_sites(near=(lat, lon), radius_km=N)` convenience function~~ (done)
 - ~~`get_current()` near-real-time data via UK-AIR SOS API~~ (done)
 - ~~Progress indicators for multi-site downloads~~ (done, optional `tqdm`)
-- Local file caching for historical data
+- ~~Local file caching for historical data~~ (done, Parquet-based `aeolus.cache`)
+
+**Convenience features** (medium priority):
+- ~~`summarize()` — quick data overview with sites, pollutants, date range, data capture~~ (done)
+- ~~Date range shorthand (`last="30d"`) for `download()` and `fetch()`~~ (done)
 
 **User personas** (documented in `docs/dev/user_stories_v040.md`):
 - Primary: Academic researcher, health/epidemiology researcher, environmental consultant
@@ -226,7 +236,7 @@ Mock API responses are defined as pytest fixtures within each test file.
 ### Planning Documents
 - `docs/dev/user_stories_v040.md` - User story notebooks tech spec and persona research
 - `docs/dev/potential_data_sources.md` - Evaluated data sources for future integration (EEA, Open-Meteo, WAQI, etc.)
-- `docs/dev/openair_comparison.md` - Feature comparison with R openair, gap analysis, and prioritisation
+- `docs/dev/openair_comparison.md` - Task-by-task comparison with R openair
 
 ## Notes
 

@@ -33,9 +33,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`aq_stats()`** - Annual regulatory air quality statistics: annual mean, maxima, percentiles (p95, p99), data capture, and pollutant-specific exceedance counts (NO2 hourly >200, PM10 daily >50, O3 8h rolling >120). Output suitable for LAQM Annual Status Reports.
 - **`trend()`** - Non-parametric trend analysis using Theil-Sen slope with Mann-Kendall significance test. Supports deseasonalisation (STL decomposition), autocorrelation correction, and configurable confidence intervals. Returns `TrendResult` dataclass.
 
+#### Convenience Features
+- **`aeolus.summarize()`** - Quick data overview: sites, pollutants, date range, record counts, and data capture per site+pollutant combination.
+- **Date range shorthand** - `aeolus.download("AURN", ["MY1"], last="30d")` as alternative to explicit `start_date`/`end_date`. Supports days (`30d`), weeks (`2w`), months (`6m`), years (`1y`).
+
 #### Visualization (`aeolus.viz`)
 - **`plot_time_variation()`** - Combined 2x2 temporal variation plot (diurnal, weekly, monthly, hour x weekday heatmap), equivalent to R openair's `timeVariation`.
 - **`plot_trend()`** - Trend analysis plot: scatter of aggregated data with Theil-Sen line, optional CI bands (dashed), and alternating year shading.
+
+#### Documentation
+- **`docs/dev/openair_comparison.md`** - Task-by-task comparison between Aeolus and R openair, covering data import, time averaging, trend analysis, plotting, and feature coverage gaps in both directions.
 
 ### Removed
 - **`aeolus.database_operations` module** — deprecated since v0.3.0. Use `pandas.to_sql()` or similar for database storage.

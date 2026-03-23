@@ -663,3 +663,157 @@ def test_download_date_range_validation(register_test_network):
     assert len(result) == 1
     # The mock fetcher sets date_time to start_date
     assert result["date_time"].iloc[0] == start
+
+
+# ============================================================================
+# download() - last= Shorthand Tests
+# ============================================================================
+
+
+def test_download_last_shorthand(register_test_network):
+    """Test download with last= date shorthand."""
+    result = api.download("TEST_NETWORK", ["SITE1"], last="30d")
+
+    assert isinstance(result, pd.DataFrame)
+    assert len(result) == 1
+
+
+def test_download_last_weeks(register_test_network):
+    """Test download with last= in weeks."""
+    result = api.download("TEST_NETWORK", ["SITE1"], last="2w")
+    assert isinstance(result, pd.DataFrame)
+    assert len(result) == 1
+
+
+def test_download_last_months(register_test_network):
+    """Test download with last= in months."""
+    result = api.download("TEST_NETWORK", ["SITE1"], last="6m")
+    assert isinstance(result, pd.DataFrame)
+    assert len(result) == 1
+
+
+def test_download_last_years(register_test_network):
+    """Test download with last= in years."""
+    result = api.download("TEST_NETWORK", ["SITE1"], last="1y")
+    assert isinstance(result, pd.DataFrame)
+    assert len(result) == 1
+
+
+def test_download_last_with_dates_raises(register_test_network, test_dates):
+    """Test that last= cannot be combined with start_date/end_date."""
+    with pytest.raises(ValueError, match="Cannot use 'last' together with"):
+        api.download(
+            "TEST_NETWORK",
+            ["SITE1"],
+            start_date=test_dates["start_date"],
+            last="30d",
+        )
+
+
+def test_download_last_invalid_format(register_test_network):
+    """Test that invalid last= format raises helpful error."""
+    with pytest.raises(ValueError, match="Invalid last value"):
+        api.download("TEST_NETWORK", ["SITE1"], last="abc")
+
+
+def test_parse_last_various_formats():
+    """Test _parse_last with various format strings."""
+    for fmt in ["30d", "30 days", "2w", "2 weeks", "6m", "6 months", "1y", "1 year"]:
+        start, end = api._parse_last(fmt)
+        assert start < end
+
+
+# ============================================================================
+# summarize() Tests
+# ============================================================================
+
+
+def test_summarize_basic(register_test_network, test_dates):
+    """Test summarize on downloaded data."""
+    data = api.download(
+        "TEST_NETWORK",
+        ["SITE1", "SITE2"],
+        start_date=test_dates["start_date"],
+        end_date=test_dates["end_date"],
+    )
+    result = api.summarize(data)
+
+    assert isinstance(result, pd.DataFrame)
+    assert len(result) == 2  # Two sites
+    assert "site_code" in result.columns
+    assert "source_network" in result.columns
+    assert "measurand" in result.columns
+    assert "start" in result.columns
+    assert "end" in result.columns
+    assert "records" in result.columns
+    assert "valid" in result.columns
+    assert "data_capture" in result.columns
+
+
+def test_summarize_empty():
+    """Test summarize on empty DataFrame."""
+    empty = pd.DataFrame(columns=api._STANDARD_COLUMNS)
+    result = api.summarize(empty)
+
+    assert isinstance(result, pd.DataFrame)
+    assert result.empty
+    assert "site_code" in result.columns
+    assert "data_capture" in result.columns
+
+
+def test_summarize_multiple_pollutants():
+    """Test summarize with multiple pollutants per site."""
+    data = pd.DataFrame([
+        {
+            "site_code": "MY1",
+            "date_time": datetime(2024, 1, 1, h),
+            "measurand": "NO2",
+            "value": 42.0,
+            "units": "ug/m3",
+            "source_network": "AURN",
+            "ratification": "Ratified",
+            "created_at": datetime(2024, 1, 2),
+        }
+        for h in range(24)
+    ] + [
+        {
+            "site_code": "MY1",
+            "date_time": datetime(2024, 1, 1, h),
+            "measurand": "PM2.5",
+            "value": 12.0,
+            "units": "ug/m3",
+            "source_network": "AURN",
+            "ratification": "Ratified",
+            "created_at": datetime(2024, 1, 2),
+        }
+        for h in range(24)
+    ])
+
+    result = api.summarize(data)
+
+    assert len(result) == 2  # Two pollutants for one site
+    assert set(result["measurand"]) == {"NO2", "PM2.5"}
+    assert all(result["valid"] == 24)
+
+
+def test_summarize_data_capture():
+    """Test that data_capture is calculated correctly."""
+    # 12 hours of data over a 24-hour span → ~0.5 capture
+    data = pd.DataFrame([
+        {
+            "site_code": "MY1",
+            "date_time": datetime(2024, 1, 1, h),
+            "measurand": "NO2",
+            "value": 42.0,
+            "units": "ug/m3",
+            "source_network": "AURN",
+            "ratification": "Ratified",
+            "created_at": datetime(2024, 1, 2),
+        }
+        for h in range(0, 24, 2)  # Every other hour = 12 records over 23h span
+    ])
+
+    result = api.summarize(data)
+    assert len(result) == 1
+    dc = result["data_capture"].iloc[0]
+    assert 0.4 < dc < 0.6  # Roughly 50%

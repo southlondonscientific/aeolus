@@ -45,8 +45,9 @@ Basic usage:
     ... )
 """
 
+import re
 import warnings
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import pandas as pd
@@ -58,6 +59,52 @@ from .registry import list_sources as _list_sources
 from .types import DATA_COLUMNS as _STANDARD_COLUMNS
 from .types import METADATA_COLUMNS as _METADATA_COLUMNS
 from .types import empty_metadata_frame as _empty_metadata_frame
+
+
+_LAST_RE = re.compile(r"^(\d+)\s*(d|day|days|w|week|weeks|m|month|months|y|year|years)$", re.I)
+
+_LAST_UNITS = {
+    "d": "days", "day": "days", "days": "days",
+    "w": "weeks", "week": "weeks", "weeks": "weeks",
+    "m": "months", "month": "months", "months": "months",
+    "y": "years", "year": "years", "years": "years",
+}
+
+
+def _parse_last(last: str) -> tuple[datetime, datetime]:
+    """Parse a ``last="30d"`` shorthand into (start_date, end_date).
+
+    Supported units: d/day/days, w/week/weeks, m/month/months, y/year/years.
+    ``end_date`` is always now (UTC). ``start_date`` is ``end_date - duration``.
+    """
+    match = _LAST_RE.match(last.strip())
+    if not match:
+        raise ValueError(
+            f"Invalid last value: {last!r}. "
+            "Expected format like '30d', '2w', '6m', '1y'."
+        )
+    n = int(match.group(1))
+    unit = _LAST_UNITS[match.group(2).lower()]
+
+    end = datetime.now(tz=timezone.utc)
+
+    if unit == "days":
+        start = end - timedelta(days=n)
+    elif unit == "weeks":
+        start = end - timedelta(weeks=n)
+    elif unit == "months":
+        total_months = end.year * 12 + end.month - n
+        y, m = divmod(total_months - 1, 12)
+        m += 1
+        day = min(end.day, [31, 29 if y % 4 == 0 and (y % 100 != 0 or y % 400 == 0) else 28,
+                            31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1])
+        start = end.replace(year=y, month=m, day=day)
+    elif unit == "years":
+        start = end.replace(year=end.year - n)
+    else:
+        raise ValueError(f"Unsupported unit: {unit}")
+
+    return start, end
 
 
 def _fetch_single_source(
@@ -121,6 +168,7 @@ def download(
     sites: list[str] | None = None,
     start_date: datetime = None,
     end_date: datetime = None,
+    last: str | None = None,
     combine: bool = True,
 ) -> pd.DataFrame | dict[str, pd.DataFrame]:
     """
@@ -134,6 +182,11 @@ def download(
         Pass source name and site list:
         >>> data = aeolus.download("AURN", ["MY1", "MY2"], start, end)
         >>> data = aeolus.download("OpenAQ", ["2178"], start, end)
+
+    Date Range Shorthand:
+        Use ``last`` instead of explicit dates:
+        >>> data = aeolus.download("AURN", ["MY1"], last="30d")
+        >>> data = aeolus.download("AURN", ["MY1"], last="6m")
 
     Multiple Sources (Explicit Mapping):
         Pass dict mapping source names to their site lists:
@@ -151,6 +204,8 @@ def download(
         sites: Site IDs (only when sources is a string)
         start_date: Start of date range (inclusive)
         end_date: End of date range (inclusive)
+        last: Date range shorthand, e.g. "30d", "2w", "6m", "1y".
+              Mutually exclusive with start_date/end_date.
         combine: If True, combine into single DataFrame (default True)
 
     Returns:
@@ -176,13 +231,8 @@ def download(
         ...     datetime(2024, 1, 31)
         ... )
         >>>
-        >>> # Single portal
-        >>> data = aeolus.download(
-        ...     "OpenAQ",
-        ...     ["2178"],
-        ...     datetime(2024, 1, 1),
-        ...     datetime(2024, 1, 31)
-        ... )
+        >>> # Date range shorthand
+        >>> data = aeolus.download("AURN", ["MY1"], last="30d")
         >>>
         >>> # Multiple sources with explicit mapping
         >>> data = aeolus.download(
@@ -203,9 +253,18 @@ def download(
         ...     combine=False
         ... )
     """
+    # Handle last= shorthand
+    if last is not None:
+        if start_date is not None or end_date is not None:
+            raise ValueError(
+                "Cannot use 'last' together with 'start_date'/'end_date'. "
+                "Use one or the other."
+            )
+        start_date, end_date = _parse_last(last)
+
     # Validate required parameters
     if start_date is None or end_date is None:
-        raise ValueError("start_date and end_date are required")
+        raise ValueError("start_date and end_date are required (or use last='30d')")
 
     # Case 1: Single source (string) - simple case
     if isinstance(sources, str):
@@ -337,6 +396,7 @@ def fetch(
     sites: list[str] | None = None,
     start_date: datetime = None,
     end_date: datetime = None,
+    last: str | None = None,
     **kwargs,
 ) -> pd.DataFrame:
     """
@@ -347,20 +407,16 @@ def fetch(
         sites: List of site codes (when sources is a string)
         start_date: Start of date range
         end_date: End of date range
+        last: Date range shorthand (e.g. "30d", "6m")
         **kwargs: Additional arguments passed to download()
 
     Returns:
         pd.DataFrame: Air quality data
 
     Example:
-        >>> data = aeolus.fetch(
-        ...     "AURN",
-        ...     ["MY1"],
-        ...     datetime(2024, 1, 1),
-        ...     datetime(2024, 1, 31)
-        ... )
+        >>> data = aeolus.fetch("AURN", ["MY1"], last="30d")
     """
-    return download(sources, sites, start_date, end_date, **kwargs)
+    return download(sources, sites, start_date, end_date, last=last, **kwargs)
 
 
 # ============================================================================
@@ -630,3 +686,66 @@ def get_current(
     # Keep only the most recent reading per site + measurand
     idx = df.groupby(["site_code", "measurand"])["date_time"].idxmax()
     return df.loc[idx].reset_index(drop=True)
+
+
+# ============================================================================
+# summarize() — Quick Data Overview
+# ============================================================================
+
+
+def summarize(data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Summarize a downloaded air quality dataset.
+
+    Provides a quick overview of the data: sites, pollutants, date range,
+    record counts, and data completeness per site+pollutant combination.
+
+    Args:
+        data: DataFrame from ``aeolus.download()`` with the standard
+              8-column schema.
+
+    Returns:
+        DataFrame with one row per site+pollutant, columns:
+        ``site_code``, ``source_network``, ``measurand``, ``start``,
+        ``end``, ``records``, ``valid``, ``data_capture``.
+
+    Example:
+        >>> data = aeolus.download("AURN", ["MY1", "KC1"], start, end)
+        >>> aeolus.summarize(data)
+    """
+    if data.empty:
+        return pd.DataFrame(
+            columns=[
+                "site_code", "source_network", "measurand",
+                "start", "end", "records", "valid", "data_capture",
+            ]
+        )
+
+    df = data.copy()
+    df["date_time"] = pd.to_datetime(df["date_time"])
+
+    rows = []
+    for (site, network, measurand), g in df.groupby(
+        ["site_code", "source_network", "measurand"], observed=True
+    ):
+        dt = g["date_time"]
+        total = len(g)
+        valid = g["value"].notna().sum()
+        start = dt.min()
+        end = dt.max()
+        # Expected hourly observations between start and end
+        span_hours = max(1, (end - start).total_seconds() / 3600)
+        dc = valid / span_hours
+
+        rows.append({
+            "site_code": site,
+            "source_network": network,
+            "measurand": measurand,
+            "start": start,
+            "end": end,
+            "records": total,
+            "valid": int(valid),
+            "data_capture": round(min(dc, 1.0), 3),
+        })
+
+    return pd.DataFrame(rows)
