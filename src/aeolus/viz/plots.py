@@ -35,6 +35,7 @@ from .prepare import (
 )
 from .theme import (
     COLOUR_GUIDELINE,
+    COLOUR_TEXT,
     FIGURE_SIZES,
     LINE_WIDTH_MEDIUM,
     LINE_WIDTH_THIN,

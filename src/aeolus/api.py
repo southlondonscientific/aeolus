@@ -255,8 +255,6 @@ def download(
                 all_data[source_name] = data
 
             except Exception as e:
-                import warnings
-
                 warnings.warn(
                     f"Failed to download from {source_name}: {e}", UserWarning
                 )
