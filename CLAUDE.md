@@ -51,6 +51,7 @@ src/aeolus/
 │   ├── airnow.py        # EPA AirNow US network
 │   ├── sos.py           # UK-AIR SOS near-real-time API (AURN-SOS, SAQN-SOS, etc.)
 │   └── _sos_mapping.json # Static SOS station mapping (auto-generated)
+├── cache.py             # Local Parquet-based download caching
 ├── geo.py               # Geospatial utilities (haversine, bbox)
 ├── progress.py          # Optional tqdm progress bars (fallback to logging)
 ├── metrics/             # Air quality metrics calculations
@@ -84,7 +85,7 @@ src/aeolus/
 
 ## Standard Data Schema
 
-All sources normalize data to this 8-column schema:
+All sources normalise data to this 8-column schema:
 - `site_code` - Unique site identifier
 - `date_time` - Timestamp (UTC-aware, left-closed intervals)
 - `measurand` - Pollutant (PM2.5, NO2, O3, etc.)
@@ -130,7 +131,7 @@ python demo_openaq.py       # OpenAQ demo
 **Adding a new data source:**
 1. Create `src/aeolus/sources/newsource.py`
 2. Implement `fetch_*_metadata()` and `fetch_*_data()` functions
-3. Create a normalizer using `compose()` from transforms
+3. Create a normaliser using `compose()` from transforms
 4. Register with `register_source()` from registry
 5. Import in `src/aeolus/sources/__init__.py`
 6. Add tests in `tests/test_newsource.py`
@@ -209,8 +210,8 @@ Mock API responses are defined as pytest fixtures within each test file.
 
 ## Roadmap
 
-### v0.4.0 (planned)
-~~**User story notebooks**~~ (done) - 7 executable Jupyter notebooks in `notebooks/`, mapped to 9 validated user personas. Spec: `docs/dev/user_stories_v040.md`.
+### v0.4.0 (current)
+~~**User story notebooks**~~ (done) - 8 executable Jupyter notebooks in `notebooks/`, mapped to 9 validated user personas. Spec: `docs/dev/user_stories_v040.md`.
 
 **Analysis functions** (high priority):
 - ~~`time_average()` — time averaging with data capture thresholds~~ (done)

@@ -37,7 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`aeolus.summarise()`** - Quick data overview: sites, pollutants, date range, record counts, and data capture per site+pollutant combination.
 - **Date range shorthand** - `aeolus.download("AURN", ["MY1"], last="30d")` as alternative to explicit `start_date`/`end_date`. Supports days (`30d`), weeks (`2w`), months (`6m`), years (`1y`).
 
-#### Visualization (`aeolus.viz`)
+#### Visualisation (`aeolus.viz`)
 - **`plot_time_variation()`** - Combined 2x2 temporal variation plot (diurnal, weekly, monthly, hour x weekday heatmap), equivalent to R openair's `timeVariation`.
 - **`plot_trend()`** - Trend analysis plot: scatter of aggregated data with Theil-Sen line, optional CI bands (dashed), and alternating year shading.
 
@@ -80,7 +80,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `aqi_summary()`, `aqi_timeseries()`, `aqi_check_who()` functions
 - Automatic unit conversion (ppb ↔ µg/m³)
 
-#### Visualization Module (`aeolus.viz`)
+#### Visualisation Module (`aeolus.viz`)
 - Publication-ready plots: time series, calendar heatmaps, diurnal patterns, boxplots, AQI cards
 - Consistent colour scheme and typography
 
@@ -127,4 +127,4 @@ aeolus.portals.download("OPENAQ", sites=ids, ...)  # was location_ids=
 ### Added
 - Initial release
 - UK regulatory networks: AURN, SAQN, WAQN, NI, AQE, LOCAL, LMAM
-- Standardized data schema
+- Standardised data schema

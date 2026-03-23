@@ -337,8 +337,20 @@ import aeolus
 # Download data (smart routing to appropriate source)
 aeolus.download(sources, sites, start_date, end_date)
 
+# Date range shorthand (alternative to explicit dates)
+aeolus.download("AURN", ["MY1"], last="30d")  # also: "2w", "6m", "1y"
+
 # List all available sources
 aeolus.list_sources()
+
+# Find monitoring sites across sources
+aeolus.find_sites("AURN", near=(51.5074, -0.1278), radius_km=20)
+
+# Get near-real-time readings (UK regulatory networks)
+aeolus.get_current("AURN", sites=["MY1", "KC1"])
+
+# Quick data overview
+aeolus.summarise(data)
 
 # Get information about a source
 aeolus.get_source_info("AURN")
@@ -376,11 +388,11 @@ aeolus.portals.download("PURPLEAIR", sites, start_date, end_date)
 
 ## Examples
 
-### Annual Statistics for a Site
+### Annual Regulatory Statistics
 
 ```python
 import aeolus
-import pandas as pd
+from aeolus import metrics
 from datetime import datetime
 
 # Download a full year of data
@@ -391,14 +403,21 @@ data = aeolus.download(
     end_date=datetime(2023, 12, 31)
 )
 
-# Calculate annual means by pollutant
-annual_means = (
-    data
-    .groupby("measurand")["value"]
-    .mean()
-    .round(1)
+# Regulatory statistics (annual mean, exceedances, data capture)
+stats = metrics.aq_stats(data)
+print(stats)
+
+# Time averaging with data capture thresholds
+daily = metrics.time_average(data, freq="D", data_thresh=0.75)
+
+# Trend analysis requires multi-year data (≥6 months)
+multi_year = aeolus.download(
+    "AURN", sites=["MY1"],
+    start_date=datetime(2020, 1, 1),
+    end_date=datetime(2023, 12, 31)
 )
-print(annual_means)
+result = metrics.trend(multi_year, pollutant="NO2")
+print(f"NO2 trend: {result.slope:.2f} µg/m³/year (p={result.p_value:.4f})")
 ```
 
 ### Compare Sites Across Networks
@@ -429,6 +448,26 @@ monthly = (
 ```python
 data = aeolus.download("AURN", ["MY1"], start_date, end_date)
 data.to_csv("marylebone_road_2024.csv", index=False)
+```
+
+### Find Sites Near a Location
+
+```python
+# Find all free-source sites within 10km of central London
+sites = aeolus.find_sites(near=(51.5074, -0.1278), radius_km=10)
+print(sites[["site_code", "site_name", "source_network", "distance_km"]])
+
+# Download from the nearest site
+nearest = sites.iloc[0]["site_code"]
+data = aeolus.download("AURN", [nearest], last="7d")
+```
+
+### Near-Real-Time Data
+
+```python
+# Get the latest readings from UK regulatory monitors
+latest = aeolus.get_current("AURN", sites=["MY1", "KC1"])
+print(latest[["site_code", "date_time", "measurand", "value"]])
 ```
 
 ## Air Quality Indices
