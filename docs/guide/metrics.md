@@ -2,6 +2,11 @@
 
 Aeolus includes analysis functions for regulatory statistics, trend detection, and air quality index calculation.
 
+!!! tip "See it in action"
+    - [Notebook 01](https://github.com/southlondonscientific/aeolus/tree/main/notebooks/01_london_no2_comparison.ipynb) uses `time_average()` and `aq_stats()` for roadside vs background analysis
+    - [Notebook 02](https://github.com/southlondonscientific/aeolus/tree/main/notebooks/02_pm25_compliance_report.ipynb) uses `aqi_summary()`, `aqi_check_who()`, and `aq_stats()` for a compliance report
+    - [Notebook 08](https://github.com/southlondonscientific/aeolus/tree/main/notebooks/08_trend_analysis.ipynb) uses `trend()` and `plot_trend()` for multi-year Theil-Sen analysis with deseasonalisation
+
 ## Time Averaging
 
 Use `time_average()` to resample data to a coarser time resolution with data capture thresholds. Periods with insufficient valid observations are set to NaN:

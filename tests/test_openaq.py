@@ -128,7 +128,7 @@ class TestGetClient:
 
         _get_client()
 
-        mock_openaq_class.assert_called_once_with(api_key="test_key_123")
+        mock_openaq_class.assert_called_once_with(api_key="test_key_123", auto_wait=True)
 
     @patch("aeolus.sources.openaq.OpenAQ")
     def test_supports_alternative_env_var(self, mock_openaq_class, monkeypatch):
@@ -142,7 +142,7 @@ class TestGetClient:
 
         _get_client()
 
-        mock_openaq_class.assert_called_once_with(api_key="alt_key_456")
+        mock_openaq_class.assert_called_once_with(api_key="alt_key_456", auto_wait=True)
 
     @patch("aeolus.sources.openaq.OpenAQ")
     def test_reuses_existing_client(self, mock_openaq_class, monkeypatch):
@@ -209,7 +209,7 @@ class TestFetchOpenaqMetadata:
         mock_client.locations.list.return_value = mock_response
 
         bbox = (-0.5, 51.3, 0.3, 51.7)
-        result = fetch_openaq_metadata(bbox=bbox)
+        fetch_openaq_metadata(bbox=bbox)
 
         mock_client.locations.list.assert_called_once_with(bbox=bbox, limit=100)
 
@@ -240,7 +240,7 @@ class TestFetchOpenaqMetadata:
         mock_response.results = [mock_location]
         mock_client.locations.list.return_value = mock_response
 
-        result = fetch_openaq_metadata(coordinates=(51.5, -0.1), radius=5000)
+        fetch_openaq_metadata(coordinates=(51.5, -0.1), radius=5000)
 
         mock_client.locations.list.assert_called_once_with(
             coordinates=(51.5, -0.1), radius=5000, limit=100
@@ -380,7 +380,7 @@ class TestFetchOpenaqData:
         measurements_response.results = [mock_measurement]
         mock_client.measurements.list.return_value = measurements_response
 
-        result = fetch_openaq_data(
+        fetch_openaq_data(
             sites=["2708", "3272"],
             start_date=datetime(2024, 1, 1),
             end_date=datetime(2024, 1, 31),
@@ -498,14 +498,81 @@ class TestFetchOpenaqData:
 
         fetch_openaq_data(sites=["2708"], start_date=start, end_date=end)
 
-        # Check measurements.list was called with correct params
-        mock_client.measurements.list.assert_called_once_with(
+        # Check measurements.list was called with correct params (first page)
+        mock_client.measurements.list.assert_called_with(
             sensors_id=7117,
             data="measurements",
             datetime_from=start,
             datetime_to=end,
             limit=1000,
+            page=1,
         )
+
+    @patch("aeolus.sources.openaq._get_client")
+    def test_paginates_through_results(
+        self, mock_get_client, mock_sensor, mock_measurement
+    ):
+        """Test that pagination fetches all pages of results."""
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+
+        # Mock sensors response
+        sensors_response = MagicMock()
+        sensors_response.results = [mock_sensor]
+        mock_client.locations.sensors.return_value = sensors_response
+
+        # Mock measurements: first page full (1000 results), second page partial
+        page1_results = [mock_measurement] * 1000
+        page2_results = [mock_measurement] * 42
+
+        page1_response = MagicMock()
+        page1_response.results = page1_results
+        page2_response = MagicMock()
+        page2_response.results = page2_results
+
+        mock_client.measurements.list.side_effect = [page1_response, page2_response]
+
+        result = fetch_openaq_data(
+            sites=["2708"],
+            start_date=datetime(2024, 1, 1),
+            end_date=datetime(2024, 6, 30),
+        )
+
+        # Should have called measurements.list twice (page 1 and page 2)
+        assert mock_client.measurements.list.call_count == 2
+
+        # Second call should request page 2
+        second_call = mock_client.measurements.list.call_args_list[1]
+        assert second_call.kwargs.get("page") == 2 or second_call[1].get("page") == 2
+
+        # All 1042 measurements should be present
+        assert len(result) == 1042
+
+    @patch("aeolus.sources.openaq._get_client")
+    def test_stops_pagination_on_empty_page(
+        self, mock_get_client, mock_sensor
+    ):
+        """Test that pagination stops when an empty page is returned."""
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+
+        sensors_response = MagicMock()
+        sensors_response.results = [mock_sensor]
+        mock_client.locations.sensors.return_value = sensors_response
+
+        empty_response = MagicMock()
+        empty_response.results = []
+        mock_client.measurements.list.return_value = empty_response
+
+        result = fetch_openaq_data(
+            sites=["2708"],
+            start_date=datetime(2024, 1, 1),
+            end_date=datetime(2024, 1, 31),
+        )
+
+        assert result.empty
+        # Should only call once (first page empty → stop)
+        assert mock_client.measurements.list.call_count == 1
 
 
 # ============================================================================

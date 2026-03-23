@@ -21,11 +21,16 @@ This module provides the foundation for all AQI index implementations,
 including unit conversion, pollutant standardisation, and common types.
 """
 
+from __future__ import annotations
+
 import warnings
 from dataclasses import dataclass
-from typing import TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
 import pandas as pd
+
+if TYPE_CHECKING:
+    import numpy as np
 
 # =============================================================================
 # Types
@@ -426,8 +431,6 @@ def ensure_ugm3_array(
     Returns:
         Array of concentrations in µg/m³
     """
-    import numpy as np
-
     result = concentrations.copy()
 
     # Get unique units to minimize work

@@ -68,10 +68,10 @@ Supported Portals:
 For more details, see: https://github.com/southlondonscientific/aeolus
 """
 
-__version__ = "0.3.0rc2"
+__version__ = "0.4.0"
 
-# Import submodules for networks, portals, metrics
-from . import metrics, networks, portals, transforms
+# Import submodules for networks, portals, metrics, cache
+from . import cache, metrics, networks, portals, transforms
 
 # Import the clean public API
 from .api import (
@@ -81,6 +81,7 @@ from .api import (
     get_current,
     get_source_info,
     list_sources,
+    summarize,
 )
 
 # Define what gets exported with "from aeolus import *"
@@ -88,6 +89,7 @@ __all__ = [
     # Version
     "__version__",
     # Submodules
+    "cache",
     "metrics",
     "networks",
     "portals",
@@ -98,5 +100,6 @@ __all__ = [
     "find_sites",
     "get_current",
     "get_source_info",
+    "summarize",
     "fetch",
 ]

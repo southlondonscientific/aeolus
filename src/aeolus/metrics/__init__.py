@@ -370,8 +370,6 @@ def aqi_timeseries(
         >>> # Plot hourly AQI
         >>> ts.pivot(index="date_time", columns="pollutant", values="aqi_value").plot()
     """
-    import warnings
-
     validate_data(data)
 
     index_info = get_index(index)

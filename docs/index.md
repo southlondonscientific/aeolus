@@ -55,6 +55,21 @@ pip install aeolus-aq
 
 See the [Installation Guide](getting-started/installation.md) for more options.
 
+## User Story Notebooks
+
+Learn by example with 7 executable Jupyter notebooks covering real-world workflows:
+
+| Notebook | Scenario | API Key |
+|----------|----------|---------|
+| [01 London NO2](https://github.com/southlondonscientific/aeolus/tree/main/notebooks/01_london_no2_comparison.ipynb) | Roadside vs background NO2 comparison | None |
+| [02 PM2.5 Compliance](https://github.com/southlondonscientific/aeolus/tree/main/notebooks/02_pm25_compliance_report.ipynb) | Monthly compliance report with WHO guidelines | None |
+| [03 Sensor vs Reference](https://github.com/southlondonscientific/aeolus/tree/main/notebooks/03_sensor_vs_reference.ipynb) | PurpleAir vs AURN comparison | PurpleAir |
+| [04 UK City Ranking](https://github.com/southlondonscientific/aeolus/tree/main/notebooks/04_uk_city_ranking.ipynb) | Multi-network city ranking | None |
+| [05 Exposure Assessment](https://github.com/southlondonscientific/aeolus/tree/main/notebooks/05_exposure_assessment.ipynb) | Health study exposure estimates | Breathe London |
+| [06 African Air Quality](https://github.com/southlondonscientific/aeolus/tree/main/notebooks/06_african_air_quality.ipynb) | AirQo network analysis | AirQo |
+| [07 Global Sensors](https://github.com/southlondonscientific/aeolus/tree/main/notebooks/07_global_sensor_comparison.ipynb) | Cross-network sensor comparison | PurpleAir + AirQo |
+| [08 Trend Analysis](https://github.com/southlondonscientific/aeolus/tree/main/notebooks/08_trend_analysis.ipynb) | Multi-year Theil-Sen trend detection | None |
+
 ## Getting Help
 
 - [GitHub Issues](https://github.com/southlondonscientific/aeolus/issues) - Bug reports and feature requests

@@ -71,3 +71,4 @@ data = aeolus.download(
 - [Configuration](configuration.md) - Set up API keys for more data sources
 - [Data Sources](../guide/sources.md) - Learn about all available sources
 - [Downloading Data](../guide/downloading.md) - Advanced download options
+- [User Story Notebooks](https://github.com/southlondonscientific/aeolus/tree/main/notebooks/) - 7 executable notebooks covering real-world workflows (NO2 comparison, compliance reporting, sensor validation, city rankings, exposure assessment, and more)

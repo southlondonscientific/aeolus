@@ -91,7 +91,7 @@ def find_sites(portal: str, **filters) -> pd.DataFrame:
             f"{portal} requires search filters.\n\n"
             f"Examples:\n"
             f"  aeolus.portals.find_sites('{portal}', country='GB')\n"
-            f"  aeolus.portals.find_sites('{portal}', bbox=(min_lat, min_lon, max_lat, max_lon))\n\n"
+            f"  aeolus.portals.find_sites('{portal}', bbox=(min_lon, min_lat, max_lon, max_lat))\n\n"
             f"See documentation for available filters."
         )
 

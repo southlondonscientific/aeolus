@@ -30,13 +30,10 @@ import numpy as np
 import pandas as pd
 
 from .prepare import (
-    AQICardSpec,
-    TimeSeriesSpec,
     prepare_aqi_card,
     prepare_timeseries,
 )
 from .theme import (
-    AEOLUS_6_BAND,
     COLOUR_GUIDELINE,
     COLOUR_TEXT,
     FIGURE_SIZES,
@@ -47,7 +44,6 @@ from .theme import (
     apply_aeolus_style,
     get_aeolus_cmap,
     get_pollutant_colour,
-    needs_dark_text,
 )
 
 # =============================================================================

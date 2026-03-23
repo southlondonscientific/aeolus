@@ -4,7 +4,6 @@ Pytest configuration and shared fixtures.
 This module provides common fixtures and utilities used across all tests.
 """
 
-from datetime import datetime
 from pathlib import Path
 
 import pandas as pd

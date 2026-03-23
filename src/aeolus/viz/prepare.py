@@ -283,8 +283,6 @@ def prepare_timeseries(
     Returns:
         TimeSeriesSpec ready for rendering
     """
-    from .theme import AEOLUS_6_BAND, INDEX_COLOURS
-
     # Validate input
     required = {"date_time", "measurand", "value"}
     if not required.issubset(data.columns):
@@ -434,7 +432,6 @@ def _get_aqi_bands(
     Returns bands appropriate for the pollutants being plotted.
     Currently simplified - returns bands for the first pollutant.
     """
-    from ..metrics.indices import uk_daqi, us_epa
     from .theme import INDEX_COLOURS
 
     # For now, just return colour bands without concentration mapping

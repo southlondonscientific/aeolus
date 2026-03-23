@@ -20,7 +20,7 @@ import requests
 URL = "https://uk-air.defra.gov.uk/openair/R_data/MY1_2023.RData"
 OUTPUT_FILE = Path(__file__).parent / "aurn" / "MY1_2023.RData"
 
-print(f"Downloading MY1 2023 data...")
+print("Downloading MY1 2023 data...")
 print(f"URL: {URL}")
 print(f"Output: {OUTPUT_FILE}")
 
@@ -40,10 +40,10 @@ try:
         import rdata
 
         parsed = rdata.parser.parse_file(OUTPUT_FILE)
-        print(f"✓ File is valid RData")
+        print("✓ File is valid RData")
 
         # Show what's inside
-        print(f"\nContents:")
+        print("\nContents:")
         for key in parsed.keys():
             print(f"  - {key}")
     except Exception as e:

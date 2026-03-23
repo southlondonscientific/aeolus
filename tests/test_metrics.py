@@ -17,8 +17,6 @@ Tests cover:
 - Main API functions (aqi_summary, aqi_timeseries, aqi_check_who)
 """
 
-from datetime import datetime
-
 import pandas as pd
 import pytest
 
@@ -768,11 +766,11 @@ class TestAQICheckWHO:
         """Test different target levels."""
         # Should fail AQG
         result_aqg = metrics.aqi_check_who(sample_data, target="AQG")
-        assert result_aqg.iloc[0]["meets_guideline"] == False
+        assert not result_aqg.iloc[0]["meets_guideline"]
 
         # Should pass IT-1
         result_it1 = metrics.aqi_check_who(sample_data, target="IT-1")
-        assert result_it1.iloc[0]["meets_guideline"] == True
+        assert result_it1.iloc[0]["meets_guideline"]
 
 
 # =============================================================================

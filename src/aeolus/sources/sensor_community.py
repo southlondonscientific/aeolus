@@ -37,7 +37,6 @@ import time
 import warnings
 from datetime import datetime, timedelta, timezone
 from logging import getLogger, warning
-from typing import Any
 
 import pandas as pd
 import requests

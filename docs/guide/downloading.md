@@ -114,6 +114,43 @@ summary = metrics.aqi_summary(data, index="UK_DAQI", freq="D")
 print(summary[['site_code', 'period', 'pollutant', 'coverage']])
 ```
 
+## Local File Caching
+
+Enable caching to avoid redundant API calls when re-running notebooks or analyses. Cached data is stored as Parquet files:
+
+```python
+from aeolus.cache import enable_cache, clear_cache, cache_info
+
+# Enable caching (all subsequent downloads are cached)
+enable_cache()
+
+# First call hits the API
+data = aeolus.download("AURN", ["MY1"], start, end)
+
+# Second call is instant (served from cache)
+data = aeolus.download("AURN", ["MY1"], start, end)
+
+# Check cache status
+info = cache_info()
+print(f"Cached: {info['total_files']} files, {info['total_size_mb']:.1f} MB")
+
+# Clear cache for a specific source
+clear_cache("AURN")
+
+# Clear entire cache
+clear_cache()
+```
+
+The cache directory defaults to `~/.cache/aeolus/` and can be overridden:
+
+```python
+# Via function argument
+enable_cache(cache_dir="/path/to/cache")
+
+# Or via environment variable
+# export AEOLUS_CACHE_DIR=/path/to/cache
+```
+
 ## Large Downloads
 
 For large date ranges, data is downloaded in chunks automatically. Progress is shown in the console.

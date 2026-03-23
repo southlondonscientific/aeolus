@@ -17,9 +17,6 @@ Tests cover:
 - AQI card plotting
 """
 
-from datetime import datetime, timedelta
-from pathlib import Path
-
 import matplotlib
 
 matplotlib.use("Agg")  # Non-interactive backend for testing
@@ -674,7 +671,7 @@ class TestPlotTimeseries:
 
         ax = fig.axes[0]
         # Should have horizontal line
-        lines = [l for l in ax.get_lines() if len(l.get_xdata()) == 2]
+        lines = [line for line in ax.get_lines() if len(line.get_xdata()) == 2]
         assert len(lines) >= 1  # At least one guideline
         plt.close(fig)
 

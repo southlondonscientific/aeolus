@@ -5,9 +5,23 @@ All notable changes to Aeolus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.0] - Unreleased
+## [0.4.0] - 2026-03-23
 
 ### Added
+
+#### User Story Notebooks
+- **7 executable Jupyter notebooks** covering real-world air quality workflows, mapped to validated user personas (researcher, consultant, local authority officer, citizen scientist, health researcher, journalist, IoT developer):
+  - `01_london_no2_comparison` - Roadside vs background NO2 with diurnal/weekly decomposition
+  - `02_pm25_compliance_report` - Monthly PM2.5 report with WHO guidelines and DAQI bands
+  - `03_sensor_vs_reference` - PurpleAir vs AURN cross-source comparison with R2/RMSE
+  - `04_uk_city_ranking` - Multi-network UK city ranking across 5 regulatory networks
+  - `05_exposure_assessment` - Health study exposure estimates using nearest-monitor assignment
+  - `06_african_air_quality` - AirQo network analysis with WHO compliance checking
+  - `07_global_sensor_comparison` - Cross-network comparison (PurpleAir, Sensor.Community, AirQo)
+  - `08_trend_analysis` - Multi-year Theil-Sen trend detection with deseasonalisation
+
+#### Local File Cache
+- **`aeolus.cache`** module - Transparent Parquet-based file cache for downloaded data. Enable with `enable_cache()`, manage with `clear_cache()`, `cache_info()`. Avoids redundant API calls when re-running notebooks or analyses. Cache directory defaults to `~/.cache/aeolus/`, configurable via `AEOLUS_CACHE_DIR` env var.
 
 #### Unified Site Discovery
 - **`aeolus.find_sites()`** - Top-level function that abstracts the network/portal distinction. Supports circular search (`near=(lat, lon)` + `radius_km`), rectangular filtering (`bbox`), and automatic source selection (free sources by default, opt-in for API-key sources via `include_all=True`). Returns metadata DataFrame with `distance_km` column when `near` is used, sorted nearest-first.
@@ -19,9 +33,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`aq_stats()`** - Annual regulatory air quality statistics: annual mean, maxima, percentiles (p95, p99), data capture, and pollutant-specific exceedance counts (NO2 hourly >200, PM10 daily >50, O3 8h rolling >120). Output suitable for LAQM Annual Status Reports.
 - **`trend()`** - Non-parametric trend analysis using Theil-Sen slope with Mann-Kendall significance test. Supports deseasonalisation (STL decomposition), autocorrelation correction, and configurable confidence intervals. Returns `TrendResult` dataclass.
 
+#### Convenience Features
+- **`aeolus.summarize()`** - Quick data overview: sites, pollutants, date range, record counts, and data capture per site+pollutant combination.
+- **Date range shorthand** - `aeolus.download("AURN", ["MY1"], last="30d")` as alternative to explicit `start_date`/`end_date`. Supports days (`30d`), weeks (`2w`), months (`6m`), years (`1y`).
+
 #### Visualization (`aeolus.viz`)
 - **`plot_time_variation()`** - Combined 2x2 temporal variation plot (diurnal, weekly, monthly, hour x weekday heatmap), equivalent to R openair's `timeVariation`.
 - **`plot_trend()`** - Trend analysis plot: scatter of aggregated data with Theil-Sen line, optional CI bands (dashed), and alternating year shading.
+
+#### Documentation
+- **`docs/dev/openair_comparison.md`** - Task-by-task comparison between Aeolus and R openair, covering data import, time averaging, trend analysis, plotting, and feature coverage gaps in both directions.
+
+### Removed
+- **`aeolus.database_operations` module** — deprecated since v0.3.0. Use `pandas.to_sql()` or similar for database storage.
+- **`aeolus.meteorology` module** — deprecated since v0.3.0.
+- **`sqlmodel` dependency** — only used by the removed `database_operations` module.
+
+### Changed
+- **OpenAQ SDK upgraded to 1.0rc2** — automatic rate-limit waiting (`auto_wait=True`), full pagination (previously capped at 1000 measurements per sensor), improved connection tuning.
 
 ### Fixed
 - **`aq_stats()` year filter** - Handle numpy integer types when filtering by year.
