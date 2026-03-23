@@ -116,7 +116,7 @@ def fetch_breathe_london_metadata(**filters) -> pd.DataFrame:
             - radius_km: Search radius in km
 
     Returns:
-        pd.DataFrame: Site metadata with standardized schema:
+        pd.DataFrame: Site metadata with standardised schema:
             - site_code: Unique site identifier
             - site_name: Human-readable site name
             - latitude: Site latitude
@@ -165,11 +165,11 @@ def fetch_breathe_london_metadata(**filters) -> pd.DataFrame:
         return df
 
     # Normalize column names
-    normalizer = _create_metadata_normalizer()
-    return normalizer(df)
+    normaliser = _create_metadata_normaliser()
+    return normaliser(df)
 
 
-def _create_metadata_normalizer():
+def _create_metadata_normaliser():
     """
     Create normalization pipeline for Breathe London metadata.
 
@@ -200,7 +200,7 @@ def fetch_breathe_london_data(
     Fetch air quality data from Breathe London.
 
     This function downloads data from Breathe London's sensor network.
-    Data is automatically normalized to match Aeolus standard schema.
+    Data is automatically normalised to match Aeolus standard schema.
 
     Args:
         sites: List of Breathe London site codes
@@ -208,7 +208,7 @@ def fetch_breathe_london_data(
         end_date: End of date range (inclusive)
 
     Returns:
-        pd.DataFrame: Air quality data with standardized schema:
+        pd.DataFrame: Air quality data with standardised schema:
             - site_code: Breathe London site code
             - date_time: Measurement timestamp
             - measurand: Pollutant measured (e.g., "NO2", "PM2.5")
@@ -237,7 +237,7 @@ def fetch_breathe_london_data(
     # We need to query each site individually and combine results
 
     all_data = []
-    normalizer = create_breathe_london_normalizer()
+    normaliser = create_breathe_london_normaliser()
 
     from ..progress import track
 
@@ -254,10 +254,10 @@ def fetch_breathe_london_data(
             data = _call_breathe_london_api("SensorData", params)
 
             if data:
-                # Convert to DataFrame and normalize
+                # Convert to DataFrame and normalise
                 df = pd.DataFrame(data)
                 if not df.empty:
-                    df = normalizer(df)
+                    df = normaliser(df)
                     all_data.append(df)
 
         except (requests.RequestException, ValueError, KeyError, TypeError) as e:
@@ -294,7 +294,7 @@ def _empty_dataframe() -> pd.DataFrame:
 # ============================================================================
 
 
-def create_breathe_london_normalizer():
+def create_breathe_london_normaliser():
     """
     Create normalization pipeline for Breathe London data.
 
@@ -321,7 +321,7 @@ def create_breathe_london_normalizer():
 
         return df
 
-    def standardize_species(df: pd.DataFrame) -> pd.DataFrame:
+    def standardise_species(df: pd.DataFrame) -> pd.DataFrame:
         """Standardize species names to Aeolus conventions."""
         if "measurand" in df.columns:
             # Map known species
@@ -346,7 +346,7 @@ def create_breathe_london_normalizer():
             df["ratification"] = "Indicative"
         return df
 
-    def standardize_units(df: pd.DataFrame) -> pd.DataFrame:
+    def standardise_units(df: pd.DataFrame) -> pd.DataFrame:
         """Standardize units format."""
         if "units" not in df.columns:
             df["units"] = ""
@@ -380,8 +380,8 @@ def create_breathe_london_normalizer():
     return compose(
         extract_and_rename_fields,
         parse_timestamps,
-        standardize_species,
-        standardize_units,
+        standardise_species,
+        standardise_units,
         add_quality_flag,
         filter_invalid_rows,
         add_column("source_network", "Breathe London"),
@@ -410,7 +410,7 @@ register_source(
         "name": "Breathe London",
         "fetch_metadata": fetch_breathe_london_metadata,
         "fetch_data": fetch_breathe_london_data,
-        "normalise": create_breathe_london_normalizer(),
+        "normalise": create_breathe_london_normaliser(),
         "requires_api_key": True,
     },
 )

@@ -209,7 +209,7 @@ def fetch_openaq_data(
         end_date: End of date range (inclusive)
 
     Returns:
-        pd.DataFrame: Air quality data with standardized schema
+        pd.DataFrame: Air quality data with standardised schema
 
     Example:
         >>> data = fetch_openaq_data(
@@ -299,11 +299,11 @@ def fetch_openaq_data(
         logger.warning("No measurements found for any location")
         return empty_data_frame()
 
-    # Convert to DataFrame and normalize
+    # Convert to DataFrame and normalise
     df = pd.DataFrame(all_measurements)
     logger.info(f"Total measurements collected: {len(df)}")
 
-    return _normalize(df)
+    return _normalise(df)
 
 
 # ============================================================================
@@ -311,7 +311,7 @@ def fetch_openaq_data(
 # ============================================================================
 
 
-def _normalize(df: pd.DataFrame) -> pd.DataFrame:
+def _normalise(df: pd.DataFrame) -> pd.DataFrame:
     """Normalize OpenAQ data to Aeolus standard schema."""
 
     # Rename columns

@@ -148,7 +148,7 @@ def fetch_purpleair_metadata(**filters) -> pd.DataFrame:
             - nwlat, nwlng, selat, selng: Individual bounding box corners
 
     Returns:
-        pd.DataFrame: Sensor metadata with standardized schema:
+        pd.DataFrame: Sensor metadata with standardised schema:
             - site_code: Unique sensor index (as string)
             - site_name: Human-readable sensor name
             - latitude: Sensor latitude
@@ -241,11 +241,11 @@ def fetch_purpleair_metadata(**filters) -> pd.DataFrame:
     df = pd.DataFrame(data, columns=fields)
 
     # Normalize to standard schema
-    normalizer = _create_metadata_normalizer()
-    return normalizer(df)
+    normaliser = _create_metadata_normaliser()
+    return normaliser(df)
 
 
-def _create_metadata_normalizer():
+def _create_metadata_normaliser():
     """
     Create normalization pipeline for PurpleAir metadata.
 
@@ -299,7 +299,7 @@ def fetch_purpleair_data(
     Fetch air quality data from PurpleAir.
 
     This function downloads historical data from PurpleAir sensors.
-    Data is automatically normalized to match Aeolus standard schema.
+    Data is automatically normalised to match Aeolus standard schema.
 
     Args:
         sites: List of PurpleAir sensor indices as strings
@@ -355,7 +355,7 @@ def fetch_purpleair_data(
 
     Example:
         >>> from datetime import datetime
-        >>> # Standard normalized data
+        >>> # Standard normalised data
         >>> data = fetch_purpleair_data(
         ...     sites=["131075"],
         ...     start_date=datetime(2024, 1, 1),
@@ -428,8 +428,8 @@ def fetch_purpleair_data(
         return combined
 
     # Apply normalization pipeline
-    normalizer = create_purpleair_normalizer()
-    result = normalizer(combined)
+    normaliser = create_purpleair_normaliser()
+    result = normaliser(combined)
 
     # Filter out flagged data if requested
     if not include_flagged:
@@ -504,7 +504,7 @@ def _empty_dataframe(raw: bool = False) -> pd.DataFrame:
 # ============================================================================
 
 
-def create_purpleair_normalizer():
+def create_purpleair_normaliser():
     """
     Create normalization pipeline for PurpleAir data.
 
@@ -761,7 +761,7 @@ register_source(
         "name": "PurpleAir",
         "fetch_metadata": fetch_purpleair_metadata,
         "fetch_data": fetch_purpleair_data,
-        "normalise": create_purpleair_normalizer(),
+        "normalise": create_purpleair_normaliser(),
         "requires_api_key": True,
     },
 )

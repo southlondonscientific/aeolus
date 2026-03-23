@@ -74,16 +74,16 @@ def register_source(name: str, spec: SourceSpec) -> None:
     """
     import warnings
 
-    normalized_name = name.upper()
+    normalised_name = name.upper()
 
-    if normalized_name in _SOURCES:
+    if normalised_name in _SOURCES:
         warnings.warn(
-            f"Source '{normalized_name}' is already registered and will be replaced",
+            f"Source '{normalised_name}' is already registered and will be replaced",
             UserWarning,
             stacklevel=2,
         )
 
-    _SOURCES[normalized_name] = spec
+    _SOURCES[normalised_name] = spec
 
 
 def unregister_source(name: str) -> bool:
@@ -100,10 +100,10 @@ def unregister_source(name: str) -> bool:
         >>> unregister_source("AURN")
         True
     """
-    normalized_name = name.upper()
+    normalised_name = name.upper()
 
-    if normalized_name in _SOURCES:
-        del _SOURCES[normalized_name]
+    if normalised_name in _SOURCES:
+        del _SOURCES[normalised_name]
         return True
     return False
 
@@ -123,8 +123,8 @@ def get_source(name: str) -> SourceSpec | None:
         >>> if source:
         ...     df = source["fetch_metadata"]()
     """
-    normalized_name = name.upper()
-    return _SOURCES.get(normalized_name)
+    normalised_name = name.upper()
+    return _SOURCES.get(normalised_name)
 
 
 def list_sources(include_all: bool = False) -> list[str]:
@@ -168,8 +168,8 @@ def source_exists(name: str) -> bool:
         >>> if source_exists("AURN"):
         ...     print("AURN is available")
     """
-    normalized_name = name.upper()
-    return normalized_name in _SOURCES
+    normalised_name = name.upper()
+    return normalised_name in _SOURCES
 
 
 def get_source_info(name: str) -> dict[str, str | bool] | None:

@@ -339,7 +339,18 @@ geopandas      # optional, for map in notebooks 04/05
 
 The notebooks will likely reveal friction points. Based on the user research, we anticipate needing these improvements (also targeted for v0.4.0):
 
-### High Priority
+### High Priority — Analysis Functions
+
+These fill the most critical gaps in the analysis layer. Without them, users must write significant boilerplate for common air quality tasks.
+
+| Feature | Description | Supports Notebooks | Supports Personas |
+|---------|-------------|-------------------|-------------------|
+| **`time_average()`** | Time averaging with data capture thresholds. Flexible periods (hour, day, week, month, season, year). Returns NaN when coverage is below threshold (e.g. `data_thresh=0.75`). Foundation for other analysis functions. | All | All |
+| **`aq_stats()`** | Annual/periodic air quality statistics: data capture %, mean, max, percentiles (95th, 99th), regulatory exceedance counts (NO2 hours >200, PM10 days >50, O3 rolling 8-hour >120), rolling means. Matches output expected for UK LAQM Annual Status Reports. | 01, 02, 04 | P3, S1, P1 |
+| **`trend()`** | Non-parametric trend analysis using Theil-Sen estimator. Returns slope (units/year), confidence intervals, p-value. Options for deseasonalisation and autocorrelation correction. Produces trend plot with regression line and CI band. | 01, 04 | P1, T2, P3 |
+| **`time_variation()`** plot | Multi-panel temporal variation: hourly cycle, day-of-week, monthly, and hour×weekday heatmap. Single function call produces the most commonly needed temporal decomposition. Extends existing `plot_diurnal`/`plot_weekly`/`plot_monthly` into one combined view. | 01, 02 | P1, P3, S3 |
+
+### High Priority — Data Access
 
 | Feature | Supports Notebooks | Supports Personas |
 |---------|-------------------|-------------------|
@@ -351,7 +362,7 @@ The notebooks will likely reveal friction points. Based on the user research, we
 
 | Feature | Supports Notebooks | Supports Personas |
 |---------|-------------------|-------------------|
-| **`aeolus.summarize(data)`** convenience function | All | All |
+| **`aeolus.summarise(data)`** convenience function | All | All |
 | **Date range shorthand** (`last="30d"`) | 02 | S1, S2 |
 | **Consistent API key error messages** | 03, 06, 07 | All |
 

@@ -67,7 +67,7 @@ sites = aeolus.find_sites(near=(51.5074, -0.1278), radius_km=10)
 
 **Aeolus:**
 ```python
-aeolus.summarize(data)
+aeolus.summarise(data)
 # Returns: site_code, source_network, measurand, start, end, records, valid, data_capture
 ```
 
@@ -250,7 +250,7 @@ Most of these (especially the polar/wind plots and trajectory analysis) require 
 | WHO compliance checking | Guideline and interim target compliance assessment |
 | Local file caching | Automatic Parquet-based download caching |
 | Progress indicators | Optional tqdm progress for bulk downloads |
-| `summarize()` | Quick data overview with completeness metrics |
+| `summarise()` | Quick data overview with completeness metrics |
 | Date shorthand | `last="30d"` convenience for date ranges |
 
 ## Data Format Differences

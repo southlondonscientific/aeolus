@@ -15,8 +15,8 @@ from aeolus.sources.breathe_london import (
     BREATHE_LONDON_API_BASE,
     SPECIES_MAP,
     _call_breathe_london_api,
-    _create_metadata_normalizer,
-    create_breathe_london_normalizer,
+    _create_metadata_normaliser,
+    create_breathe_london_normaliser,
     fetch_breathe_london_data,
     fetch_breathe_london_metadata,
 )
@@ -292,8 +292,8 @@ class TestFetchBreatheLondonMetadata:
         assert "source_network" in result.columns
 
     @responses.activate
-    def test_normalizes_column_names(self, mock_sensors_response, monkeypatch):
-        """Test that column names are normalized to standard schema."""
+    def test_normalises_column_names(self, mock_sensors_response, monkeypatch):
+        """Test that column names are normalised to standard schema."""
         monkeypatch.setenv("BL_API_KEY", "test_key_123")
 
         responses.add(
@@ -305,7 +305,7 @@ class TestFetchBreatheLondonMetadata:
 
         result = fetch_breathe_london_metadata()
 
-        # Should have standardized names
+        # Should have standardised names
         assert "site_code" in result.columns
         assert "site_name" in result.columns
         # Original names should be renamed
@@ -608,8 +608,8 @@ class TestFetchBreatheLondonData:
         assert result.empty
 
     @responses.activate
-    def test_normalizes_output_schema(self, mock_sensor_data_response, monkeypatch):
-        """Test that output has normalized schema."""
+    def test_normalises_output_schema(self, mock_sensor_data_response, monkeypatch):
+        """Test that output has normalised schema."""
         monkeypatch.setenv("BL_API_KEY", "test_key_123")
 
         responses.add(
@@ -659,7 +659,7 @@ class TestFetchBreatheLondonData:
 
 
 # ============================================================================
-# Tests for create_breathe_london_normalizer()
+# Tests for create_breathe_london_normaliser()
 # ============================================================================
 
 
@@ -668,7 +668,7 @@ class TestBreatheLondonNormalizer:
 
     def test_renames_columns(self):
         """Test that columns are renamed to standard names."""
-        normalizer = create_breathe_london_normalizer()
+        normaliser = create_breathe_london_normaliser()
 
         df = pd.DataFrame(
             {
@@ -680,7 +680,7 @@ class TestBreatheLondonNormalizer:
             }
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert "site_code" in result.columns
         assert "date_time" in result.columns
@@ -690,7 +690,7 @@ class TestBreatheLondonNormalizer:
 
     def test_parses_timestamps(self):
         """Test that timestamps are parsed to datetime."""
-        normalizer = create_breathe_london_normalizer()
+        normaliser = create_breathe_london_normaliser()
 
         df = pd.DataFrame(
             {
@@ -702,13 +702,13 @@ class TestBreatheLondonNormalizer:
             }
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert pd.api.types.is_datetime64_any_dtype(result["date_time"])
 
-    def test_standardizes_species_names(self):
-        """Test that species names are standardized."""
-        normalizer = create_breathe_london_normalizer()
+    def test_standardises_species_names(self):
+        """Test that species names are standardised."""
+        normaliser = create_breathe_london_normaliser()
 
         df = pd.DataFrame(
             {
@@ -720,13 +720,13 @@ class TestBreatheLondonNormalizer:
             }
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert set(result["measurand"].unique()) == {"NO2", "PM2.5"}
 
-    def test_standardizes_units(self):
-        """Test that units are standardized."""
-        normalizer = create_breathe_london_normalizer()
+    def test_standardises_units(self):
+        """Test that units are standardised."""
+        normaliser = create_breathe_london_normaliser()
 
         df = pd.DataFrame(
             {
@@ -738,14 +738,14 @@ class TestBreatheLondonNormalizer:
             }
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
-        # Both should be standardized to "ug/m3"
+        # Both should be standardised to "ug/m3"
         assert (result["units"] == "ug/m3").all()
 
     def test_adds_ratification_status(self):
         """Test that ratification status is handled."""
-        normalizer = create_breathe_london_normalizer()
+        normaliser = create_breathe_london_normaliser()
 
         df = pd.DataFrame(
             {
@@ -758,7 +758,7 @@ class TestBreatheLondonNormalizer:
             }
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert "ratification" in result.columns
         assert result["ratification"].iloc[0] == "Ratified"
@@ -766,7 +766,7 @@ class TestBreatheLondonNormalizer:
 
     def test_adds_default_ratification_when_missing(self):
         """Test that default ratification is added when column missing."""
-        normalizer = create_breathe_london_normalizer()
+        normaliser = create_breathe_london_normaliser()
 
         df = pd.DataFrame(
             {
@@ -778,13 +778,13 @@ class TestBreatheLondonNormalizer:
             }
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert (result["ratification"] == "Indicative").all()
 
     def test_adds_source_network(self):
         """Test that source_network column is added."""
-        normalizer = create_breathe_london_normalizer()
+        normaliser = create_breathe_london_normaliser()
 
         df = pd.DataFrame(
             {
@@ -796,13 +796,13 @@ class TestBreatheLondonNormalizer:
             }
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert (result["source_network"] == "Breathe London").all()
 
     def test_adds_created_at(self):
         """Test that created_at timestamp is added."""
-        normalizer = create_breathe_london_normalizer()
+        normaliser = create_breathe_london_normaliser()
 
         df = pd.DataFrame(
             {
@@ -814,13 +814,13 @@ class TestBreatheLondonNormalizer:
             }
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert "created_at" in result.columns
 
     def test_filters_null_values(self):
         """Test that rows with null essential values are filtered."""
-        normalizer = create_breathe_london_normalizer()
+        normaliser = create_breathe_london_normaliser()
 
         df = pd.DataFrame(
             {
@@ -832,7 +832,7 @@ class TestBreatheLondonNormalizer:
             }
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         # Only first row should remain (others have null essential values)
         assert len(result) == 1
@@ -840,7 +840,7 @@ class TestBreatheLondonNormalizer:
 
     def test_selects_correct_columns(self):
         """Test that only standard columns are in output."""
-        normalizer = create_breathe_london_normalizer()
+        normaliser = create_breathe_london_normaliser()
 
         df = pd.DataFrame(
             {
@@ -853,7 +853,7 @@ class TestBreatheLondonNormalizer:
             }
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         expected_columns = [
             "site_code",
@@ -869,19 +869,19 @@ class TestBreatheLondonNormalizer:
 
     def test_handles_empty_dataframe(self):
         """Test that empty DataFrame is handled gracefully."""
-        normalizer = create_breathe_london_normalizer()
+        normaliser = create_breathe_london_normaliser()
 
         df = pd.DataFrame(
             columns=["SiteCode", "DateTime", "Species", "ScaledValue", "Units"]
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert result.empty
 
     def test_handles_missing_units_column(self):
         """Test that missing units column is handled."""
-        normalizer = create_breathe_london_normalizer()
+        normaliser = create_breathe_london_normaliser()
 
         df = pd.DataFrame(
             {
@@ -892,14 +892,14 @@ class TestBreatheLondonNormalizer:
             }
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert "units" in result.columns
         assert result["units"].iloc[0] == ""
 
 
 # ============================================================================
-# Tests for _create_metadata_normalizer()
+# Tests for _create_metadata_normaliser()
 # ============================================================================
 
 
@@ -908,7 +908,7 @@ class TestMetadataNormalizer:
 
     def test_renames_columns(self):
         """Test that columns are renamed to standard names."""
-        normalizer = _create_metadata_normalizer()
+        normaliser = _create_metadata_normaliser()
 
         df = pd.DataFrame(
             {
@@ -919,7 +919,7 @@ class TestMetadataNormalizer:
             }
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert "site_code" in result.columns
         assert "site_name" in result.columns
@@ -928,7 +928,7 @@ class TestMetadataNormalizer:
 
     def test_adds_source_network(self):
         """Test that source_network is added."""
-        normalizer = _create_metadata_normalizer()
+        normaliser = _create_metadata_normaliser()
 
         df = pd.DataFrame(
             {
@@ -939,13 +939,13 @@ class TestMetadataNormalizer:
             }
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert (result["source_network"] == "Breathe London").all()
 
     def test_preserves_extra_columns(self):
         """Test that extra columns are preserved."""
-        normalizer = _create_metadata_normalizer()
+        normaliser = _create_metadata_normaliser()
 
         df = pd.DataFrame(
             {
@@ -958,7 +958,7 @@ class TestMetadataNormalizer:
             }
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         # Extra columns should be preserved
         assert "Borough" in result.columns
@@ -1010,7 +1010,7 @@ class TestSourceRegistration:
                     "name": "Breathe London",
                     "fetch_metadata": fetch_breathe_london_metadata,
                     "fetch_data": fetch_breathe_london_data,
-                    "normalise": create_breathe_london_normalizer(),
+                    "normalise": create_breathe_london_normaliser(),
                     "requires_api_key": True,
                 },
             )
@@ -1035,7 +1035,7 @@ class TestSourceRegistration:
                     "name": "Breathe London",
                     "fetch_metadata": fetch_breathe_london_metadata,
                     "fetch_data": fetch_breathe_london_data,
-                    "normalise": create_breathe_london_normalizer(),
+                    "normalise": create_breathe_london_normaliser(),
                     "requires_api_key": True,
                 },
             )

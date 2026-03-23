@@ -18,10 +18,10 @@ from aeolus.sources.purpleair import (
     _calculate_channel_value,
     _calculate_channel_value_simple,
     _calculate_pm_channel_value,
-    _create_metadata_normalizer,
+    _create_metadata_normaliser,
     _get_purpleair_client,
     _parse_historic_response,
-    create_purpleair_normalizer,
+    create_purpleair_normaliser,
     fetch_purpleair_data,
     fetch_purpleair_metadata,
 )
@@ -331,8 +331,8 @@ class TestFetchPurpleairMetadata:
         assert "source_network" in result.columns
 
     @patch("aeolus.sources.purpleair._get_purpleair_client")
-    def test_normalizes_column_names(self, mock_get_client, mock_sensors_response):
-        """Test that column names are normalized to standard schema."""
+    def test_normalises_column_names(self, mock_get_client, mock_sensors_response):
+        """Test that column names are normalised to standard schema."""
         mock_client = MagicMock()
         mock_client.request_multiple_sensors_data.return_value = mock_sensors_response
         mock_get_client.return_value = mock_client
@@ -570,8 +570,8 @@ class TestFetchPurpleairData:
         assert "site_code" in result.columns
 
     @patch("aeolus.sources.purpleair._get_purpleair_client")
-    def test_normalizes_output_schema(self, mock_get_client, mock_historic_response):
-        """Test that output has normalized schema."""
+    def test_normalises_output_schema(self, mock_get_client, mock_historic_response):
+        """Test that output has normalised schema."""
         mock_client = MagicMock()
         mock_client.request_sensor_historic_data.return_value = mock_historic_response
         mock_get_client.return_value = mock_client
@@ -630,7 +630,7 @@ class TestFetchPurpleairData:
         assert "pm2.5_atm_b" in result.columns
         assert "sensor_index" in result.columns
         assert "time_stamp" in result.columns
-        # Should NOT have normalized columns
+        # Should NOT have normalised columns
         assert "site_code" not in result.columns
         assert "measurand" not in result.columns
 
@@ -1064,7 +1064,7 @@ class TestParseHistoricResponse:
 
 
 # ============================================================================
-# Tests for create_purpleair_normalizer()
+# Tests for create_purpleair_normaliser()
 # ============================================================================
 
 
@@ -1073,11 +1073,11 @@ class TestPurpleairNormalizer:
 
     def test_converts_to_long_format(self, mock_historic_response):
         """Test conversion from wide to long format."""
-        normalizer = create_purpleair_normalizer()
+        normaliser = create_purpleair_normaliser()
 
         # First parse the response
         df = _parse_historic_response(mock_historic_response, "131075")
-        result = normalizer(df)
+        result = normaliser(df)
 
         # Should have multiple rows per timestamp (one per measurand)
         assert len(result) > len(mock_historic_response["data"])
@@ -1092,19 +1092,19 @@ class TestPurpleairNormalizer:
 
     def test_parses_timestamps(self, mock_historic_response):
         """Test that timestamps are parsed to datetime."""
-        normalizer = create_purpleair_normalizer()
+        normaliser = create_purpleair_normaliser()
 
         df = _parse_historic_response(mock_historic_response, "131075")
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert pd.api.types.is_datetime64_any_dtype(result["date_time"])
 
     def test_converts_temperature_to_celsius(self, mock_historic_response):
         """Test that temperature is converted from Fahrenheit to Celsius."""
-        normalizer = create_purpleair_normalizer()
+        normaliser = create_purpleair_normaliser()
 
         df = _parse_historic_response(mock_historic_response, "131075")
-        result = normalizer(df)
+        result = normaliser(df)
 
         temp_rows = result[result["measurand"] == "Temperature"]
         assert (temp_rows["units"] == "C").all()
@@ -1114,10 +1114,10 @@ class TestPurpleairNormalizer:
 
     def test_adds_ratification_status(self, mock_historic_response):
         """Test that ratification status is added."""
-        normalizer = create_purpleair_normalizer()
+        normaliser = create_purpleair_normaliser()
 
         df = _parse_historic_response(mock_historic_response, "131075")
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert "ratification" in result.columns
         # First row has both channels valid with good agreement
@@ -1128,10 +1128,10 @@ class TestPurpleairNormalizer:
 
     def test_flags_single_channel_data(self, mock_historic_response):
         """Test that single channel data is flagged."""
-        normalizer = create_purpleair_normalizer()
+        normaliser = create_purpleair_normaliser()
 
         df = _parse_historic_response(mock_historic_response, "131075")
-        result = normalizer(df)
+        result = normaliser(df)
 
         # Third row has only channel A
         pm25_third = result[
@@ -1141,40 +1141,40 @@ class TestPurpleairNormalizer:
 
     def test_flags_channel_disagreement(self, mock_historic_response_with_disagreement):
         """Test that channel disagreement is flagged."""
-        normalizer = create_purpleair_normalizer()
+        normaliser = create_purpleair_normaliser()
 
         df = _parse_historic_response(
             mock_historic_response_with_disagreement, "131075"
         )
-        result = normalizer(df)
+        result = normaliser(df)
 
         pm25_row = result[result["measurand"] == "PM2.5"]
         assert pm25_row["ratification"].iloc[0] == "Channel Disagreement"
 
     def test_adds_source_network(self, mock_historic_response):
         """Test that source_network column is added."""
-        normalizer = create_purpleair_normalizer()
+        normaliser = create_purpleair_normaliser()
 
         df = _parse_historic_response(mock_historic_response, "131075")
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert (result["source_network"] == "PurpleAir").all()
 
     def test_adds_created_at(self, mock_historic_response):
         """Test that created_at timestamp is added."""
-        normalizer = create_purpleair_normalizer()
+        normaliser = create_purpleair_normaliser()
 
         df = _parse_historic_response(mock_historic_response, "131075")
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert "created_at" in result.columns
 
     def test_selects_correct_columns(self, mock_historic_response):
         """Test that only standard columns are in output."""
-        normalizer = create_purpleair_normalizer()
+        normaliser = create_purpleair_normaliser()
 
         df = _parse_historic_response(mock_historic_response, "131075")
-        result = normalizer(df)
+        result = normaliser(df)
 
         expected_columns = [
             "site_code",
@@ -1190,27 +1190,27 @@ class TestPurpleairNormalizer:
 
     def test_correct_units_for_pm(self, mock_historic_response):
         """Test that PM measurements have correct units."""
-        normalizer = create_purpleair_normalizer()
+        normaliser = create_purpleair_normaliser()
 
         df = _parse_historic_response(mock_historic_response, "131075")
-        result = normalizer(df)
+        result = normaliser(df)
 
         pm_rows = result[result["measurand"].isin(["PM1", "PM2.5", "PM10"])]
         assert (pm_rows["units"] == "ug/m3").all()
 
     def test_correct_units_for_humidity(self, mock_historic_response):
         """Test that humidity has correct units."""
-        normalizer = create_purpleair_normalizer()
+        normaliser = create_purpleair_normaliser()
 
         df = _parse_historic_response(mock_historic_response, "131075")
-        result = normalizer(df)
+        result = normaliser(df)
 
         humidity_rows = result[result["measurand"] == "Humidity"]
         assert (humidity_rows["units"] == "%").all()
 
 
 # ============================================================================
-# Tests for _create_metadata_normalizer()
+# Tests for _create_metadata_normaliser()
 # ============================================================================
 
 
@@ -1219,7 +1219,7 @@ class TestMetadataNormalizer:
 
     def test_converts_sensor_index_to_site_code(self):
         """Test that sensor_index is converted to site_code."""
-        normalizer = _create_metadata_normalizer()
+        normaliser = _create_metadata_normaliser()
 
         df = pd.DataFrame(
             {
@@ -1231,13 +1231,13 @@ class TestMetadataNormalizer:
             }
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert result["site_code"].iloc[0] == "131075"
 
     def test_converts_location_type(self):
         """Test that location_type int is converted to string."""
-        normalizer = _create_metadata_normalizer()
+        normaliser = _create_metadata_normaliser()
 
         df = pd.DataFrame(
             {
@@ -1249,14 +1249,14 @@ class TestMetadataNormalizer:
             }
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert result["location_type"].iloc[0] == "outdoor"
         assert result["location_type"].iloc[1] == "indoor"
 
     def test_adds_source_network(self):
         """Test that source_network is added."""
-        normalizer = _create_metadata_normalizer()
+        normaliser = _create_metadata_normaliser()
 
         df = pd.DataFrame(
             {
@@ -1267,7 +1267,7 @@ class TestMetadataNormalizer:
             }
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert (result["source_network"] == "PurpleAir").all()
 
@@ -1314,7 +1314,7 @@ class TestSourceRegistration:
                     "name": "PurpleAir",
                     "fetch_metadata": fetch_purpleair_metadata,
                     "fetch_data": fetch_purpleair_data,
-                    "normalise": create_purpleair_normalizer(),
+                    "normalise": create_purpleair_normaliser(),
                     "requires_api_key": True,
                 },
             )
@@ -1339,7 +1339,7 @@ class TestSourceRegistration:
                     "name": "PurpleAir",
                     "fetch_metadata": fetch_purpleair_metadata,
                     "fetch_data": fetch_purpleair_data,
-                    "normalise": create_purpleair_normalizer(),
+                    "normalise": create_purpleair_normaliser(),
                     "requires_api_key": True,
                 },
             )

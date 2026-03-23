@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`trend()`** - Non-parametric trend analysis using Theil-Sen slope with Mann-Kendall significance test. Supports deseasonalisation (STL decomposition), autocorrelation correction, and configurable confidence intervals. Returns `TrendResult` dataclass.
 
 #### Convenience Features
-- **`aeolus.summarize()`** - Quick data overview: sites, pollutants, date range, record counts, and data capture per site+pollutant combination.
+- **`aeolus.summarise()`** - Quick data overview: sites, pollutants, date range, record counts, and data capture per site+pollutant combination.
 - **Date range shorthand** - `aeolus.download("AURN", ["MY1"], last="30d")` as alternative to explicit `start_date`/`end_date`. Supports days (`30d`), weeks (`2w`), months (`6m`), years (`1y`).
 
 #### Visualization (`aeolus.viz`)

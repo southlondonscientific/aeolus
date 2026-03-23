@@ -484,7 +484,7 @@ def test_complete_normalization_pipeline():
     )
 
     # Create a complete pipeline
-    normalize = compose(
+    normalise = compose(
         convert_timestamps("date", unit="s"),
         rename_columns({"site_id": "site_code"}),
         melt_measurands(
@@ -497,7 +497,7 @@ def test_complete_normalization_pipeline():
         ),
     )
 
-    result = normalize(df)
+    result = normalise(df)
 
     # Check structure
     assert len(result) == 4  # 2 timestamps × 2 pollutants

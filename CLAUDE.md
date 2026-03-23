@@ -170,7 +170,7 @@ data = aeolus.download(
 data = aeolus.download("AURN", ["MY1"], last="30d")
 
 # Quick data overview
-aeolus.summarize(data)
+aeolus.summarise(data)
 ```
 
 ## Testing
@@ -225,7 +225,7 @@ Mock API responses are defined as pytest fixtures within each test file.
 - ~~Local file caching for historical data~~ (done, Parquet-based `aeolus.cache`)
 
 **Convenience features** (medium priority):
-- ~~`summarize()` — quick data overview with sites, pollutants, date range, data capture~~ (done)
+- ~~`summarise()` — quick data overview with sites, pollutants, date range, data capture~~ (done)
 - ~~Date range shorthand (`last="30d"`) for `download()` and `fetch()`~~ (done)
 
 **User personas** (documented in `docs/dev/user_stories_v040.md`):

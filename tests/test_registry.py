@@ -130,21 +130,21 @@ def test_register_source_with_api_key_requirement():
     assert _SOURCES["APISOURCE"]["requires_api_key"] is True
 
 
-def test_register_source_with_custom_normalizer():
-    """Test registering a source with a custom normalizer."""
+def test_register_source_with_custom_normaliser():
+    """Test registering a source with a custom normaliser."""
 
-    def custom_normalizer(df):
+    def custom_normaliser(df):
         return df.assign(custom_col="test")
 
     spec = {
         "name": "CustomSource",
         "fetch_data": lambda s, st, e: None,
-        "normalise": custom_normalizer,
+        "normalise": custom_normaliser,
     }
 
     register_source("CUSTOM", spec)
 
-    assert _SOURCES["CUSTOM"]["normalise"] == custom_normalizer
+    assert _SOURCES["CUSTOM"]["normalise"] == custom_normaliser
 
 
 # ============================================================================

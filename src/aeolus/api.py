@@ -689,11 +689,11 @@ def get_current(
 
 
 # ============================================================================
-# summarize() — Quick Data Overview
+# summarise() — Quick Data Overview
 # ============================================================================
 
 
-def summarize(data: pd.DataFrame) -> pd.DataFrame:
+def summarise(data: pd.DataFrame) -> pd.DataFrame:
     """
     Summarize a downloaded air quality dataset.
 
@@ -711,7 +711,7 @@ def summarize(data: pd.DataFrame) -> pd.DataFrame:
 
     Example:
         >>> data = aeolus.download("AURN", ["MY1", "KC1"], start, end)
-        >>> aeolus.summarize(data)
+        >>> aeolus.summarise(data)
     """
     if data.empty:
         return pd.DataFrame(

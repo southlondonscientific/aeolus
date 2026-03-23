@@ -724,19 +724,19 @@ def test_parse_last_various_formats():
 
 
 # ============================================================================
-# summarize() Tests
+# summarise() Tests
 # ============================================================================
 
 
-def test_summarize_basic(register_test_network, test_dates):
-    """Test summarize on downloaded data."""
+def test_summarise_basic(register_test_network, test_dates):
+    """Test summarise on downloaded data."""
     data = api.download(
         "TEST_NETWORK",
         ["SITE1", "SITE2"],
         start_date=test_dates["start_date"],
         end_date=test_dates["end_date"],
     )
-    result = api.summarize(data)
+    result = api.summarise(data)
 
     assert isinstance(result, pd.DataFrame)
     assert len(result) == 2  # Two sites
@@ -750,10 +750,10 @@ def test_summarize_basic(register_test_network, test_dates):
     assert "data_capture" in result.columns
 
 
-def test_summarize_empty():
-    """Test summarize on empty DataFrame."""
+def test_summarise_empty():
+    """Test summarise on empty DataFrame."""
     empty = pd.DataFrame(columns=api._STANDARD_COLUMNS)
-    result = api.summarize(empty)
+    result = api.summarise(empty)
 
     assert isinstance(result, pd.DataFrame)
     assert result.empty
@@ -761,8 +761,8 @@ def test_summarize_empty():
     assert "data_capture" in result.columns
 
 
-def test_summarize_multiple_pollutants():
-    """Test summarize with multiple pollutants per site."""
+def test_summarise_multiple_pollutants():
+    """Test summarise with multiple pollutants per site."""
     data = pd.DataFrame([
         {
             "site_code": "MY1",
@@ -789,14 +789,14 @@ def test_summarize_multiple_pollutants():
         for h in range(24)
     ])
 
-    result = api.summarize(data)
+    result = api.summarise(data)
 
     assert len(result) == 2  # Two pollutants for one site
     assert set(result["measurand"]) == {"NO2", "PM2.5"}
     assert all(result["valid"] == 24)
 
 
-def test_summarize_data_capture():
+def test_summarise_data_capture():
     """Test that data_capture is calculated correctly."""
     # 12 hours of data over a 24-hour span → ~0.5 capture
     data = pd.DataFrame([
@@ -813,7 +813,7 @@ def test_summarize_data_capture():
         for h in range(0, 24, 2)  # Every other hour = 12 records over 23h span
     ])
 
-    result = api.summarize(data)
+    result = api.summarise(data)
     assert len(result) == 1
     dc = result["data_capture"].iloc[0]
     assert 0.4 < dc < 0.6  # Roughly 50%

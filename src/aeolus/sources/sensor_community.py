@@ -301,7 +301,7 @@ def fetch_sensor_community_metadata(
              Use `bbox` instead for consistency with other sources.
 
     Returns:
-        pd.DataFrame: Sensor metadata with standardized schema:
+        pd.DataFrame: Sensor metadata with standardised schema:
             - site_code: Unique sensor ID (as string)
             - latitude: Sensor latitude
             - longitude: Sensor longitude
@@ -522,7 +522,7 @@ def fetch_sensor_community_data(
         end_date: End of date range (inclusive)
 
     Returns:
-        pd.DataFrame: Air quality data with standardized schema:
+        pd.DataFrame: Air quality data with standardised schema:
             - site_code: Sensor ID
             - date_time: Measurement timestamp
             - measurand: Pollutant/parameter measured (e.g., "PM2.5", "PM10")
@@ -639,7 +639,7 @@ def _fetch_sensor_archive(
         sensor_id: The sensor ID
 
     Returns:
-        pd.DataFrame: Parsed and normalized data
+        pd.DataFrame: Parsed and normalised data
     """
     date_str = date.strftime("%Y-%m-%d")
     filename = f"{date_str}_{sensor_type.lower()}_sensor_{sensor_id}.csv"
@@ -667,10 +667,10 @@ def _fetch_sensor_archive(
     if df.empty:
         return empty_data_frame()
 
-    return _normalize_sensor_data(df, sensor_type, sensor_id)
+    return _normalise_sensor_data(df, sensor_type, sensor_id)
 
 
-def _normalize_sensor_data(
+def _normalise_sensor_data(
     df: pd.DataFrame, sensor_type: str, sensor_id: str
 ) -> pd.DataFrame:
     """
@@ -790,7 +790,7 @@ def fetch_sensor_community_realtime(
         averaging: Averaging period - "5min", "1h", or "24h" (default "5min")
 
     Returns:
-        pd.DataFrame: Air quality data with standardized schema
+        pd.DataFrame: Air quality data with standardised schema
 
     Example:
         >>> from aeolus.sources.sensor_community import fetch_sensor_community_realtime

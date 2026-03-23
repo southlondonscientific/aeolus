@@ -141,7 +141,7 @@ def fetch_airqo_metadata(**filters) -> pd.DataFrame:
             - country: Country name
 
     Returns:
-        pd.DataFrame: Site metadata with standardized schema:
+        pd.DataFrame: Site metadata with standardised schema:
             - site_code: Unique site identifier
             - site_name: Human-readable site name
             - latitude: Site latitude
@@ -223,16 +223,16 @@ def fetch_airqo_metadata(**filters) -> pd.DataFrame:
         return df
 
     # Normalize to standard schema
-    normalizer = _create_metadata_normalizer()
-    normalized = normalizer(df)
+    normaliser = _create_metadata_normaliser()
+    normalised = normaliser(df)
 
     # Apply filters if provided
-    if filters.get("country") and "country" in normalized.columns:
-        normalized = normalized[
-            normalized["country"].str.lower() == filters["country"].lower()
+    if filters.get("country") and "country" in normalised.columns:
+        normalised = normalised[
+            normalised["country"].str.lower() == filters["country"].lower()
         ]
 
-    return normalized
+    return normalised
 
 
 def fetch_airqo_grids() -> pd.DataFrame:
@@ -285,7 +285,7 @@ def fetch_airqo_grids() -> pd.DataFrame:
     return df
 
 
-def _create_metadata_normalizer():
+def _create_metadata_normaliser():
     """
     Create normalization pipeline for AirQo metadata.
 
@@ -331,7 +331,7 @@ def fetch_airqo_data(
     Fetch air quality data from AirQo.
 
     This function downloads data from AirQo's sensor network in Africa.
-    Data is automatically normalized to match Aeolus standard schema.
+    Data is automatically normalised to match Aeolus standard schema.
 
     Args:
         sites: List of AirQo site IDs. Use fetch_airqo_metadata() to find IDs.
@@ -339,7 +339,7 @@ def fetch_airqo_data(
         end_date: End of date range (inclusive)
 
     Returns:
-        pd.DataFrame: Air quality data with standardized schema:
+        pd.DataFrame: Air quality data with standardised schema:
             - site_code: AirQo site ID
             - site_name: Human-readable site name
             - date_time: Measurement timestamp
@@ -374,7 +374,7 @@ def fetch_airqo_data(
     logger = logging.getLogger(__name__)
 
     all_data = []
-    normalizer = create_airqo_normalizer()
+    normaliser = create_airqo_normaliser()
 
     # Format dates for API (YYYY-MM-DD or ISO format)
     start_str = start_date.strftime("%Y-%m-%dT00:00:00.000Z")
@@ -408,10 +408,10 @@ def fetch_airqo_data(
 
             logger.debug(f"Found {len(measurements)} measurements for site {site_id}")
 
-            # Convert to DataFrame and normalize
+            # Convert to DataFrame and normalise
             df = pd.DataFrame(measurements)
             if not df.empty:
-                df = normalizer(df)
+                df = normaliser(df)
                 all_data.append(df)
 
         except (requests.RequestException, ValueError, KeyError, TypeError) as e:
@@ -444,7 +444,7 @@ def fetch_airqo_data_by_grid(
         end_date: End of date range (inclusive)
 
     Returns:
-        pd.DataFrame: Air quality data with standardized schema
+        pd.DataFrame: Air quality data with standardised schema
 
     Example:
         >>> # Find available grids
@@ -489,10 +489,10 @@ def fetch_airqo_data_by_grid(
 
         logger.info(f"Found {len(measurements)} measurements for grid {grid_id}")
 
-        # Convert to DataFrame and normalize
+        # Convert to DataFrame and normalise
         df = pd.DataFrame(measurements)
-        normalizer = create_airqo_normalizer()
-        return normalizer(df)
+        normaliser = create_airqo_normaliser()
+        return normaliser(df)
 
     except (requests.RequestException, ValueError, KeyError, TypeError) as e:
         warning(f"Failed to fetch AirQo data for grid {grid_id}: {e}")
@@ -520,7 +520,7 @@ def _empty_dataframe() -> pd.DataFrame:
 # ============================================================================
 
 
-def create_airqo_normalizer():
+def create_airqo_normaliser():
     """
     Create normalization pipeline for AirQo data.
 
@@ -682,7 +682,7 @@ register_source(
         "name": "AirQo",
         "fetch_metadata": fetch_airqo_metadata,
         "fetch_data": fetch_airqo_data,
-        "normalise": create_airqo_normalizer(),
+        "normalise": create_airqo_normaliser(),
         "requires_api_key": True,
     },
 )

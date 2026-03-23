@@ -28,7 +28,7 @@ from aeolus.sources.sensor_community import (
     _fetch_sensor_archive,
     _get_sensor_types_for_sites,
     _make_request,
-    _normalize_sensor_data,
+    _normalise_sensor_data,
     fetch_sensor_community_data,
     fetch_sensor_community_metadata,
     fetch_sensor_community_realtime,
@@ -738,9 +738,9 @@ class TestFetchSensorArchive:
 
 
 class TestNormalizeSensorData:
-    """Test the _normalize_sensor_data function."""
+    """Test the _normalise_sensor_data function."""
 
-    def test_normalize_sds011_data(self):
+    def test_normalise_sds011_data(self):
         """Test normalization of SDS011 PM data."""
         df = pd.DataFrame(
             {
@@ -751,7 +751,7 @@ class TestNormalizeSensorData:
             }
         )
 
-        result = _normalize_sensor_data(df, "SDS011", "12345")
+        result = _normalise_sensor_data(df, "SDS011", "12345")
 
         assert "site_code" in result.columns
         assert "measurand" in result.columns
@@ -760,7 +760,7 @@ class TestNormalizeSensorData:
         assert all(result["ratification"] == "Unvalidated")
         assert all(result["site_code"] == "12345")
 
-    def test_normalize_bme280_data(self):
+    def test_normalise_bme280_data(self):
         """Test normalization of BME280 environmental data."""
         df = pd.DataFrame(
             {
@@ -772,14 +772,14 @@ class TestNormalizeSensorData:
             }
         )
 
-        result = _normalize_sensor_data(df, "BME280", "54321")
+        result = _normalise_sensor_data(df, "BME280", "54321")
 
         measurands = set(result["measurand"].unique())
         assert "Temperature" in measurands
         assert "Humidity" in measurands
         assert "Pressure" in measurands
 
-    def test_normalize_handles_missing_values(self):
+    def test_normalise_handles_missing_values(self):
         """Test that missing values are handled correctly."""
         df = pd.DataFrame(
             {
@@ -790,7 +790,7 @@ class TestNormalizeSensorData:
             }
         )
 
-        result = _normalize_sensor_data(df, "SDS011", "12345")
+        result = _normalise_sensor_data(df, "SDS011", "12345")
 
         assert len(result) == 1
         assert result["measurand"].iloc[0] == "PM2.5"

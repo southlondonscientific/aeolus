@@ -17,7 +17,7 @@ from aeolus.types import empty_data_frame as _empty_dataframe
 from aeolus.sources.openaq import (
     PARAMETER_MAP,
     _get_client,
-    _normalize,
+    _normalise,
     fetch_openaq_data,
     fetch_openaq_metadata,
 )
@@ -576,7 +576,7 @@ class TestFetchOpenaqData:
 
 
 # ============================================================================
-# Tests for _normalize()
+# Tests for _normalise()
 # ============================================================================
 
 
@@ -596,14 +596,14 @@ class TestNormalize:
             }
         )
 
-        result = _normalize(df)
+        result = _normalise(df)
 
         assert "site_code" in result.columns
         assert "date_time" in result.columns
         assert "location_id" not in result.columns
 
-    def test_standardizes_parameter_names(self):
-        """Test that parameter names are standardized."""
+    def test_standardises_parameter_names(self):
+        """Test that parameter names are standardised."""
         df = pd.DataFrame(
             {
                 "location_id": ["2708", "2708"],
@@ -615,7 +615,7 @@ class TestNormalize:
             }
         )
 
-        result = _normalize(df)
+        result = _normalise(df)
 
         assert set(result["measurand"].unique()) == {"NO2", "PM2.5"}
 
@@ -632,12 +632,12 @@ class TestNormalize:
             }
         )
 
-        result = _normalize(df)
+        result = _normalise(df)
 
         assert result["measurand"].iloc[0] == "UNKNOWN_PARAM"
 
-    def test_standardizes_units(self):
-        """Test that units are standardized."""
+    def test_standardises_units(self):
+        """Test that units are standardised."""
         df = pd.DataFrame(
             {
                 "location_id": ["2708", "2708"],
@@ -649,7 +649,7 @@ class TestNormalize:
             }
         )
 
-        result = _normalize(df)
+        result = _normalise(df)
 
         assert (result["units"] == "ug/m3").all()
 
@@ -666,7 +666,7 @@ class TestNormalize:
             }
         )
 
-        result = _normalize(df)
+        result = _normalise(df)
 
         assert (result["source_network"] == "OpenAQ").all()
 
@@ -683,7 +683,7 @@ class TestNormalize:
             }
         )
 
-        result = _normalize(df)
+        result = _normalise(df)
 
         assert (result["ratification"] == "Unvalidated").all()
 
@@ -700,7 +700,7 @@ class TestNormalize:
             }
         )
 
-        result = _normalize(df)
+        result = _normalise(df)
 
         assert "created_at" in result.columns
 
@@ -717,7 +717,7 @@ class TestNormalize:
             }
         )
 
-        result = _normalize(df)
+        result = _normalise(df)
 
         assert len(result) == 1
 
@@ -734,7 +734,7 @@ class TestNormalize:
             }
         )
 
-        result = _normalize(df)
+        result = _normalise(df)
 
         assert len(result) == 1
 
@@ -751,7 +751,7 @@ class TestNormalize:
             }
         )
 
-        result = _normalize(df)
+        result = _normalise(df)
 
         expected_columns = [
             "site_code",

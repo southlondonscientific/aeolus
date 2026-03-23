@@ -119,7 +119,7 @@ def download(
         end_date: End of date range (inclusive)
 
     Returns:
-        DataFrame with standardized schema:
+        DataFrame with standardised schema:
             - site_code: Location identifier
             - date_time: Measurement timestamp
             - measurand: Pollutant measured (e.g., "NO2", "PM2.5")

@@ -433,7 +433,7 @@ class TestFetchData:
     def test_fetch_data_parameter_normalization(
         self, mock_api, mock_historical_response
     ):
-        """Test that parameters are normalized."""
+        """Test that parameters are normalised."""
         mock_api.return_value = mock_historical_response
 
         site_code = "34d0522_m118d2437"
@@ -443,13 +443,13 @@ class TestFetchData:
             end_date=datetime(2024, 1, 15),
         )
 
-        # OZONE should be normalized to O3
+        # OZONE should be normalised to O3
         measurands = df["measurand"].unique()
         assert "O3" in measurands or "PM2.5" in measurands
 
     @patch("aeolus.sources.airnow._call_airnow_api")
     def test_fetch_data_units_normalization(self, mock_api, mock_historical_response):
-        """Test that units are normalized."""
+        """Test that units are normalised."""
         mock_api.return_value = mock_historical_response
 
         site_code = "34d0522_m118d2437"
@@ -459,7 +459,7 @@ class TestFetchData:
             end_date=datetime(2024, 1, 15),
         )
 
-        # UG/M3 should be normalized to ug/m3
+        # UG/M3 should be normalised to ug/m3
         for unit in df["units"].unique():
             assert unit in ["ug/m3", "ppb", "ppm", "AQI"]
 

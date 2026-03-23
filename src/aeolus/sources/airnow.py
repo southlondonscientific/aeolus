@@ -191,7 +191,7 @@ def fetch_airnow_metadata(
         **filters: Additional filters (not currently used)
 
     Returns:
-        pd.DataFrame: Site metadata with standardized schema:
+        pd.DataFrame: Site metadata with standardised schema:
             - site_code: Unique site identifier (derived from coordinates)
             - site_name: Reporting area name
             - latitude: Site latitude
@@ -285,7 +285,7 @@ def fetch_airnow_data(
         end_date: End of date range (inclusive)
 
     Returns:
-        pd.DataFrame: Air quality data with standardized schema:
+        pd.DataFrame: Air quality data with standardised schema:
             - site_code: Site identifier
             - date_time: Measurement timestamp (UTC)
             - measurand: Pollutant measured (e.g., "O3", "PM2.5")

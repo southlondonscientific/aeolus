@@ -81,7 +81,7 @@ from .api import (
     get_current,
     get_source_info,
     list_sources,
-    summarize,
+    summarise,
 )
 
 # Define what gets exported with "from aeolus import *"
@@ -100,6 +100,6 @@ __all__ = [
     "find_sites",
     "get_current",
     "get_source_info",
-    "summarize",
+    "summarise",
     "fetch",
 ]

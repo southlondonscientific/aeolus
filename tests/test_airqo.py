@@ -15,8 +15,8 @@ from aeolus.sources.airqo import (
     AIRQO_API_BASE,
     PARAMETER_MAP,
     _call_airqo_api,
-    _create_metadata_normalizer,
-    create_airqo_normalizer,
+    _create_metadata_normaliser,
+    create_airqo_normaliser,
     fetch_airqo_data,
     fetch_airqo_data_by_grid,
     fetch_airqo_grids,
@@ -430,8 +430,8 @@ class TestFetchAirQoMetadata:
         assert "source_network" in result.columns
 
     @responses.activate
-    def test_normalizes_column_names(self, mock_sites_response, monkeypatch):
-        """Test that column names are normalized to standard schema."""
+    def test_normalises_column_names(self, mock_sites_response, monkeypatch):
+        """Test that column names are normalised to standard schema."""
         monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
@@ -443,7 +443,7 @@ class TestFetchAirQoMetadata:
 
         result = fetch_airqo_metadata()
 
-        # Should have standardized names
+        # Should have standardised names
         assert "site_code" in result.columns
         assert "site_name" in result.columns
         assert "city" in result.columns
@@ -820,8 +820,8 @@ class TestFetchAirQoData:
         assert result.empty
 
     @responses.activate
-    def test_normalizes_output_schema(self, mock_measurements_response, monkeypatch):
-        """Test that output has normalized schema."""
+    def test_normalises_output_schema(self, mock_measurements_response, monkeypatch):
+        """Test that output has normalised schema."""
         monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
@@ -920,7 +920,7 @@ class TestFetchAirQoDataByGrid:
 
 
 # ============================================================================
-# Tests for create_airqo_normalizer()
+# Tests for create_airqo_normaliser()
 # ============================================================================
 
 
@@ -929,7 +929,7 @@ class TestAirQoNormalizer:
 
     def test_extracts_site_info_from_nested_structure(self):
         """Test that site info is extracted from siteDetails."""
-        normalizer = create_airqo_normalizer()
+        normaliser = create_airqo_normaliser()
 
         df = pd.DataFrame(
             [
@@ -950,13 +950,13 @@ class TestAirQoNormalizer:
             ]
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert "site_001" in result["site_code"].values
 
     def test_melts_pollutants_to_long_format(self):
         """Test that PM2.5 and PM10 columns are melted to long format."""
-        normalizer = create_airqo_normalizer()
+        normaliser = create_airqo_normaliser()
 
         df = pd.DataFrame(
             [
@@ -974,7 +974,7 @@ class TestAirQoNormalizer:
             ]
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         # Should have 2 rows (one for PM2.5, one for PM10)
         assert len(result) == 2
@@ -982,7 +982,7 @@ class TestAirQoNormalizer:
 
     def test_parses_timestamps(self):
         """Test that timestamps are parsed to datetime."""
-        normalizer = create_airqo_normalizer()
+        normaliser = create_airqo_normaliser()
 
         df = pd.DataFrame(
             [
@@ -994,13 +994,13 @@ class TestAirQoNormalizer:
             ]
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert pd.api.types.is_datetime64_any_dtype(result["date_time"])
 
-    def test_standardizes_parameter_names(self):
-        """Test that parameter names are standardized."""
-        normalizer = create_airqo_normalizer()
+    def test_standardises_parameter_names(self):
+        """Test that parameter names are standardised."""
+        normaliser = create_airqo_normaliser()
 
         df = pd.DataFrame(
             [
@@ -1013,7 +1013,7 @@ class TestAirQoNormalizer:
             ]
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         # Should use standard names
         assert "PM2.5" in result["measurand"].values
@@ -1021,7 +1021,7 @@ class TestAirQoNormalizer:
 
     def test_adds_units(self):
         """Test that units column is added."""
-        normalizer = create_airqo_normalizer()
+        normaliser = create_airqo_normaliser()
 
         df = pd.DataFrame(
             [
@@ -1033,13 +1033,13 @@ class TestAirQoNormalizer:
             ]
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert (result["units"] == "ug/m3").all()
 
     def test_adds_indicative_ratification(self):
         """Test that low-cost sensor data is marked as Indicative."""
-        normalizer = create_airqo_normalizer()
+        normaliser = create_airqo_normaliser()
 
         df = pd.DataFrame(
             [
@@ -1051,13 +1051,13 @@ class TestAirQoNormalizer:
             ]
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert (result["ratification"] == "Indicative").all()
 
     def test_adds_source_network(self):
         """Test that source_network column is added."""
-        normalizer = create_airqo_normalizer()
+        normaliser = create_airqo_normaliser()
 
         df = pd.DataFrame(
             [
@@ -1069,13 +1069,13 @@ class TestAirQoNormalizer:
             ]
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert (result["source_network"] == "AirQo").all()
 
     def test_adds_created_at(self):
         """Test that created_at timestamp is added."""
-        normalizer = create_airqo_normalizer()
+        normaliser = create_airqo_normaliser()
 
         df = pd.DataFrame(
             [
@@ -1087,13 +1087,13 @@ class TestAirQoNormalizer:
             ]
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert "created_at" in result.columns
 
     def test_filters_invalid_values(self):
         """Test that zero/negative values are filtered out."""
-        normalizer = create_airqo_normalizer()
+        normaliser = create_airqo_normaliser()
 
         df = pd.DataFrame(
             [
@@ -1115,7 +1115,7 @@ class TestAirQoNormalizer:
             ]
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         # Only first row should remain
         assert len(result) == 1
@@ -1123,7 +1123,7 @@ class TestAirQoNormalizer:
 
     def test_filters_null_timestamps(self):
         """Test that rows with null timestamps are filtered."""
-        normalizer = create_airqo_normalizer()
+        normaliser = create_airqo_normaliser()
 
         df = pd.DataFrame(
             [
@@ -1140,14 +1140,14 @@ class TestAirQoNormalizer:
             ]
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         # Only first row should remain
         assert len(result) == 1
 
     def test_selects_correct_columns(self):
         """Test that only standard columns are in output."""
-        normalizer = create_airqo_normalizer()
+        normaliser = create_airqo_normaliser()
 
         df = pd.DataFrame(
             [
@@ -1161,7 +1161,7 @@ class TestAirQoNormalizer:
             ]
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         expected_columns = [
             "site_code",
@@ -1177,7 +1177,7 @@ class TestAirQoNormalizer:
 
 
 # ============================================================================
-# Tests for _create_metadata_normalizer()
+# Tests for _create_metadata_normaliser()
 # ============================================================================
 
 
@@ -1186,7 +1186,7 @@ class TestMetadataNormalizer:
 
     def test_extracts_location_from_approximate_fields(self):
         """Test that lat/long are extracted from approximate fields."""
-        normalizer = _create_metadata_normalizer()
+        normaliser = _create_metadata_normaliser()
 
         df = pd.DataFrame(
             [
@@ -1199,7 +1199,7 @@ class TestMetadataNormalizer:
             ]
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert "latitude" in result.columns
         assert "longitude" in result.columns
@@ -1207,7 +1207,7 @@ class TestMetadataNormalizer:
 
     def test_renames_columns(self):
         """Test that columns are renamed to standard names."""
-        normalizer = _create_metadata_normalizer()
+        normaliser = _create_metadata_normaliser()
 
         df = pd.DataFrame(
             [
@@ -1220,18 +1220,18 @@ class TestMetadataNormalizer:
             ]
         )
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert "site_code" in result.columns
         assert "site_name" in result.columns
 
     def test_adds_source_network(self):
         """Test that source_network is added."""
-        normalizer = _create_metadata_normalizer()
+        normaliser = _create_metadata_normaliser()
 
         df = pd.DataFrame([{"_id": "site_001", "name": "Test Site"}])
 
-        result = normalizer(df)
+        result = normaliser(df)
 
         assert (result["source_network"] == "AirQo").all()
 
