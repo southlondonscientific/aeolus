@@ -1,6 +1,6 @@
 # Aeolus - Claude Code Context
 
-Air quality data downloading and standardization library for UK and international monitoring networks.
+Air quality data downloading and standardisation library for UK and international monitoring networks.
 
 **Current Version:** 0.4.0
 
@@ -40,7 +40,7 @@ src/aeolus/
 ├── __init__.py          # Public API (download, list_sources, etc.)
 ├── api.py               # Main download() function implementation
 ├── registry.py          # Source registration system
-├── transforms.py        # Data normalization utilities
+├── transforms.py        # Data normalisation utilities
 ├── sources/             # Data source implementations
 │   ├── regulatory.py    # UK regulatory networks (AURN, SAQN, WAQN, NI, AQE, LOCAL, LMAM)
 │   ├── openaq.py        # OpenAQ global portal
@@ -54,7 +54,7 @@ src/aeolus/
 ├── geo.py               # Geospatial utilities (haversine, bbox)
 ├── progress.py          # Optional tqdm progress bars (fallback to logging)
 ├── metrics/             # Air quality metrics calculations
-└── viz/                 # Visualization utilities
+└── viz/                 # Visualisation utilities
 ```
 
 ## Data Sources
