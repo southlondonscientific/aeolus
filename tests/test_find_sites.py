@@ -438,3 +438,35 @@ def test_non_primary_included_when_explicit(register_free_network):
     result = api.find_sites("NON_PRIMARY_NET")
     assert len(result) == 1
     assert result["source_network"].iloc[0] == "NON_PRIMARY_NET"
+
+
+# ============================================================================
+# Missing metadata columns
+# ============================================================================
+
+
+def test_source_missing_site_name_column():
+    """Sources that don't return site_name should not crash find_sites()."""
+    # Sensor.Community bbox queries may omit site_name
+    no_name_records = pd.DataFrame(
+        [
+            {"site_code": "SC1", "latitude": 51.50, "longitude": -0.13, "source_network": "NO_NAME_NET"},
+            {"site_code": "SC2", "latitude": 51.51, "longitude": -0.12, "source_network": "NO_NAME_NET"},
+        ]
+    )
+    register_source(
+        "NO_NAME_NET",
+        {
+            "type": "network",
+            "name": "No Name Network",
+            "fetch_metadata": lambda **kw: no_name_records.copy(),
+            "fetch_data": lambda sites, s, e: pd.DataFrame(),
+            "normalise": lambda df: df,
+            "requires_api_key": False,
+        },
+    )
+
+    result = api.find_sites("NO_NAME_NET")
+    assert len(result) == 2
+    assert "site_code" in result.columns
+    assert "source_network" in result.columns
