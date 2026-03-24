@@ -582,6 +582,10 @@ def find_sites(
     combined = pd.concat(results, ignore_index=True)
 
     # --- spatial post-filtering ---
+    # Ensure lat/lon are numeric (some sources may return strings)
+    combined["latitude"] = pd.to_numeric(combined["latitude"], errors="coerce")
+    combined["longitude"] = pd.to_numeric(combined["longitude"], errors="coerce")
+
     if near is not None:
         from .geo import haversine_distance
 
@@ -605,7 +609,7 @@ def find_sites(
         combined = combined[mask].reset_index(drop=True)
 
     # --- order columns: core -> distance_km -> extras ---
-    core = list(_METADATA_COLUMNS)
+    core = [c for c in _METADATA_COLUMNS if c in combined.columns]
     if "distance_km" in combined.columns:
         ordered = core + ["distance_km"]
     else:
