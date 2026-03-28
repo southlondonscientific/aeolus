@@ -30,12 +30,21 @@ from . import (
     airnow,  # noqa: F401
     airqo,  # noqa: F401
     breathe_london,  # noqa: F401
-    openaq,  # noqa: F401
-    purpleair,  # noqa: F401
     regulatory,  # noqa: F401
     sensor_community,  # noqa: F401
     sos,  # noqa: F401
 )
+
+# Optional sources — SDK may not be installed (e.g. conda-forge)
+try:
+    from . import openaq  # noqa: F401
+except ImportError:
+    pass
+
+try:
+    from . import purpleair  # noqa: F401
+except ImportError:
+    pass
 
 __all__ = [
     "airnow",
