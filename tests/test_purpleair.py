@@ -10,6 +10,8 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
+
+pytest.importorskip("purpleair_api", reason="purpleair-api SDK not installed")
 from purpleair_api.PurpleAirAPIError import PurpleAirAPIError
 
 from aeolus.sources.purpleair import (

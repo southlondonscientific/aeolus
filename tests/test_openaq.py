@@ -9,8 +9,10 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
-from openaq.shared.exceptions import OpenAQError
 import pytest
+
+pytest.importorskip("openaq", reason="openaq SDK not installed")
+from openaq.shared.exceptions import OpenAQError
 
 from aeolus.types import empty_data_frame as _empty_dataframe
 
