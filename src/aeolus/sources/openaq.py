@@ -29,8 +29,6 @@ import os
 from datetime import datetime, timezone
 
 import pandas as pd
-from openaq import OpenAQ
-from openaq.shared.exceptions import OpenAQError
 
 from ..registry import register_source
 from ..transforms import add_column, compose, select_columns
@@ -63,7 +61,7 @@ PARAMETER_MAP = {
 _client = None
 
 
-def _get_client() -> OpenAQ:
+def _get_client() -> "OpenAQ":
     """
     Get an OpenAQ client instance (reuses existing client).
 
@@ -75,6 +73,8 @@ def _get_client() -> OpenAQ:
     Raises:
         ValueError: If no API key is found
     """
+    from openaq import OpenAQ
+
     global _client
 
     # Reuse existing client if available
@@ -218,6 +218,8 @@ def fetch_openaq_data(
         ...     end_date=datetime(2024, 1, 31)
         ... )
     """
+    from openaq.shared.exceptions import OpenAQError
+
     client = _get_client()
     all_measurements = []
 

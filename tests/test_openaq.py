@@ -117,7 +117,7 @@ class TestGetClient:
         with pytest.raises(ValueError, match="OpenAQ API key required"):
             _get_client()
 
-    @patch("aeolus.sources.openaq.OpenAQ")
+    @patch("openaq.OpenAQ")
     def test_creates_client_with_api_key(self, mock_openaq_class, monkeypatch):
         """Test that client is created with API key."""
         import aeolus.sources.openaq as openaq_module
@@ -130,7 +130,7 @@ class TestGetClient:
 
         mock_openaq_class.assert_called_once_with(api_key="test_key_123", auto_wait=True)
 
-    @patch("aeolus.sources.openaq.OpenAQ")
+    @patch("openaq.OpenAQ")
     def test_supports_alternative_env_var(self, mock_openaq_class, monkeypatch):
         """Test that OPENAQ-API-KEY env var is also supported."""
         import aeolus.sources.openaq as openaq_module
@@ -144,7 +144,7 @@ class TestGetClient:
 
         mock_openaq_class.assert_called_once_with(api_key="alt_key_456", auto_wait=True)
 
-    @patch("aeolus.sources.openaq.OpenAQ")
+    @patch("openaq.OpenAQ")
     def test_reuses_existing_client(self, mock_openaq_class, monkeypatch):
         """Test that existing client is reused."""
         import aeolus.sources.openaq as openaq_module
