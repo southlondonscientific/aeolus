@@ -83,6 +83,18 @@ src/aeolus/
 | OPENAQ | Yes (`OPENAQ_API_KEY`) | Global (100+ countries) |
 | PURPLEAIR | Yes (`PURPLEAIR_API_KEY`) | Global low-cost sensors (30,000+) |
 
+### Optional SDK Dependencies
+
+OpenAQ and PurpleAir require optional SDK packages not available on conda-forge:
+
+| Extra | Install command | Provides |
+|-------|----------------|----------|
+| `openaq` | `pip install aeolus_aq[openaq]` | OpenAQ portal access |
+| `purpleair` | `pip install aeolus_aq[purpleair]` | PurpleAir portal access |
+| `all` | `pip install aeolus_aq[all]` | All optional sources |
+
+For conda users: `conda install -c conda-forge aeolus_aq` then `pip install openaq purpleair-api` for portal sources.
+
 ## Standard Data Schema
 
 All sources normalise data to this 8-column schema:
@@ -107,6 +119,12 @@ All sources normalise data to this 8-column schema:
 ## Common Commands
 
 ```bash
+# Install from conda-forge
+conda install -c conda-forge aeolus_aq
+
+# Install with all optional sources (pip only)
+pip install aeolus_aq[all]
+
 # Install in development mode
 pip install -e ".[dev]"
 
