@@ -42,7 +42,6 @@ from ..decorators import retry_on_network_error
 from ..registry import register_source
 from ..transforms import add_column, compose, select_columns
 from ..types import AeolusDataWarning, empty_data_frame
-from purpleair_api.PurpleAirAPIError import PurpleAirAPIError
 
 logger = getLogger(__name__)
 
@@ -174,6 +173,8 @@ def fetch_purpleair_metadata(**filters) -> pd.DataFrame:
         >>> # Get specific sensors by index
         >>> metadata = fetch_purpleair_metadata(show_only="131075,131079")
     """
+    from purpleair_api.PurpleAirAPIError import PurpleAirAPIError
+
     try:
         client = _get_purpleair_client()
     except ValueError as e:
@@ -378,6 +379,8 @@ def fetch_purpleair_data(
         ...     include_flagged=False
         ... )
     """
+    from purpleair_api.PurpleAirAPIError import PurpleAirAPIError
+
     try:
         client = _get_purpleair_client()
     except ValueError as e:
