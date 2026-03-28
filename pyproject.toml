@@ -9,13 +9,11 @@ air quality networks and standardising them into a common pandas DataFrame forma
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "openaq>=1.0.0rc2",
     "pandas>=2.3.3",
     "rdata>=0.11",
     "requests>=2.32.5",
     "tenacity>=8.2.0",
     "matplotlib>=3.7.0",
-    "purpleair-api>=1.3.1",
     "python-dotenv>=1.2.1",
     "numpy>=1.24.0",
     "scipy>=1.10.0",
@@ -28,6 +26,12 @@ license-files = ["LICEN[CS]E*"]
 Homepage = "https://github.com/southlondonscientific/aeolus"
 
 [project.optional-dependencies]
+openaq = ["openaq>=1.0.0rc2"]
+purpleair = ["purpleair-api>=1.3.1"]
+all = [
+    "openaq>=1.0.0rc2",
+    "purpleair-api>=1.3.1",
+]
 progress = [
     "tqdm>=4.60",
 ]
@@ -38,6 +42,8 @@ dev = [
     "responses>=0.23.0",
     "freezegun>=1.2.2",
     "tqdm>=4.60",
+    "openaq>=1.0.0rc2",
+    "purpleair-api>=1.3.1",
 ]
 docs = [
     "mkdocs>=1.5.0",
