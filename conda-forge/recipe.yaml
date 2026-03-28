@@ -1,0 +1,53 @@
+schema_version: 1
+
+context:
+  name: aeolus_aq
+  version: "0.4.0"
+
+package:
+  name: ${{ name }}
+  version: ${{ version }}
+
+source:
+  url: https://pypi.org/packages/source/a/${{ name }}/${{ name }}-${{ version }}.tar.gz
+  # sha256 will be filled in after PyPI upload
+
+build:
+  noarch: python
+  script: python -m pip install . --no-deps --no-build-isolation -vv
+
+requirements:
+  host:
+    - python >=3.11
+    - pip
+  run:
+    - python >=3.11
+    - pandas >=2.3.3
+    - rdata >=0.11
+    - requests >=2.32.5
+    - tenacity >=8.2.0
+    - matplotlib-base >=3.7.0
+    - python-dotenv >=1.2.1
+    - numpy >=1.24.0
+    - scipy >=1.10.0
+    - pyarrow >=14.0.0
+
+tests:
+  - python:
+      imports:
+        - aeolus
+      pip_check: true
+  - script: pytest tests/ -v -m "not integration and not live" --ignore=tests/test_openaq.py --ignore=tests/test_purpleair.py
+    requirements:
+      run:
+        - pytest
+
+about:
+  home: https://github.com/southlondonscientific/aeolus
+  summary: Download and standardise air quality data from UK and international monitoring networks
+  license: GPL-3.0-or-later
+  license_file: LICENSE
+
+extra:
+  recipe-maintainers:
+    - ruaraidhdobson
