@@ -476,6 +476,7 @@ def find_sites(
     near: tuple[float, float] | None = None,
     radius_km: float = 50.0,
     bbox: tuple[float, float, float, float] | None = None,
+    measurand: str | list[str] | None = None,
     include_all: bool = False,
     **filters: Any,
 ) -> pd.DataFrame:
@@ -504,6 +505,9 @@ def find_sites(
         near: ``(latitude, longitude)`` for circular search.
         radius_km: Radius in km when *near* is used (default 50).
         bbox: ``(min_lon, min_lat, max_lon, max_lat)`` rectangular filter.
+        measurand: Filter to sites that measure this pollutant (or any of
+            the given list).  Sites with unknown measurands (``None``) are
+            excluded when this filter is active.
         include_all: When *source* is ``None``, include sources that require
             an API key and warn on failures.
         **filters: Source-specific keyword filters (e.g. ``country``,
@@ -511,9 +515,11 @@ def find_sites(
 
     Returns:
         DataFrame with core columns
-        ``[site_code, site_name, latitude, longitude, source_network]``
-        plus ``distance_km`` when *near* is used, plus any source-specific
-        extras.  Output feeds directly into ``aeolus.download()``.
+        ``[site_code, site_name, latitude, longitude, source_network,
+        measurands]`` plus ``distance_km`` when *near* is used, plus any
+        source-specific extras.  ``measurands`` is a ``list[str]`` of
+        pollutant names or ``None`` when unknown.  Output feeds directly
+        into ``aeolus.download()``.
 
     Raises:
         ValueError: If *near* and *bbox* are both provided, or if an
@@ -525,6 +531,10 @@ def find_sites(
         >>> sites = aeolus.find_sites(near=(51.5074, -0.1278), radius_km=20)
         >>> # AURN sites only
         >>> sites = aeolus.find_sites("AURN")
+        >>> # NO2 monitors near Birmingham
+        >>> sites = aeolus.find_sites(
+        ...     "AURN", near=(52.48, -1.89), radius_km=20, measurand="NO2",
+        ... )
         >>> # Multiple sources with bbox
         >>> sites = aeolus.find_sites(
         ...     ["AURN", "SAQN"],
@@ -612,6 +622,22 @@ def find_sites(
             & combined["longitude"].between(min_lon, max_lon)
         )
         combined = combined[mask].reset_index(drop=True)
+
+    # --- measurand filtering ---
+    if measurand is not None:
+        if isinstance(measurand, str):
+            wanted = {measurand}
+        else:
+            wanted = set(measurand)
+
+        def _has_measurand(m):
+            if m is None or not isinstance(m, list):
+                return False
+            return bool(wanted & set(m))
+
+        combined = combined[combined["measurands"].map(_has_measurand)].reset_index(
+            drop=True
+        )
 
     # --- order columns: core -> distance_km -> extras ---
     core = list(_METADATA_COLUMNS)

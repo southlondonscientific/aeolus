@@ -11,6 +11,8 @@ import pytest
 
 from aeolus.transforms import (
     add_column,
+    add_measurands_column,
+    add_measurands_from_sensor_type,
     compose,
     convert_timestamps,
     drop_columns,
@@ -586,3 +588,91 @@ def test_rename_to_existing_column_name():
     # Pandas will overwrite the existing 'b' column
     assert "b" in result.columns
     assert "a" not in result.columns
+
+
+# ============================================================================
+# Tests for add_measurands_column()
+# ============================================================================
+
+
+def test_add_measurands_column_from_sos_mapping():
+    """Looks up measurands per site_code from SOS-style mapping."""
+    lookup = {
+        "MY1": [{"measurand": "NO2", "ts_id": "1"}, {"measurand": "O3", "ts_id": "2"}],
+        "KC1": [{"measurand": "PM2.5", "ts_id": "3"}],
+    }
+    df = pd.DataFrame({"site_code": ["MY1", "KC1", "XX1"]})
+    transform = add_measurands_column(lookup)
+    result = transform(df)
+
+    assert "measurands" in result.columns
+    assert result["measurands"].iloc[0] == ["NO2", "O3"]
+    assert result["measurands"].iloc[1] == ["PM2.5"]
+    assert result["measurands"].iloc[2] is None
+
+
+def test_add_measurands_column_deduplicates():
+    """Duplicate measurand entries in timeseries are deduplicated."""
+    lookup = {
+        "MY1": [
+            {"measurand": "NO2", "ts_id": "1"},
+            {"measurand": "NO2", "ts_id": "2"},  # duplicate timeseries
+            {"measurand": "O3", "ts_id": "3"},
+        ],
+    }
+    df = pd.DataFrame({"site_code": ["MY1"]})
+    result = add_measurands_column(lookup)(df)
+    assert result["measurands"].iloc[0] == ["NO2", "O3"]
+
+
+def test_add_measurands_column_empty_df():
+    """Works on an empty DataFrame."""
+    result = add_measurands_column({})(pd.DataFrame({"site_code": []}))
+    assert "measurands" in result.columns
+    assert len(result) == 0
+
+
+def test_add_measurands_column_sorted():
+    """Measurands are alphabetically sorted."""
+    lookup = {
+        "MY1": [{"measurand": "SO2"}, {"measurand": "CO"}, {"measurand": "NO2"}],
+    }
+    result = add_measurands_column(lookup)(pd.DataFrame({"site_code": ["MY1"]}))
+    assert result["measurands"].iloc[0] == ["CO", "NO2", "SO2"]
+
+
+def test_add_measurands_column_composable():
+    """Works as part of a compose() pipeline."""
+    lookup = {"S1": [{"measurand": "PM2.5"}]}
+    pipeline = compose(
+        add_column("source_network", "TEST"),
+        add_measurands_column(lookup),
+    )
+    df = pd.DataFrame({"site_code": ["S1"]})
+    result = pipeline(df)
+    assert result["source_network"].iloc[0] == "TEST"
+    assert result["measurands"].iloc[0] == ["PM2.5"]
+
+
+# ============================================================================
+# Tests for add_measurands_from_sensor_type()
+# ============================================================================
+
+
+def test_add_measurands_from_sensor_type_maps_correctly():
+    """Maps sensor types to measurand lists."""
+    type_map = {"SDS011": ["PM2.5", "PM10"], "BME280": ["Temperature", "Humidity", "Pressure"]}
+    df = pd.DataFrame({"sensor_type": ["SDS011", "BME280", "UNKNOWN"]})
+    result = add_measurands_from_sensor_type(type_map)(df)
+
+    assert result["measurands"].iloc[0] == ["PM10", "PM2.5"]  # sorted
+    assert result["measurands"].iloc[1] == ["Humidity", "Pressure", "Temperature"]
+    assert result["measurands"].iloc[2] is None  # unknown type
+
+
+def test_add_measurands_from_sensor_type_no_column():
+    """Returns None measurands when sensor_type column is missing."""
+    type_map = {"SDS011": ["PM2.5", "PM10"]}
+    df = pd.DataFrame({"site_code": ["S1"]})
+    result = add_measurands_from_sensor_type(type_map)(df)
+    assert "measurands" in result.columns

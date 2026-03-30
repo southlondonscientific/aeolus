@@ -218,11 +218,11 @@ def empty_data_frame() -> pd.DataFrame:
     return pd.DataFrame(columns=DATA_COLUMNS)
 
 
-METADATA_COLUMNS = ["site_code", "site_name", "latitude", "longitude", "source_network"]
+METADATA_COLUMNS = ["site_code", "site_name", "latitude", "longitude", "source_network", "measurands"]
 
 
 def empty_metadata_frame() -> pd.DataFrame:
-    """Return an empty DataFrame with the standard 5-column metadata schema.
+    """Return an empty DataFrame with the standard 6-column metadata schema.
 
     Use this instead of bare ``pd.DataFrame()`` so that concatenation
     with valid metadata never fails due to missing columns.
