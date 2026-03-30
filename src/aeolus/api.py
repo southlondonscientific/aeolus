@@ -61,9 +61,16 @@ from .types import METADATA_COLUMNS as _METADATA_COLUMNS
 from .types import empty_metadata_frame as _empty_metadata_frame
 
 
-_LAST_RE = re.compile(r"^(\d+)\s*(d|day|days|w|week|weeks|m|month|months|y|year|years)$", re.I)
+_LAST_RE = re.compile(
+    r"^(\d+)\s*"
+    r"(min|mins|minute|minutes|h|hr|hrs|hour|hours"
+    r"|d|day|days|w|week|weeks|m|month|months|y|year|years)$",
+    re.I,
+)
 
 _LAST_UNITS = {
+    "min": "minutes", "mins": "minutes", "minute": "minutes", "minutes": "minutes",
+    "h": "hours", "hr": "hours", "hrs": "hours", "hour": "hours", "hours": "hours",
     "d": "days", "day": "days", "days": "days",
     "w": "weeks", "week": "weeks", "weeks": "weeks",
     "m": "months", "month": "months", "months": "months",
@@ -74,21 +81,26 @@ _LAST_UNITS = {
 def _parse_last(last: str) -> tuple[datetime, datetime]:
     """Parse a ``last="30d"`` shorthand into (start_date, end_date).
 
-    Supported units: d/day/days, w/week/weeks, m/month/months, y/year/years.
+    Supported units: min/minute/minutes, h/hr/hrs/hour/hours,
+    d/day/days, w/week/weeks, m/month/months, y/year/years.
     ``end_date`` is always now (UTC). ``start_date`` is ``end_date - duration``.
     """
     match = _LAST_RE.match(last.strip())
     if not match:
         raise ValueError(
             f"Invalid last value: {last!r}. "
-            "Expected format like '30d', '2w', '6m', '1y'."
+            "Expected format like '6h', '30d', '2w', '6m', '1y'."
         )
     n = int(match.group(1))
     unit = _LAST_UNITS[match.group(2).lower()]
 
     end = datetime.now(tz=timezone.utc)
 
-    if unit == "days":
+    if unit == "minutes":
+        start = end - timedelta(minutes=n)
+    elif unit == "hours":
+        start = end - timedelta(hours=n)
+    elif unit == "days":
         start = end - timedelta(days=n)
     elif unit == "weeks":
         start = end - timedelta(weeks=n)
@@ -204,7 +216,8 @@ def download(
         sites: Site IDs (only when sources is a string)
         start_date: Start of date range (inclusive)
         end_date: End of date range (inclusive)
-        last: Date range shorthand, e.g. "30d", "2w", "6m", "1y".
+        last: Date range shorthand, e.g. "6h", "30d", "2w", "6m", "1y".
+              Also accepts minutes ("90min") and hours ("24hours").
               Mutually exclusive with start_date/end_date.
         combine: If True, combine into single DataFrame (default True)
 
@@ -264,7 +277,7 @@ def download(
 
     # Validate required parameters
     if start_date is None or end_date is None:
-        raise ValueError("start_date and end_date are required (or use last='30d')")
+        raise ValueError("start_date and end_date are required (or use last='6h', last='30d', etc.)")
 
     # Case 1: Single source (string) - simple case
     if isinstance(sources, str):
@@ -407,7 +420,7 @@ def fetch(
         sites: List of site codes (when sources is a string)
         start_date: Start of date range
         end_date: End of date range
-        last: Date range shorthand (e.g. "30d", "6m")
+        last: Date range shorthand (e.g. "6h", "30d", "6m")
         **kwargs: Additional arguments passed to download()
 
     Returns:

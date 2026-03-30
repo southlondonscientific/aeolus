@@ -21,7 +21,7 @@ These tests verify the top-level download() function with its smart routing
 and various input patterns.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pandas as pd
 import pytest
@@ -718,9 +718,34 @@ def test_download_last_invalid_format(register_test_network):
 
 def test_parse_last_various_formats():
     """Test _parse_last with various format strings."""
-    for fmt in ["30d", "30 days", "2w", "2 weeks", "6m", "6 months", "1y", "1 year"]:
+    for fmt in [
+        "30min", "30 minutes", "90mins",
+        "6h", "6 hrs", "24 hours", "1hr",
+        "30d", "30 days", "2w", "2 weeks", "6m", "6 months", "1y", "1 year",
+    ]:
         start, end = api._parse_last(fmt)
         assert start < end
+
+
+def test_parse_last_hours():
+    """Test _parse_last with hours produces correct duration."""
+    start, end = api._parse_last("6h")
+    delta = end - start
+    assert delta == timedelta(hours=6)
+
+
+def test_parse_last_minutes():
+    """Test _parse_last with minutes produces correct duration."""
+    start, end = api._parse_last("90min")
+    delta = end - start
+    assert delta == timedelta(minutes=90)
+
+
+def test_download_last_hours(register_test_network):
+    """Test download with last= in hours."""
+    result = api.download("TEST_NETWORK", ["SITE1"], last="6h")
+    assert isinstance(result, pd.DataFrame)
+    assert len(result) == 1
 
 
 # ============================================================================
