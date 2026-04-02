@@ -548,7 +548,7 @@ def test_get_source_info_portal(register_test_portal):
 
 def test_get_source_info_unknown_source():
     """Test get_source_info with unknown source raises ValueError."""
-    with pytest.raises(ValueError, match="Source 'UNKNOWN' not found"):
+    with pytest.raises(ValueError, match="Unknown source: UNKNOWN"):
         api.get_source_info("UNKNOWN")
 
 
@@ -556,6 +556,12 @@ def test_get_source_info_lists_available_sources(register_test_network):
     """Test that error message lists available sources."""
     with pytest.raises(ValueError, match="Available sources"):
         api.get_source_info("UNKNOWN")
+
+
+def test_optional_source_hint_in_error():
+    """Error message for optional sources includes install instructions."""
+    with pytest.raises(ValueError, match=r"pip install aeolus_aq\[openaq\]"):
+        api.get_source_info("OPENAQ")
 
 
 # ============================================================================

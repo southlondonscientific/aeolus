@@ -61,6 +61,27 @@ from .types import METADATA_COLUMNS as _METADATA_COLUMNS
 from .types import empty_metadata_frame as _empty_metadata_frame
 
 
+# Optional sources that require extra pip packages
+_OPTIONAL_SOURCES = {
+    "OPENAQ": "openaq",
+    "PURPLEAIR": "purpleair",
+}
+
+
+def _unknown_source_message(name: str) -> str:
+    """Build a helpful error message for an unknown source."""
+    upper = name.upper()
+    available = ", ".join(_list_sources())
+    msg = f"Unknown source: {name}\nAvailable sources: {available}"
+    if upper in _OPTIONAL_SOURCES:
+        extra = _OPTIONAL_SOURCES[upper]
+        msg += (
+            f"\n\nNote: {upper} requires an optional SDK. "
+            f"Install it with: pip install aeolus_aq[{extra}]"
+        )
+    return msg
+
+
 _LAST_RE = re.compile(
     r"^(\d+)\s*"
     r"(min|mins|minute|minutes|h|hr|hrs|hour|hours"
@@ -295,10 +316,7 @@ def download(
         # Route to appropriate submodule
         source_spec = get_source(sources)
         if not source_spec:
-            available = ", ".join(list_sources())
-            raise ValueError(
-                f"Unknown source: {sources}\nAvailable sources: {available}"
-            )
+            raise ValueError(_unknown_source_message(sources))
 
         return _fetch_single_source(sources, sites, start_date, end_date)
 
@@ -397,8 +415,7 @@ def get_source_info(source: str) -> dict[str, Any]:
     """
     source_obj = get_source(source)
     if source_obj is None:
-        available = ", ".join(list_sources())
-        raise ValueError(f"Source '{source}' not found. Available sources: {available}")
+        raise ValueError(_unknown_source_message(source))
 
     return {
         "name": source_obj["name"],
@@ -561,10 +578,7 @@ def find_sites(
             source_names = [s.upper() for s in source]
         for name in source_names:
             if not source_exists(name):
-                available = ", ".join(_list_sources())
-                raise ValueError(
-                    f"Unknown source: {name}\nAvailable sources: {available}"
-                )
+                raise ValueError(_unknown_source_message(name))
     else:
         source_names = []
         for name in _list_sources(include_all=include_all):
