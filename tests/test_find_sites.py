@@ -47,7 +47,7 @@ def reset_registry():
         importlib.reload(module)
 
 
-def _make_metadata(rows, source_network="TEST"):
+def _make_metadata(rows, source_network="TEST", measurands=None):
     """Helper to build a metadata DataFrame."""
     records = []
     for code, name, lat, lon in rows:
@@ -58,6 +58,7 @@ def _make_metadata(rows, source_network="TEST"):
                 "latitude": lat,
                 "longitude": lon,
                 "source_network": source_network,
+                "measurands": measurands,
             }
         )
     return pd.DataFrame(records)
@@ -153,7 +154,7 @@ def test_single_network(register_free_network):
     result = api.find_sites("FREE_NET")
     assert isinstance(result, pd.DataFrame)
     assert len(result) == 4
-    assert list(result.columns[:5]) == METADATA_COLUMNS
+    assert list(result.columns[: len(METADATA_COLUMNS)]) == METADATA_COLUMNS
 
 
 def test_single_portal_with_bbox(register_test_portal):
@@ -322,7 +323,7 @@ def test_empty_results_schema(register_free_network):
         "FREE_NET", bbox=(100, 100, 101, 101)  # Nowhere near London
     )
     assert result.empty
-    assert list(result.columns[:5]) == METADATA_COLUMNS
+    assert list(result.columns[: len(METADATA_COLUMNS)]) == METADATA_COLUMNS
 
 
 def test_no_sources_returns_empty():
@@ -340,14 +341,14 @@ def test_no_sources_returns_empty():
 def test_core_columns_first(register_free_network):
     """Core metadata columns are always the first five."""
     result = api.find_sites("FREE_NET")
-    assert list(result.columns[:5]) == METADATA_COLUMNS
+    assert list(result.columns[: len(METADATA_COLUMNS)]) == METADATA_COLUMNS
 
 
 def test_distance_column_after_core(register_free_network):
     """distance_km appears right after the core columns when near is used."""
     result = api.find_sites("FREE_NET", near=(51.50, -0.13), radius_km=100)
-    assert list(result.columns[:5]) == METADATA_COLUMNS
-    assert result.columns[5] == "distance_km"
+    assert list(result.columns[: len(METADATA_COLUMNS)]) == METADATA_COLUMNS
+    assert result.columns[len(METADATA_COLUMNS)] == "distance_km"
 
 
 # ============================================================================
@@ -470,3 +471,79 @@ def test_source_missing_site_name_column():
     assert len(result) == 2
     assert "site_code" in result.columns
     assert "source_network" in result.columns
+
+
+# ============================================================================
+# Measurand filtering
+# ============================================================================
+
+
+@pytest.fixture
+def register_measurand_network():
+    """Register a network with known measurands per site."""
+    rows = [
+        ("A1", "Site A", 51.50, -0.13),
+        ("B1", "Site B", 51.48, 0.00),
+        ("C1", "Site C", 51.47, -0.45),
+    ]
+
+    def _meta(**kw):
+        df = _make_metadata(rows, "MEAS_NET")
+        df["measurands"] = [
+            ["NO2", "O3", "PM2.5"],
+            ["NO2", "PM10"],
+            None,  # unknown
+        ]
+        return df
+
+    register_source(
+        "MEAS_NET",
+        {
+            "type": "network",
+            "name": "Measurand Network",
+            "fetch_metadata": _meta,
+            "fetch_data": lambda sites, s, e: pd.DataFrame(),
+            "normalise": lambda df: df,
+            "requires_api_key": False,
+        },
+    )
+
+
+def test_measurand_filter_single(register_measurand_network):
+    """Filtering by a single measurand returns matching sites."""
+    result = api.find_sites("MEAS_NET", measurand="O3")
+    assert len(result) == 1
+    assert result["site_code"].iloc[0] == "A1"
+
+
+def test_measurand_filter_multiple_matches(register_measurand_network):
+    """Filtering by a shared measurand returns all matching sites."""
+    result = api.find_sites("MEAS_NET", measurand="NO2")
+    assert len(result) == 2
+    assert set(result["site_code"]) == {"A1", "B1"}
+
+
+def test_measurand_filter_list(register_measurand_network):
+    """Filtering by a list of measurands uses any-match semantics."""
+    result = api.find_sites("MEAS_NET", measurand=["PM10", "O3"])
+    assert len(result) == 2
+    assert set(result["site_code"]) == {"A1", "B1"}
+
+
+def test_measurand_filter_excludes_unknown(register_measurand_network):
+    """Sites with measurands=None are excluded by measurand filter."""
+    result = api.find_sites("MEAS_NET", measurand="NO2")
+    assert "C1" not in set(result["site_code"])
+
+
+def test_measurand_filter_no_match(register_measurand_network):
+    """Filtering by a measurand no site has returns empty."""
+    result = api.find_sites("MEAS_NET", measurand="SO2")
+    assert len(result) == 0
+    assert "measurands" in result.columns
+
+
+def test_measurands_column_present(register_free_network):
+    """Metadata always includes a measurands column."""
+    result = api.find_sites("FREE_NET")
+    assert "measurands" in result.columns

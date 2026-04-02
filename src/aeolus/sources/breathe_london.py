@@ -185,6 +185,7 @@ def _create_metadata_normaliser():
             }
         ),
         add_column("source_network", "Breathe London"),
+        add_column("measurands", None),
     )
 
 

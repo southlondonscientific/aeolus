@@ -152,6 +152,72 @@ def add_column(name: str, value: Any | Callable[[pd.DataFrame], Any]) -> Transfo
     return transform
 
 
+def add_measurands_column(
+    lookup: dict[str, list[dict[str, str]]],
+    site_code_col: str = "site_code",
+) -> Transformer:
+    """
+    Return a function that adds a ``measurands`` column by looking up site codes.
+
+    Each entry in *lookup* maps a site code to a list of timeseries dicts
+    that each contain a ``"measurand"`` key (the format used by
+    ``_sos_mapping.json``).  The transformer extracts unique, sorted
+    measurand names per site.  Sites not present in the lookup receive
+    ``None`` (meaning "unknown", not "measures nothing").
+
+    Args:
+        lookup: ``{site_code: [{...,"measurand": "NO2",...}, ...]}``
+        site_code_col: Column containing site codes (default ``"site_code"``)
+
+    Returns:
+        Transformer that adds a ``measurands`` column of ``list[str] | None``
+
+    Example:
+        >>> mapping = {"MY1": [{"measurand": "NO2"}, {"measurand": "O3"}]}
+        >>> transform = add_measurands_column(mapping)
+        >>> df = transform(df)  # adds measurands=["NO2", "O3"] for MY1
+    """
+
+    # Pre-compute the per-site sorted list once
+    _cache: dict[str, list[str]] = {}
+    for code, timeseries in lookup.items():
+        _cache[code] = sorted({ts["measurand"] for ts in timeseries})
+
+    def transform(df: pd.DataFrame) -> pd.DataFrame:
+        if df.empty:
+            return df.assign(measurands=pd.Series(dtype="object"))
+        measurands = df[site_code_col].map(lambda c: _cache.get(c))
+        return df.assign(measurands=measurands)
+
+    return transform
+
+
+def add_measurands_from_sensor_type(
+    sensor_type_map: dict[str, list[str]],
+    sensor_type_col: str = "sensor_type",
+) -> Transformer:
+    """
+    Return a function that adds a ``measurands`` column inferred from sensor type.
+
+    Args:
+        sensor_type_map: ``{"SDS011": ["PM2.5", "PM10"], ...}``
+        sensor_type_col: Column containing sensor type names
+
+    Returns:
+        Transformer that adds a ``measurands`` column of ``list[str] | None``
+    """
+
+    def transform(df: pd.DataFrame) -> pd.DataFrame:
+        if df.empty or sensor_type_col not in df.columns:
+            return df.assign(measurands=pd.Series(dtype="object"))
+        measurands = df[sensor_type_col].map(
+            lambda st: sorted(sensor_type_map.get(st, [])) or None
+        )
+        return df.assign(measurands=measurands)
+
+    return transform
+
+
 def drop_columns(*columns: str) -> Transformer:
     """
     Return a function that drops specified columns from a DataFrame.

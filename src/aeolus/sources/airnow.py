@@ -258,6 +258,7 @@ def fetch_airnow_metadata(
             "longitude": lon,
             "state_code": obs.get("StateCode", ""),
             "reporting_area": obs.get("ReportingArea", ""),
+            "measurands": None,
             "source_network": "AirNow",
         }
 

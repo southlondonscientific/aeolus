@@ -61,9 +61,16 @@ from .types import METADATA_COLUMNS as _METADATA_COLUMNS
 from .types import empty_metadata_frame as _empty_metadata_frame
 
 
-_LAST_RE = re.compile(r"^(\d+)\s*(d|day|days|w|week|weeks|m|month|months|y|year|years)$", re.I)
+_LAST_RE = re.compile(
+    r"^(\d+)\s*"
+    r"(min|mins|minute|minutes|h|hr|hrs|hour|hours"
+    r"|d|day|days|w|week|weeks|m|month|months|y|year|years)$",
+    re.I,
+)
 
 _LAST_UNITS = {
+    "min": "minutes", "mins": "minutes", "minute": "minutes", "minutes": "minutes",
+    "h": "hours", "hr": "hours", "hrs": "hours", "hour": "hours", "hours": "hours",
     "d": "days", "day": "days", "days": "days",
     "w": "weeks", "week": "weeks", "weeks": "weeks",
     "m": "months", "month": "months", "months": "months",
@@ -74,21 +81,26 @@ _LAST_UNITS = {
 def _parse_last(last: str) -> tuple[datetime, datetime]:
     """Parse a ``last="30d"`` shorthand into (start_date, end_date).
 
-    Supported units: d/day/days, w/week/weeks, m/month/months, y/year/years.
+    Supported units: min/minute/minutes, h/hr/hrs/hour/hours,
+    d/day/days, w/week/weeks, m/month/months, y/year/years.
     ``end_date`` is always now (UTC). ``start_date`` is ``end_date - duration``.
     """
     match = _LAST_RE.match(last.strip())
     if not match:
         raise ValueError(
             f"Invalid last value: {last!r}. "
-            "Expected format like '30d', '2w', '6m', '1y'."
+            "Expected format like '6h', '30d', '2w', '6m', '1y'."
         )
     n = int(match.group(1))
     unit = _LAST_UNITS[match.group(2).lower()]
 
     end = datetime.now(tz=timezone.utc)
 
-    if unit == "days":
+    if unit == "minutes":
+        start = end - timedelta(minutes=n)
+    elif unit == "hours":
+        start = end - timedelta(hours=n)
+    elif unit == "days":
         start = end - timedelta(days=n)
     elif unit == "weeks":
         start = end - timedelta(weeks=n)
@@ -208,7 +220,8 @@ def download(
         sites: Site IDs (only when sources is a string)
         start_date: Start of date range (inclusive)
         end_date: End of date range (inclusive)
-        last: Date range shorthand, e.g. "30d", "2w", "6m", "1y".
+        last: Date range shorthand, e.g. "6h", "30d", "2w", "6m", "1y".
+              Also accepts minutes ("90min") and hours ("24hours").
               Mutually exclusive with start_date/end_date.
         combine: If True, combine into single DataFrame (default True)
 
@@ -268,7 +281,7 @@ def download(
 
     # Validate required parameters
     if start_date is None or end_date is None:
-        raise ValueError("start_date and end_date are required (or use last='30d')")
+        raise ValueError("start_date and end_date are required (or use last='6h', last='30d', etc.)")
 
     # Case 1: Single source (string) - simple case
     if isinstance(sources, str):
@@ -411,7 +424,7 @@ def fetch(
         sites: List of site codes (when sources is a string)
         start_date: Start of date range
         end_date: End of date range
-        last: Date range shorthand (e.g. "30d", "6m")
+        last: Date range shorthand (e.g. "6h", "30d", "6m")
         **kwargs: Additional arguments passed to download()
 
     Returns:
@@ -467,6 +480,7 @@ def find_sites(
     near: tuple[float, float] | None = None,
     radius_km: float = 50.0,
     bbox: tuple[float, float, float, float] | None = None,
+    measurand: str | list[str] | None = None,
     include_all: bool = False,
     **filters: Any,
 ) -> pd.DataFrame:
@@ -495,6 +509,9 @@ def find_sites(
         near: ``(latitude, longitude)`` for circular search.
         radius_km: Radius in km when *near* is used (default 50).
         bbox: ``(min_lon, min_lat, max_lon, max_lat)`` rectangular filter.
+        measurand: Filter to sites that measure this pollutant (or any of
+            the given list).  Sites with unknown measurands (``None``) are
+            excluded when this filter is active.
         include_all: When *source* is ``None``, include sources that require
             an API key and warn on failures.
         **filters: Source-specific keyword filters (e.g. ``country``,
@@ -502,9 +519,11 @@ def find_sites(
 
     Returns:
         DataFrame with core columns
-        ``[site_code, site_name, latitude, longitude, source_network]``
-        plus ``distance_km`` when *near* is used, plus any source-specific
-        extras.  Output feeds directly into ``aeolus.download()``.
+        ``[site_code, site_name, latitude, longitude, source_network,
+        measurands]`` plus ``distance_km`` when *near* is used, plus any
+        source-specific extras.  ``measurands`` is a ``list[str]`` of
+        pollutant names or ``None`` when unknown.  Output feeds directly
+        into ``aeolus.download()``.
 
     Raises:
         ValueError: If *near* and *bbox* are both provided, or if an
@@ -516,6 +535,10 @@ def find_sites(
         >>> sites = aeolus.find_sites(near=(51.5074, -0.1278), radius_km=20)
         >>> # AURN sites only
         >>> sites = aeolus.find_sites("AURN")
+        >>> # NO2 monitors near Birmingham
+        >>> sites = aeolus.find_sites(
+        ...     "AURN", near=(52.48, -1.89), radius_km=20, measurand="NO2",
+        ... )
         >>> # Multiple sources with bbox
         >>> sites = aeolus.find_sites(
         ...     ["AURN", "SAQN"],
@@ -607,6 +630,22 @@ def find_sites(
             & combined["longitude"].between(min_lon, max_lon)
         )
         combined = combined[mask].reset_index(drop=True)
+
+    # --- measurand filtering ---
+    if measurand is not None:
+        if isinstance(measurand, str):
+            wanted = {measurand}
+        else:
+            wanted = set(measurand)
+
+        def _has_measurand(m):
+            if m is None or not isinstance(m, list):
+                return False
+            return bool(wanted & set(m))
+
+        combined = combined[combined["measurands"].map(_has_measurand)].reset_index(
+            drop=True
+        )
 
     # --- order columns: core -> distance_km -> extras ---
     core = [c for c in _METADATA_COLUMNS if c in combined.columns]

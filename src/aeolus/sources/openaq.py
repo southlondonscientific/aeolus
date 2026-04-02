@@ -118,7 +118,7 @@ def fetch_openaq_metadata(**filters) -> pd.DataFrame:
             - latitude: Location latitude
             - longitude: Location longitude
             - country: Country code
-            - parameters: List of available pollutants
+            - measurands: List of available pollutants (sorted)
             - source_network: Always "OpenAQ"
 
     Example:
@@ -165,7 +165,7 @@ def fetch_openaq_metadata(**filters) -> pd.DataFrame:
                 "latitude",
                 "longitude",
                 "country",
-                "parameters",
+                "measurands",
                 "source_network",
             ]
         )
@@ -173,9 +173,11 @@ def fetch_openaq_metadata(**filters) -> pd.DataFrame:
     records = []
     for loc in response.results:
         # Get parameter names from sensors
-        parameters = []
+        measurands = []
         if hasattr(loc, "sensors") and loc.sensors:
-            parameters = [s.parameter.name for s in loc.sensors if s.parameter]
+            measurands = sorted(
+                {s.parameter.name for s in loc.sensors if s.parameter}
+            )
 
         records.append(
             {
@@ -184,7 +186,7 @@ def fetch_openaq_metadata(**filters) -> pd.DataFrame:
                 "latitude": loc.coordinates.latitude if loc.coordinates else None,
                 "longitude": loc.coordinates.longitude if loc.coordinates else None,
                 "country": loc.country.code if loc.country else None,
-                "parameters": parameters,
+                "measurands": measurands or None,
                 "source_network": "OpenAQ",
             }
         )

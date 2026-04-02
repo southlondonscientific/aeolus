@@ -280,6 +280,7 @@ def _create_metadata_normaliser():
     return compose(
         rename_and_convert,
         add_column("source_network", "PurpleAir"),
+        add_column("measurands", None),
     )
 
 

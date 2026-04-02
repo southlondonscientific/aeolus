@@ -32,9 +32,11 @@ share common fetching and normalisation functions.
 """
 
 import struct
+import json
 import warnings
 from datetime import datetime, timezone
 from logging import warning
+from pathlib import Path
 
 import pandas as pd
 import rdata
@@ -53,6 +55,8 @@ from ..decorators import retry_on_network_error
 from ..registry import register_source
 from ..transforms import (
     add_column,
+    add_measurands_column,
+    categorise_columns,
     compose,
     convert_timestamps,
     drop_columns,
@@ -161,6 +165,24 @@ def fetch_rdata(url: str) -> pd.DataFrame | None:
         return None
 
 
+# SOS mapping cache (loaded once, shared across networks)
+_sos_mapping: dict | None = None
+_SOS_MAPPING_PATH = Path(__file__).parent / "_sos_mapping.json"
+
+
+def _load_sos_mapping() -> dict:
+    """Load the SOS station mapping, caching for reuse."""
+    global _sos_mapping
+    if _sos_mapping is None:
+        try:
+            with open(_SOS_MAPPING_PATH) as f:
+                _sos_mapping = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            warning("Could not load SOS mapping; measurands will be unavailable")
+            _sos_mapping = {}
+    return _sos_mapping
+
+
 # Metadata normalisation pipeline for regulatory networks
 def normalise_regulatory_metadata(network_name: str) -> Normaliser:
     """
@@ -172,6 +194,9 @@ def normalise_regulatory_metadata(network_name: str) -> Normaliser:
     Returns:
         Normaliser: Function that normalises metadata DataFrame
     """
+    sos_mapping = _load_sos_mapping()
+    site_lookup = sos_mapping.get(network_name.lower(), {})
+
     return compose(
         drop_columns("parameter", "Parameter_name"),
         rename_columns(
@@ -181,6 +206,7 @@ def normalise_regulatory_metadata(network_name: str) -> Normaliser:
             }
         ),
         add_column("source_network", network_name.upper()),
+        add_measurands_column(site_lookup),
         reset_index(),
     )
 

@@ -314,6 +314,7 @@ def _create_metadata_normaliser():
             }
         ),
         add_column("source_network", "AirQo"),
+        add_column("measurands", None),
     )
 
 

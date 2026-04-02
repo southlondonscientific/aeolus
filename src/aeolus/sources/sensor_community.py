@@ -405,11 +405,14 @@ def fetch_sensor_community_metadata(
         # Cache the sensor type for later data fetching
         _sensor_type_cache[sensor_id] = sensor_type_name
 
+        measurands = sorted(SENSOR_TYPE_MAP.get(sensor_type_name, [])) or None
+
         sensors[sensor_id] = {
             "site_code": sensor_id,
             "latitude": location.get("latitude"),
             "longitude": location.get("longitude"),
             "sensor_type": sensor_type_name,
+            "measurands": measurands,
             "location_type": "indoor" if location.get("indoor") == 1 else "outdoor",
             "country": location.get("country", ""),
             "source_network": "Sensor.Community",

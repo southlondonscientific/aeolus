@@ -299,8 +299,8 @@ class TestFetchOpenaqMetadata:
         assert pd.isna(result["country"].iloc[0])
 
     @patch("aeolus.sources.openaq._get_client")
-    def test_extracts_parameters_from_sensors(self, mock_get_client, mock_location):
-        """Test that parameters are extracted from sensors."""
+    def test_extracts_measurands_from_sensors(self, mock_get_client, mock_location):
+        """Test that measurands are extracted from sensors."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
 
@@ -310,7 +310,7 @@ class TestFetchOpenaqMetadata:
 
         result = fetch_openaq_metadata(country="GB")
 
-        assert result["parameters"].iloc[0] == ["no2", "pm25"]
+        assert result["measurands"].iloc[0] == ["no2", "pm25"]
 
     @patch("aeolus.sources.openaq._get_client")
     def test_adds_source_network(self, mock_get_client, mock_location):
