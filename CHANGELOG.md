@@ -5,7 +5,7 @@ All notable changes to Aeolus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.0] - 2026-03-23
+## [0.4.0] - 2026-04-02
 
 ### Added
 
@@ -24,7 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`aeolus.cache`** module - Transparent Parquet-based file cache for downloaded data. Enable with `enable_cache()`, manage with `clear_cache()`, `cache_info()`. Avoids redundant API calls when re-running notebooks or analyses. Cache directory defaults to `~/.cache/aeolus/`, configurable via `AEOLUS_CACHE_DIR` env var.
 
 #### Unified Site Discovery
-- **`aeolus.find_sites()`** - Top-level function that abstracts the network/portal distinction. Supports circular search (`near=(lat, lon)` + `radius_km`), rectangular filtering (`bbox`), and automatic source selection (free sources by default, opt-in for API-key sources via `include_all=True`). Returns metadata DataFrame with `distance_km` column when `near` is used, sorted nearest-first.
+- **`aeolus.find_sites()`** - Top-level function that abstracts the network/portal distinction. Supports circular search (`near=(lat, lon)` + `radius_km`), rectangular filtering (`bbox`), `measurand=` filtering (e.g. `measurand="NO2"`), and automatic source selection (free sources by default, opt-in for API-key sources via `include_all=True`). Returns metadata DataFrame with `distance_km` column when `near` is used, sorted nearest-first.
+- **Per-site measurands metadata** - Metadata now includes a `measurands` column (`list[str] | None`) showing which pollutants each site measures. Populated for regulatory networks (from SOS mapping), OpenAQ, and Sensor.Community.
 - **`aeolus.geo`** module - Geospatial utilities: `haversine_distance()` (great-circle distance) and `near_to_bbox()` (point+radius to bounding box).
 - **`METADATA_COLUMNS`** constant and `empty_metadata_frame()` helper in `aeolus.types`.
 
@@ -35,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Convenience Features
 - **`aeolus.summarise()`** - Quick data overview: sites, pollutants, date range, record counts, and data capture per site+pollutant combination.
-- **Date range shorthand** - `aeolus.download("AURN", ["MY1"], last="30d")` as alternative to explicit `start_date`/`end_date`. Supports days (`30d`), weeks (`2w`), months (`6m`), years (`1y`).
+- **Date range shorthand** - `aeolus.download("AURN", ["MY1"], last="30d")` as alternative to explicit `start_date`/`end_date`. Supports minutes (`90min`), hours (`6h`), days (`30d`), weeks (`2w`), months (`6m`), years (`1y`).
 
 #### Visualisation (`aeolus.viz`)
 - **`plot_time_variation()`** - Combined 2x2 temporal variation plot (diurnal, weekly, monthly, hour x weekday heatmap), equivalent to R openair's `timeVariation`.
@@ -50,7 +51,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`sqlmodel` dependency** — only used by the removed `database_operations` module.
 
 ### Changed
+- **OpenAQ and PurpleAir SDKs are now optional dependencies** — `pip install aeolus_aq` installs the core library; `pip install aeolus_aq[openaq]`, `pip install aeolus_aq[purpleair]`, or `pip install aeolus_aq[all]` adds portal sources. Helpful error messages guide users to install the right extra. This enables conda-forge distribution where the SDKs are not available.
 - **OpenAQ SDK upgraded to 1.0rc2** — automatic rate-limit waiting (`auto_wait=True`), full pagination (previously capped at 1000 measurements per sensor), improved connection tuning.
+- **`python-dotenv` removed from runtime dependencies** — only needed by demo scripts and notebooks, not the library itself.
 
 ### Fixed
 - **`aq_stats()` year filter** - Handle numpy integer types when filtering by year.
