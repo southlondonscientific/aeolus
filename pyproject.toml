@@ -19,6 +19,33 @@ dependencies = [
     "scipy>=1.10.0",
     "pyarrow>=14.0.0",
 ]
+keywords = [
+    "air quality",
+    "pollution",
+    "AURN",
+    "monitoring",
+    "environmental data",
+    "atmospheric science",
+    "open data",
+    "openaq",
+    "sensor network",
+    "PM2.5",
+    "NO2",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Framework :: Jupyter",
+    "Operating System :: OS Independent",
+]
 license = "GPL-3.0-or-later"
 license-files = ["LICEN[CS]E*"]
 
