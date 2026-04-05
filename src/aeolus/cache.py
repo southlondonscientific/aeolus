@@ -80,12 +80,24 @@ def _cache_key(source: str, site: str, start_date: datetime, end_date: datetime)
 
 
 def _cache_path(source: str, site: str, start_date: datetime, end_date: datetime) -> Path:
-    """Get the filesystem path for a cached dataset."""
+    """Get the filesystem path for a cached dataset.
+
+    Keeps the filename human-readable for single sites, but truncates
+    and hashes multi-site keys to stay within filesystem limits (macOS
+    enforces a 255-byte filename limit).
+    """
     import re
 
     cache_dir = _get_cache_dir()
     key = _cache_key(source, site, start_date, end_date)
     safe_site = re.sub(r"[^\w\-]", "_", site)
+
+    # Truncate long site strings (e.g. 321 AURN sites joined with commas).
+    # Keep the first few site codes for readability, then rely on the hash.
+    max_site_len = 80
+    if len(safe_site) > max_site_len:
+        safe_site = safe_site[:max_site_len].rstrip("_") + "_etc"
+
     return cache_dir / source.upper() / f"{safe_site}_{key}.parquet"
 
 

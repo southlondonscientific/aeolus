@@ -126,6 +126,25 @@ class TestCachePath:
         assert p1.parent.name == "AURN"
         assert p2.parent.name == "SAQN"
 
+    def test_long_site_list_filename_within_limit(self, isolated_cache):
+        """Many sites joined together must not exceed filesystem filename limits."""
+        # Simulate AURN's 321 sites joined by commas (as _fetch_single_source does)
+        fake_sites = ",".join(f"SITE{i:03d}" for i in range(321))
+        path = _cache_path("AURN", fake_sites, datetime(2024, 1, 1), datetime(2024, 1, 31))
+        # macOS filename limit is 255 bytes
+        assert len(path.name.encode()) <= 255, (
+            f"Cache filename is {len(path.name.encode())} bytes, exceeds 255-byte limit"
+        )
+
+    def test_long_site_list_still_unique(self, isolated_cache):
+        """Different long site lists produce different cache paths."""
+        sites_a = ",".join(f"SITE{i:03d}" for i in range(321))
+        sites_b = ",".join(f"SITE{i:03d}" for i in range(1, 322))
+        start, end = datetime(2024, 1, 1), datetime(2024, 1, 31)
+        path_a = _cache_path("AURN", sites_a, start, end)
+        path_b = _cache_path("AURN", sites_b, start, end)
+        assert path_a != path_b
+
 
 # =========================================================================
 # Get/Put lifecycle

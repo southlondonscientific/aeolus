@@ -5,6 +5,17 @@ All notable changes to Aeolus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-04-05
+
+### Fixed
+- **Missing package data in wheel** — `_sos_mapping.json` and bundled IBM Plex Sans fonts were excluded from the published wheel because `pyproject.toml` lacked a `[tool.setuptools.package-data]` section. This caused `get_current()` to fall back to slow live API matching, `find_sites()` metadata to lose the `measurands` column, and plots to use fallback fonts.
+- **Stale deleted modules in wheel** — `database_operations.py` and `meteorology.py` (removed in v0.4.0) were leaking back into builds from a stale `build/` directory.
+- **Cache filename too long for large site lists** — When downloading all sites from a network (e.g. 321 AURN sites), the cache filename exceeded the macOS 255-byte limit. The human-readable site portion is now truncated; the SHA-256 hash still ensures uniqueness.
+
+### Added
+- **`statsmodels` optional dependency** — `pip install aeolus_aq[stats]` installs `statsmodels` for deseasonalisation in `trend()`. Also included in `[all]` and `[dev]` extras.
+- **Packaging test suite** — `tests/test_packaging.py` verifies that data files, fonts, and SOS backends are present in the installed package. `scripts/test_wheel.sh` builds a wheel, installs it in an isolated venv, and runs tests against it (not the source tree).
+
 ## [0.4.0] - 2026-04-02
 
 ### Added
