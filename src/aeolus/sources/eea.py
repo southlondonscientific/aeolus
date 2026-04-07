@@ -46,15 +46,30 @@ Implementation notes:
 """
 
 import math
+import re
 import warnings
+from datetime import datetime, timezone
+from io import BytesIO
 from logging import getLogger
+from zipfile import ZipFile
 
 import pandas as pd
 import requests
 
 from ..decorators import retry_on_network_error
+from ..transforms import (
+    add_column,
+    compose,
+    filter_rows,
+    rename_columns,
+    reset_index,
+    select_columns,
+)
 from ..types import (
+    DATA_COLUMNS,
     METADATA_COLUMNS,
+    AeolusDataWarning,
+    empty_data_frame,
     empty_metadata_frame,
 )
 
@@ -275,3 +290,213 @@ def fetch_eea_metadata(
         return empty_metadata_frame()
 
     return pd.DataFrame(all_records, columns=METADATA_COLUMNS)
+
+
+# ============================================================================
+# PARQUET DOWNLOAD API
+# ============================================================================
+
+# Regex to extract EoI code from Samplingpoint strings like
+# "IE/SPO.IE.IE0131ASample1_8" -> "IE0131A"
+_EOI_RE = re.compile(r"\.([A-Z]{2}\d{3,5}[A-Z]?)")
+
+
+def _extract_site_code(samplingpoint: str) -> str:
+    """Extract the EoI station code from a Samplingpoint identifier.
+
+    Examples
+    --------
+    >>> _extract_site_code("IE/SPO.IE.IE0131ASample1_8")
+    'IE0131A'
+    >>> _extract_site_code("DE/SPO.DE.DEBB021Sample_5")
+    'DEBB021'
+    """
+    m = _EOI_RE.search(samplingpoint)
+    return m.group(1) if m else samplingpoint
+
+
+@retry_on_network_error
+def _download_parquet(body: dict) -> bytes:
+    """POST to the EEA Parquet Download API and return the raw ZIP bytes."""
+    url = f"{DOWNLOAD_API_BASE}/ParquetFile/urls"
+    resp = requests.post(url, json=body, timeout=120)
+    resp.raise_for_status()
+
+    # The API returns a list of download URLs; fetch the first one
+    urls = resp.json()
+    if not urls:
+        return b""
+
+    download_url = urls[0] if isinstance(urls[0], str) else urls[0].get("url", "")
+    if not download_url:
+        return b""
+
+    resp = requests.get(download_url, timeout=300)
+    resp.raise_for_status()
+    return resp.content
+
+
+# ============================================================================
+# NORMALISER
+# ============================================================================
+
+
+def normalise_eea_data():
+    """Return a compose() pipeline that normalises raw EEA Parquet data.
+
+    The pipeline:
+    1. Filters rows where Validity >= 1
+    2. Extracts site_code from Samplingpoint
+    3. Maps Pollutant int codes to measurand names
+    4. Renames Start -> date_time, Value -> value
+    5. Converts value to numeric
+    6. Normalises Unit from "ug.m-3" to "ug/m3"
+    7. Adds source_network="EEA"
+    8. Maps Verification to ratification
+    9. Adds created_at
+    10. Selects standard columns and resets index
+    """
+
+    def extract_site_codes(df: pd.DataFrame) -> pd.DataFrame:
+        df = df.copy()
+        df["site_code"] = df["Samplingpoint"].apply(_extract_site_code)
+        return df
+
+    def map_pollutants(df: pd.DataFrame) -> pd.DataFrame:
+        df = df.copy()
+        df["measurand"] = df["Pollutant"].map(POLLUTANT_CODE_MAP)
+        return df
+
+    def convert_value(df: pd.DataFrame) -> pd.DataFrame:
+        df = df.copy()
+        df["value"] = pd.to_numeric(df["value"], errors="coerce")
+        return df
+
+    def normalise_units(df: pd.DataFrame) -> pd.DataFrame:
+        df = df.copy()
+        df["units"] = df["units"].str.replace("ug.m-3", "ug/m3", regex=False)
+        return df
+
+    def map_verification(df: pd.DataFrame) -> pd.DataFrame:
+        df = df.copy()
+        df["ratification"] = df["Verification"].map(VERIFICATION_MAP).fillna("Unknown")
+        return df
+
+    return compose(
+        filter_rows(lambda df: df["Validity"] >= 1),
+        extract_site_codes,
+        map_pollutants,
+        rename_columns({"Start": "date_time", "Value": "value", "Unit": "units"}),
+        convert_value,
+        normalise_units,
+        add_column("source_network", "EEA"),
+        map_verification,
+        add_column("created_at", lambda df: datetime.now(timezone.utc)),
+        select_columns(*DATA_COLUMNS),
+        reset_index(),
+    )
+
+
+# ============================================================================
+# DATA FETCHER
+# ============================================================================
+
+
+def _infer_country_from_sites(sites: list[str]) -> str | None:
+    """Infer the 2-letter country code from EoI site codes.
+
+    EoI codes start with a 2-letter country prefix (e.g. IE0131A -> IE).
+    Returns the country code if all sites share the same prefix, else None.
+    """
+    countries = {s[:2] for s in sites if len(s) >= 2}
+    return countries.pop() if len(countries) == 1 else None
+
+
+def fetch_eea_data(
+    sites: list[str],
+    start_date: datetime,
+    end_date: datetime,
+    *,
+    country: str | None = None,
+    pollutants: list[int] | None = None,
+) -> pd.DataFrame:
+    """Fetch air quality data from the EEA Parquet Download API.
+
+    Parameters
+    ----------
+    sites : list[str]
+        List of EoI station codes (e.g. ["IE0131A", "IE007CP"]).
+    start_date : datetime
+        Start of date range (inclusive).
+    end_date : datetime
+        End of date range (inclusive).
+    country : str, optional
+        ISO 3166-1 alpha-2 country code. If not provided, inferred from sites.
+    pollutants : list[int], optional
+        EEA pollutant codes to request. If not provided, fetches all.
+
+    Returns
+    -------
+    pd.DataFrame
+        Normalised data with standard 8-column schema.
+    """
+    if country is None:
+        country = _infer_country_from_sites(sites)
+
+    if country is None:
+        warnings.warn(
+            "Cannot infer country from mixed-country site codes. "
+            "Pass country= explicitly.",
+            AeolusDataWarning,
+            stacklevel=2,
+        )
+        return empty_data_frame()
+
+    body: dict = {
+        "countries": [country.upper()],
+        "dataset": DATASET_E1A,
+        "dateTimeStart": start_date.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "dateTimeEnd": end_date.strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+
+    if pollutants:
+        body["pollutants"] = pollutants
+
+    logger.info(
+        "Downloading EEA data for %s (%d sites, %s to %s)",
+        country,
+        len(sites),
+        start_date.date(),
+        end_date.date(),
+    )
+
+    zip_bytes = _download_parquet(body)
+    if not zip_bytes:
+        return empty_data_frame()
+
+    # Parse Parquet files from ZIP
+    dfs: list[pd.DataFrame] = []
+    with ZipFile(BytesIO(zip_bytes)) as zf:
+        for name in zf.namelist():
+            if name.endswith(".parquet"):
+                dfs.append(pd.read_parquet(BytesIO(zf.read(name))))
+
+    if not dfs:
+        return empty_data_frame()
+
+    raw_df = pd.concat(dfs, ignore_index=True)
+
+    if raw_df.empty:
+        return empty_data_frame()
+
+    # Normalise
+    normalise = normalise_eea_data()
+    df = normalise(raw_df)
+
+    # Filter to requested sites
+    df = df[df["site_code"].isin(sites)]
+
+    if df.empty:
+        return empty_data_frame()
+
+    return df.reset_index(drop=True)
