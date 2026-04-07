@@ -27,17 +27,16 @@ resolution.
 Pollutants include: NO2, PM10, PM2.5, O3, SO2, CO, NO, NOx, benzene, and
 many trace metals and organic compounds.
 
-No API key is required. Data download uses the ``airbase`` SDK
-(``pip install airbase``), which handles the EEA's Parquet download API
-and per-country Samplingpoint format variations.
+No API key or optional SDK is required.
 
-Station metadata: ESRI REST service (ArcGIS) — no SDK required
-Data download: airbase SDK wrapping the EEA Parquet Download API
+Station metadata: ESRI REST service (ArcGIS)
+Data download: EEA Parquet Download API (Azure)
+Samplingpoint mapping: EEA metadata CSV (discomap.eea.europa.eu)
 
 Implementation notes:
     The EEA publishes two dataset variants (E1a and E2a) through different
-    reporting pipelines. We use "Verified" (E1a) which has the best coverage
-    for recent data. The per-row ``Verification`` field (not the dataset ID)
+    reporting pipelines. We use E1a (dataset=1, "Verified") which has the
+    best coverage for recent data. The per-row ``Verification`` field
     determines ratification status:
       - 1 = Not yet verified  -> "Provisional"
       - 2 = Verified by EEA   -> "Verified"
@@ -45,20 +44,20 @@ Implementation notes:
 
     The Samplingpoint identifier format varies wildly between countries
     (e.g. "IE/SPO.IE.IE0131ASample1_8" for Ireland, "DE/SPO.DE_DEBB021_NO2_dataGroup1"
-    for Germany, "FR/SPO-FR01011_38" for France). Rather than maintaining fragile
-    per-country regex patterns, we use the airbase SDK's metadata CSV to build
-    a Samplingpoint -> EoI station code mapping.
+    for Germany, "ES/SP_01022001_10_47" for Spain). Rather than maintaining fragile
+    per-country regex patterns, we fetch the EEA's metadata CSV which maps
+    Samplingpoint IDs to EoI station codes authoritatively.
 
     See docs/superpowers/plans/2026-04-07-eea-sonitus-sources.md for the
     full research notes on dataset variants and Samplingpoint formats.
 """
 
 import math
-import os
-import tempfile
 import warnings
 from datetime import datetime, timezone
+from io import BytesIO, StringIO
 from logging import getLogger
+from zipfile import ZipFile
 
 import pandas as pd
 import requests
@@ -92,6 +91,14 @@ ESRI_BASE = (
     "AirQuality/AirQualityDownloadServiceEUMonitoringStations/MapServer/0"
 )
 
+DOWNLOAD_API_BASE = "https://eeadmz1-downloads-api-appservice.azurewebsites.net"
+
+# EEA metadata CSV — hosted on EEA's own discomap infrastructure
+_METADATA_CSV_URL = (
+    "https://discomap.eea.europa.eu/App/AQViewer/download"
+    "?fqn=Airquality_Dissem.b2g.measurements&f=csv"
+)
+
 # ESRI pagination limit
 _ESRI_PAGE_SIZE = 2000
 
@@ -109,12 +116,29 @@ POLLUTANT_CODE_MAP = {
     20: "C6H6",
 }
 
+# Aeolus measurand names -> EEA pollutant notation (for API requests)
+MEASURAND_TO_NOTATION = {
+    "SO2": "SO2",
+    "PM10": "PM10",
+    "O3": "O3",
+    "NO2": "NO2",
+    "NOx": "NOX as NO2",
+    "CO": "CO",
+    "NO": "NO",
+    "PM2.5": "PM2.5",
+    "PM1": "PM1",
+    "C6H6": "C6H6",
+}
+
 # EEA Verification codes -> Aeolus ratification values
 VERIFICATION_MAP = {
     1: "Provisional",
     2: "Verified",
     3: "Verified",
 }
+
+# Dataset ID: E1a (primary validated assessment data)
+DATASET_E1A = 1
 
 # Pollutant names as they appear in PopupInfo HTML
 _POPUP_POLLUTANT_PATTERNS = {
@@ -133,33 +157,38 @@ _POPUP_POLLUTANT_PATTERNS = {
     "O3": "O3",
 }
 
-# Module-level cache for the airbase client and SPO->EoI mapping
-_client = None
+# Module-level cache for the Samplingpoint -> EoI mapping
 _spo_to_eoi: dict[str, str] | None = None
 
 
 # ============================================================================
-# AIRBASE SDK CLIENT
+# SAMPLINGPOINT -> EOI CODE MAPPING
 # ============================================================================
 
 
-def _get_client():
-    """Get or create an airbase client singleton."""
-    import airbase
+@retry_on_network_error
+def _fetch_metadata_csv() -> str | None:
+    """Download the EEA metadata CSV from discomap.eea.europa.eu.
 
-    global _client
-    if _client is None:
-        _client = airbase.AirbaseClient()
-    return _client
+    Despite the ``f=csv`` parameter, the endpoint returns a ZIP file
+    containing ``DataExtract.csv`` (with ``Content-Type: text/html``).
+    """
+    resp = requests.get(_METADATA_CSV_URL, timeout=60)
+    resp.raise_for_status()
+
+    # The response is a ZIP containing DataExtract.csv
+    with ZipFile(BytesIO(resp.content)) as zf:
+        with zf.open("DataExtract.csv") as f:
+            return f.read().decode("utf-8", errors="replace")
 
 
 def _get_spo_mapping() -> dict[str, str]:
-    """Build a Samplingpoint -> EoI code mapping from airbase metadata.
+    """Build a Samplingpoint -> EoI code mapping from the EEA metadata CSV.
 
-    The metadata CSV maps ``Sampling Point Id`` (e.g. ``SPO.IE.IE0131ASample1_8``)
+    The CSV maps ``Sampling Point Id`` (e.g. ``SPO.IE.IE0131ASample1_8``)
     to ``Air Quality Station EoI Code`` (e.g. ``IE0131A``).  The Parquet data
     uses ``{CC}/{Sampling Point Id}`` as the ``Samplingpoint`` column, so we
-    store mappings both with and without the country prefix.
+    store the mapping keyed by the SPO portion (after the country prefix slash).
 
     This mapping is cached at module level after the first call.
     """
@@ -167,17 +196,34 @@ def _get_spo_mapping() -> dict[str, str]:
     if _spo_to_eoi is not None:
         return _spo_to_eoi
 
-    client = _get_client()
-    tmpfile = os.path.join(tempfile.gettempdir(), "aeolus_eea_metadata.csv")
-    client.download_metadata(tmpfile)
-
-    df = pd.read_csv(tmpfile, on_bad_lines="skip", low_memory=False)
+    csv_text = _fetch_metadata_csv()
+    if csv_text is None:
+        logger.warning("Failed to download EEA metadata CSV; site code mapping unavailable")
+        _spo_to_eoi = {}
+        return _spo_to_eoi
 
     spo_col = "Sampling Point Id"
     eoi_col = "Air Quality Station EoI Code"
 
-    mapping = {}
-    for _, row in df[[eoi_col, spo_col]].drop_duplicates().iterrows():
+    try:
+        # The EEA CSV has known formatting issues (unescaped commas in fields,
+        # inconsistent quoting). Use Python engine with error_bad_lines=skip
+        # and only read the two columns we need.
+        df = pd.read_csv(
+            StringIO(csv_text),
+            usecols=[spo_col, eoi_col],
+            on_bad_lines="skip",
+            engine="python",
+        )
+    except Exception:
+        # Fallback: the CSV may have severe issues. Parse line-by-line.
+        logger.warning("EEA metadata CSV parsing failed; building mapping line-by-line")
+        mapping = _parse_csv_fallback(csv_text, spo_col, eoi_col)
+        _spo_to_eoi = mapping
+        return _spo_to_eoi
+
+    mapping: dict[str, str] = {}
+    for _, row in df.drop_duplicates().iterrows():
         spo = str(row[spo_col]).strip('"')
         eoi = str(row[eoi_col]).strip('"')
         if spo and eoi and spo != "nan" and eoi != "nan":
@@ -188,15 +234,41 @@ def _get_spo_mapping() -> dict[str, str]:
     return _spo_to_eoi
 
 
+def _parse_csv_fallback(csv_text: str, spo_col: str, eoi_col: str) -> dict[str, str]:
+    """Parse the metadata CSV line-by-line as a fallback for malformed CSVs."""
+    mapping: dict[str, str] = {}
+    lines = csv_text.split("\n")
+    if not lines:
+        return mapping
+
+    # Find column indices from header
+    header = lines[0].split(",")
+    try:
+        spo_idx = next(i for i, h in enumerate(header) if spo_col in h)
+        eoi_idx = next(i for i, h in enumerate(header) if eoi_col in h)
+    except StopIteration:
+        return mapping
+
+    for line in lines[1:]:
+        parts = line.split(",")
+        if len(parts) > max(spo_idx, eoi_idx):
+            spo = parts[spo_idx].strip('"').strip()
+            eoi = parts[eoi_idx].strip('"').strip()
+            if spo and eoi:
+                mapping[spo] = eoi
+
+    return mapping
+
+
 def _samplingpoint_to_eoi(samplingpoint: str) -> str:
     """Convert a Samplingpoint identifier to an EoI station code.
 
-    Looks up the airbase metadata mapping. Falls back to returning
+    Looks up the EEA metadata CSV mapping. Falls back to returning
     the raw Samplingpoint if no mapping is found.
     """
     mapping = _get_spo_mapping()
 
-    # Try with and without country prefix (e.g. "IE/SPO.IE..." -> "SPO.IE...")
+    # Strip country prefix: "IE/SPO.IE.IE0131A..." -> "SPO.IE.IE0131A..."
     if "/" in samplingpoint:
         spo = samplingpoint.split("/", 1)[1]
     else:
@@ -349,6 +421,20 @@ def fetch_eea_metadata(
 
 
 # ============================================================================
+# PARQUET DOWNLOAD API
+# ============================================================================
+
+
+@retry_on_network_error
+def _download_parquet(body: dict) -> bytes | None:
+    """POST to the EEA Parquet Download API, return raw ZIP bytes."""
+    url = f"{DOWNLOAD_API_BASE}/ParquetFile/dynamic"
+    resp = requests.post(url, json=body, timeout=120)
+    resp.raise_for_status()
+    return resp.content
+
+
+# ============================================================================
 # DATA NORMALISATION
 # ============================================================================
 
@@ -358,7 +444,7 @@ def normalise_eea_data():
 
     The pipeline:
     1. Filters rows where Validity >= 1
-    2. Maps Samplingpoint to EoI station code via airbase metadata
+    2. Maps Samplingpoint to EoI station code via EEA metadata CSV
     3. Maps Pollutant int codes to measurand names
     4. Renames Start -> date_time, Value -> value
     5. Converts value to numeric
@@ -432,7 +518,7 @@ def fetch_eea_data(
     country: str | None = None,
     pollutants: list[str] | None = None,
 ) -> pd.DataFrame:
-    """Fetch air quality data from the EEA via the airbase SDK.
+    """Fetch air quality data from the EEA Parquet Download API.
 
     Parameters
     ----------
@@ -453,8 +539,6 @@ def fetch_eea_data(
     pd.DataFrame
         Normalised data with standard 8-column schema.
     """
-    import airbase
-
     if country is None:
         country = _infer_country_from_sites(sites)
 
@@ -467,72 +551,50 @@ def fetch_eea_data(
         )
         return empty_data_frame()
 
-    # Build airbase request
-    client = _get_client()
-
-    # Map Aeolus pollutant names to EEA notation
-    poll_arg = None
+    # Build POST body for the EEA Parquet API
+    notation_list: list[str] = []
     if pollutants:
-        poll_arg = []
         for p in pollutants:
-            results = client.search_pollutant(p)
-            if results:
-                poll_arg.append(results[0]["poll"])
+            notation = MEASURAND_TO_NOTATION.get(p)
+            if notation:
+                notation_list.append(notation)
 
-    try:
-        request = client.request(
-            "Verified",
-            country.upper(),
-            poll=poll_arg,
-        )
-    except Exception as e:
-        warnings.warn(
-            f"Failed to build EEA request: {e}",
-            AeolusDataWarning,
-            stacklevel=2,
-        )
+    body: dict = {
+        "countries": [country.upper()],
+        "cities": [],
+        "pollutants": notation_list if notation_list else [],
+        "dataset": DATASET_E1A,
+        "dateTimeStart": start_date.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "dateTimeEnd": end_date.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "compress": True,
+    }
+
+    zip_bytes = _download_parquet(body)
+    if not zip_bytes:
         return empty_data_frame()
 
-    # Download to temp directory
-    tmpdir = tempfile.mkdtemp(prefix="aeolus_eea_")
-    try:
-        request.download(dir=tmpdir)
-    except Exception as e:
-        warnings.warn(
-            f"EEA download failed: {e}",
-            AeolusDataWarning,
-            stacklevel=2,
-        )
-        return empty_data_frame()
-
-    # Read all parquet files
+    # Parse Parquet files from ZIP
     dfs: list[pd.DataFrame] = []
-    for root, _dirs, files in os.walk(tmpdir):
-        for fname in files:
-            if fname.endswith(".parquet"):
-                fpath = os.path.join(root, fname)
-                df = pd.read_parquet(fpath)
-                if not df.empty:
-                    dfs.append(df)
+    try:
+        with ZipFile(BytesIO(zip_bytes)) as zf:
+            for name in zf.namelist():
+                if name.endswith(".parquet"):
+                    with zf.open(name) as f:
+                        df = pd.read_parquet(BytesIO(f.read()))
+                        if not df.empty:
+                            dfs.append(df)
+    except Exception as e:
+        warnings.warn(
+            f"Failed to parse EEA Parquet response: {e}",
+            AeolusDataWarning,
+            stacklevel=2,
+        )
+        return empty_data_frame()
 
     if not dfs:
         return empty_data_frame()
 
     raw_df = pd.concat(dfs, ignore_index=True)
-
-    # Filter to requested date range (airbase downloads full history).
-    # Match timezone awareness of the Start column.
-    ts_start = pd.Timestamp(start_date)
-    ts_end = pd.Timestamp(end_date)
-    if raw_df["Start"].dt.tz is not None and ts_start.tzinfo is None:
-        ts_start = ts_start.tz_localize("UTC")
-        ts_end = ts_end.tz_localize("UTC")
-    elif raw_df["Start"].dt.tz is None and ts_start.tzinfo is not None:
-        ts_start = ts_start.tz_localize(None)
-        ts_end = ts_end.tz_localize(None)
-    raw_df = raw_df[
-        (raw_df["Start"] >= ts_start) & (raw_df["Start"] < ts_end)
-    ]
 
     if raw_df.empty:
         return empty_data_frame()

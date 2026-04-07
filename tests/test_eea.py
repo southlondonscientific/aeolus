@@ -259,25 +259,14 @@ class TestNormaliseEeaData:
 
 
 class TestFetchEeaData:
-    """Test the data fetcher with mocked airbase client."""
+    """Test the data fetcher with mocked Parquet API."""
 
     @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
-    @patch("aeolus.sources.eea._get_client")
-    def test_standard_columns(self, mock_client, _mock_mapping):
+    @patch("aeolus.sources.eea._download_parquet")
+    def test_standard_columns(self, mock_download, _mock_mapping):
         from aeolus.sources.eea import fetch_eea_data
 
-        # Mock the airbase client to write parquet files to the temp dir
-        mock_request = MagicMock()
-
-        def fake_download(dir):
-            zip_bytes = _make_parquet_zip(MOCK_PARQUET_RECORDS)
-            buf = io.BytesIO(zip_bytes)
-            with ZipFile(buf) as zf:
-                zf.extractall(dir)
-
-        mock_request.download = fake_download
-        mock_client.return_value.request.return_value = mock_request
-
+        mock_download.return_value = _make_parquet_zip(MOCK_PARQUET_RECORDS)
         df = fetch_eea_data(
             sites=["IE0131A"],
             start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
@@ -289,8 +278,8 @@ class TestFetchEeaData:
         assert len(df) > 0
 
     @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
-    @patch("aeolus.sources.eea._get_client")
-    def test_site_filtering(self, mock_client, _mock_mapping):
+    @patch("aeolus.sources.eea._download_parquet")
+    def test_site_filtering(self, mock_download, _mock_mapping):
         from aeolus.sources.eea import fetch_eea_data
 
         extra_records = MOCK_PARQUET_RECORDS + [
@@ -305,17 +294,7 @@ class TestFetchEeaData:
                 "Verification": 3,
             },
         ]
-
-        mock_request = MagicMock()
-
-        def fake_download(dir):
-            zip_bytes = _make_parquet_zip(extra_records)
-            buf = io.BytesIO(zip_bytes)
-            with ZipFile(buf) as zf:
-                zf.extractall(dir)
-
-        mock_request.download = fake_download
-        mock_client.return_value.request.return_value = mock_request
+        mock_download.return_value = _make_parquet_zip(extra_records)
 
         df = fetch_eea_data(
             sites=["IE0131A"],
@@ -326,13 +305,15 @@ class TestFetchEeaData:
         assert all(df["site_code"] == "IE0131A")
 
     @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
-    @patch("aeolus.sources.eea._get_client")
-    def test_empty_download_returns_empty_frame(self, mock_client, _mock_mapping):
+    @patch("aeolus.sources.eea._download_parquet")
+    def test_empty_zip_returns_empty_frame(self, mock_download, _mock_mapping):
         from aeolus.sources.eea import fetch_eea_data
 
-        mock_request = MagicMock()
-        mock_request.download = lambda dir: None  # no files written
-        mock_client.return_value.request.return_value = mock_request
+        # Empty ZIP
+        buf = io.BytesIO()
+        with ZipFile(buf, "w"):
+            pass
+        mock_download.return_value = buf.getvalue()
 
         df = fetch_eea_data(
             sites=["IE0131A"],

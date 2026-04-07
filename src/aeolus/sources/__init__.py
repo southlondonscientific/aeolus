@@ -30,6 +30,7 @@ from . import (
     airnow,  # noqa: F401
     airqo,  # noqa: F401
     breathe_london,  # noqa: F401
+    eea,  # noqa: F401
     regulatory,  # noqa: F401
     sensor_community,  # noqa: F401
     sonitus,  # noqa: F401
@@ -37,11 +38,6 @@ from . import (
 )
 
 # Optional sources — SDK may not be installed (e.g. conda-forge)
-try:
-    from . import eea  # noqa: F401
-except ImportError:
-    pass
-
 try:
     from . import openaq  # noqa: F401
 except ImportError:
