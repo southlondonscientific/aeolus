@@ -319,20 +319,8 @@ def _extract_site_code(samplingpoint: str) -> str:
 @retry_on_network_error
 def _download_parquet(body: dict) -> bytes:
     """POST to the EEA Parquet Download API and return the raw ZIP bytes."""
-    url = f"{DOWNLOAD_API_BASE}/ParquetFile/urls"
+    url = f"{DOWNLOAD_API_BASE}/ParquetFile/dynamic"
     resp = requests.post(url, json=body, timeout=120)
-    resp.raise_for_status()
-
-    # The API returns a list of download URLs; fetch the first one
-    urls = resp.json()
-    if not urls:
-        return b""
-
-    download_url = urls[0] if isinstance(urls[0], str) else urls[0].get("url", "")
-    if not download_url:
-        return b""
-
-    resp = requests.get(download_url, timeout=300)
     resp.raise_for_status()
     return resp.content
 
@@ -455,13 +443,22 @@ def fetch_eea_data(
 
     body: dict = {
         "countries": [country.upper()],
+        "cities": [],
         "dataset": DATASET_E1A,
         "dateTimeStart": start_date.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "dateTimeEnd": end_date.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "compress": True,
     }
 
     if pollutants:
-        body["pollutants"] = pollutants
+        notation_list = []
+        for p in pollutants:
+            notation = MEASURAND_TO_NOTATION.get(p)
+            if notation:
+                notation_list.append(notation)
+        body["pollutants"] = notation_list
+    else:
+        body["pollutants"] = []
 
     logger.info(
         "Downloading EEA data for %s (%d sites, %s to %s)",

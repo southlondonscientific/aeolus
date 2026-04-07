@@ -250,8 +250,8 @@ class TestLiveIntegration:
 
         df = fetch_sonitus_data(
             ["DCC-AQ1"],
-            datetime(2025, 6, 1, tzinfo=timezone.utc),
-            datetime(2025, 6, 2, tzinfo=timezone.utc),
+            datetime(2026, 4, 5, tzinfo=timezone.utc),
+            datetime(2026, 4, 6, tzinfo=timezone.utc),
         )
         assert len(df) > 0
         assert all(df["site_code"] == "DCC-AQ1")
@@ -262,8 +262,8 @@ class TestLiveIntegration:
 
         df = fetch_sonitus_data(
             ["DCC-AQ1"],
-            datetime(2025, 6, 1, tzinfo=timezone.utc),
-            datetime(2025, 6, 1, 6, tzinfo=timezone.utc),
+            datetime(2026, 4, 5, tzinfo=timezone.utc),
+            datetime(2026, 4, 5, 6, tzinfo=timezone.utc),
         )
         if len(df) > 1:
             timestamps = df[df["measurand"] == df["measurand"].iloc[0]]["date_time"]
