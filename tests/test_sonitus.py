@@ -206,3 +206,22 @@ class TestFetchSonitusData:
         )
         assert len(df) == 0
         assert "site_code" in df.columns
+
+
+class TestSourceRegistration:
+    """Test Sonitus source is properly registered."""
+
+    def test_sonitus_registered(self):
+        from aeolus.registry import get_source
+
+        spec = get_source("SONITUS")
+        assert spec is not None
+        assert spec["name"] == "Smart Dublin (Sonitus)"
+        assert spec["type"] == "network"
+        assert spec["requires_api_key"] is False
+
+    def test_sonitus_in_list_sources(self):
+        from aeolus.registry import list_sources
+
+        sources = list_sources()
+        assert "SONITUS" in sources

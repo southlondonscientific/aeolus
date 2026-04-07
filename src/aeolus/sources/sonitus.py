@@ -279,3 +279,17 @@ def fetch_sonitus_data(
         return empty_data_frame()
 
     return pd.concat(dfs, ignore_index=True)
+
+
+# ============================================================================
+# SOURCE REGISTRATION
+# ============================================================================
+
+register_source("SONITUS", {
+    "type": "network",
+    "name": "Smart Dublin (Sonitus)",
+    "fetch_metadata": fetch_sonitus_metadata,
+    "fetch_data": fetch_sonitus_data,
+    "normalise": lambda df: df,  # normalisation done inside fetch_data per-site
+    "requires_api_key": False,
+})

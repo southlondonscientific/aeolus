@@ -52,6 +52,7 @@ def reset_registry():
         purpleair,
         regulatory,
         sensor_community,
+        sonitus,
     )
 
     for module in [
@@ -63,6 +64,7 @@ def reset_registry():
         purpleair,
         regulatory,
         sensor_community,
+        sonitus,
     ]:
         importlib.reload(module)
 
