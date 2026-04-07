@@ -49,6 +49,8 @@ src/aeolus/
 │   ├── purpleair.py     # PurpleAir global portal
 │   ├── sensor_community.py # Sensor.Community citizen science
 │   ├── airnow.py        # EPA AirNow US network
+│   ├── eea.py           # EEA European monitoring network
+│   ├── sonitus.py       # Smart Dublin (Sonitus) network
 │   ├── sos.py           # UK-AIR SOS near-real-time API (AURN-SOS, SAQN-SOS, etc.)
 │   └── _sos_mapping.json # Static SOS station mapping (auto-generated)
 ├── cache.py             # Local Parquet-based download caching
@@ -75,6 +77,8 @@ src/aeolus/
 | AIRQO | Yes (`AIRQO_API_KEY`) | African cities (200+ sensors) |
 | AIRNOW | Yes (`AIRNOW_API_KEY`) | USA, Canada, Mexico |
 | SENSOR_COMMUNITY | No | Global citizen science (35,000+) |
+| EEA | No | Europe (40+ countries, 7,000+ stations) |
+| SONITUS | No | Dublin, Ireland |
 
 ### Portals (search required)
 

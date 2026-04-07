@@ -225,3 +225,48 @@ class TestSourceRegistration:
 
         sources = list_sources()
         assert "SONITUS" in sources
+
+
+@pytest.mark.integration
+class TestLiveIntegration:
+    """Live API integration tests — skipped in CI."""
+
+    def test_fetch_metadata(self):
+        from aeolus.sources.sonitus import fetch_sonitus_metadata
+
+        df = fetch_sonitus_metadata()
+        assert len(df) > 0
+        assert "site_code" in df.columns
+        assert all(df["source_network"] == "SONITUS")
+
+    def test_download_via_aeolus(self):
+        import aeolus
+
+        sources = aeolus.list_sources()
+        assert "SONITUS" in sources
+
+    def test_fetch_data_single_monitor(self):
+        from aeolus.sources.sonitus import fetch_sonitus_data
+
+        df = fetch_sonitus_data(
+            ["DCC-AQ1"],
+            datetime(2025, 6, 1, tzinfo=timezone.utc),
+            datetime(2025, 6, 2, tzinfo=timezone.utc),
+        )
+        assert len(df) > 0
+        assert all(df["site_code"] == "DCC-AQ1")
+
+    def test_fifteen_minute_resolution(self):
+        """Verify we get 15-min data, not hourly."""
+        from aeolus.sources.sonitus import fetch_sonitus_data
+
+        df = fetch_sonitus_data(
+            ["DCC-AQ1"],
+            datetime(2025, 6, 1, tzinfo=timezone.utc),
+            datetime(2025, 6, 1, 6, tzinfo=timezone.utc),
+        )
+        if len(df) > 1:
+            timestamps = df[df["measurand"] == df["measurand"].iloc[0]]["date_time"]
+            if len(timestamps) > 1:
+                diffs = timestamps.diff().dropna()
+                assert diffs.min() <= pd.Timedelta(minutes=15)

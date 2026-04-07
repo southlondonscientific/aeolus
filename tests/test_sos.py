@@ -39,20 +39,24 @@ def reset_registry_and_caches():
         airnow,
         airqo,
         breathe_london,
+        eea,
         openaq,
         purpleair,
         regulatory,
         sensor_community,
+        sonitus,
     )
 
     for module in [
         airnow,
         airqo,
         breathe_london,
+        eea,
         openaq,
         purpleair,
         regulatory,
         sensor_community,
+        sonitus,
         sos,
     ]:
         importlib.reload(module)

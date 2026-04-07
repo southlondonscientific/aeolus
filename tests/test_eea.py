@@ -359,3 +359,40 @@ class TestSourceRegistration:
         spec = get_source("EEA")
         sig = inspect.signature(spec["fetch_metadata"])
         assert "bbox" in sig.parameters
+
+
+@pytest.mark.integration
+class TestLiveIntegration:
+    """Live API integration tests — skipped in CI."""
+
+    def test_fetch_metadata_ireland(self):
+        from aeolus.sources.eea import fetch_eea_metadata
+
+        df = fetch_eea_metadata(country="IE")
+        assert len(df) > 0
+        assert "site_code" in df.columns
+        assert all(df["source_network"] == "EEA")
+
+    def test_fetch_metadata_all_countries(self):
+        from aeolus.sources.eea import fetch_eea_metadata
+
+        df = fetch_eea_metadata()
+        assert len(df) > 5000  # ~7000 stations across Europe
+
+    def test_download_via_aeolus(self):
+        import aeolus
+
+        sources = aeolus.list_sources()
+        assert "EEA" in sources
+
+    def test_ratification_from_live_data(self):
+        from aeolus.sources.eea import fetch_eea_data
+
+        df = fetch_eea_data(
+            ["IE0131A"],
+            datetime(2025, 6, 1, tzinfo=timezone.utc),
+            datetime(2025, 6, 2, tzinfo=timezone.utc),
+            country="IE",
+        )
+        assert len(df) > 0
+        assert all(df["ratification"].isin(["Provisional", "Verified"]))

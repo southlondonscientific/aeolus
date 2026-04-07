@@ -47,20 +47,24 @@ def reset_registry():
         airnow,
         airqo,
         breathe_london,
+        eea,
         openaq,
         purpleair,
         regulatory,
         sensor_community,
+        sonitus,
     )
 
     for module in [
         airnow,
         airqo,
         breathe_london,
+        eea,
         openaq,
         purpleair,
         regulatory,
         sensor_community,
+        sonitus,
     ]:
         importlib.reload(module)
 
