@@ -189,3 +189,93 @@ def fetch_sonitus_metadata(**filters):
     raw = pd.DataFrame(aq_monitors)
     normaliser = normalise_sonitus_metadata()
     return normaliser(raw)
+
+
+# ============================================================================
+# DATA NORMALISATION
+# ============================================================================
+
+
+def normalise_sonitus_data(site_code: str) -> callable:
+    """Build a normaliser for Sonitus data from a specific monitor."""
+    def _normalise(df: pd.DataFrame) -> pd.DataFrame:
+        if df.empty:
+            return empty_data_frame()
+
+        present = [c for c in df.columns if c in MEASURAND_COLUMNS]
+        if not present:
+            return empty_data_frame()
+
+        melted = df.melt(
+            id_vars=["datetime"],
+            value_vars=present,
+            var_name="measurand_raw",
+            value_name="value",
+        )
+
+        normaliser = compose(
+            add_column("site_code", site_code),
+            rename_columns({"datetime": "date_time"}),
+            convert_timestamps("date_time", utc=True),
+            add_column(
+                "measurand",
+                lambda df: df["measurand_raw"].map(COLUMN_TO_MEASURAND),
+            ),
+            add_column("units", "ug/m3"),
+            add_column("source_network", "SONITUS"),
+            add_column("ratification", "Unvalidated"),
+            add_column("created_at", lambda df: datetime.now(timezone.utc)),
+            select_columns(*DATA_COLUMNS),
+            reset_index(),
+        )
+        return normaliser(melted)
+
+    return _normalise
+
+
+# ============================================================================
+# DATA FETCHER
+# ============================================================================
+
+
+def _datetime_to_unix(dt: datetime) -> str:
+    return str(int(dt.timestamp()))
+
+
+def fetch_sonitus_data(
+    sites: list[str],
+    start_date: datetime,
+    end_date: datetime,
+) -> pd.DataFrame:
+    start_unix = _datetime_to_unix(start_date)
+    end_unix = _datetime_to_unix(end_date)
+
+    dfs = []
+    for site in track(sites, description="Fetching Sonitus data"):
+        result = _call_sonitus_api(
+            "data",
+            extra_body={
+                "monitor": site,
+                "start": start_unix,
+                "end": end_unix,
+            },
+        )
+
+        if result is None or not result:
+            warnings.warn(
+                f"No data returned for Sonitus monitor {site}",
+                AeolusDataWarning,
+                stacklevel=2,
+            )
+            continue
+
+        raw = pd.DataFrame(result)
+        normaliser = normalise_sonitus_data(site)
+        normalised = normaliser(raw)
+        if not normalised.empty:
+            dfs.append(normalised)
+
+    if not dfs:
+        return empty_data_frame()
+
+    return pd.concat(dfs, ignore_index=True)

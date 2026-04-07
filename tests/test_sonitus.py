@@ -1,10 +1,12 @@
 """Tests for Sonitus (Dublin City) data source."""
 
+from datetime import datetime, timezone
 from unittest.mock import patch
 
+import pandas as pd
 import pytest
 
-from aeolus.types import METADATA_COLUMNS
+from aeolus.types import DATA_COLUMNS, METADATA_COLUMNS
 
 
 @pytest.fixture(autouse=True)
@@ -110,3 +112,97 @@ class TestFetchMetadata:
         mock_api.return_value = monitors
         df = fetch_sonitus_metadata()
         assert "01530" not in df["site_code"].values
+
+
+MOCK_GAS_DATA = [
+    {"datetime": "2025-06-01 01:00:00", "no2": 15.5, "so2": 0.8, "co": 0.2, "no": 3.1},
+    {"datetime": "2025-06-01 01:15:00", "no2": 12.3, "so2": -0.6, "co": 0.15, "no": 2.8},
+]
+
+MOCK_PM_DATA = [
+    {"datetime": "2025-06-01 01:00:00", "pm1": 2.1, "pm2_5": 5.3, "pm10": 8.7, "tsp": 12.0},
+    {"datetime": "2025-06-01 01:15:00", "pm1": 1.8, "pm2_5": 4.9, "pm10": 7.2, "tsp": 10.5},
+]
+
+
+class TestNormaliseSonitusData:
+    def test_normalise_gas_data(self):
+        from aeolus.sources.sonitus import normalise_sonitus_data
+        normaliser = normalise_sonitus_data("DCC-AQ1")
+        raw = pd.DataFrame(MOCK_GAS_DATA)
+        df = normaliser(raw)
+        for col in DATA_COLUMNS:
+            assert col in df.columns, f"Missing column: {col}"
+        assert len(df) == 8  # 2 rows x 4 measurands
+        assert set(df["measurand"]) == {"NO2", "SO2", "CO", "NO"}
+        assert all(df["site_code"] == "DCC-AQ1")
+
+    def test_normalise_pm_data(self):
+        from aeolus.sources.sonitus import normalise_sonitus_data
+        normaliser = normalise_sonitus_data("TNO4435")
+        raw = pd.DataFrame(MOCK_PM_DATA)
+        df = normaliser(raw)
+        assert set(df["measurand"]) == {"PM1", "PM2.5", "PM10", "TSP"}
+        assert all(df["site_code"] == "TNO4435")
+
+    def test_units_are_ug_m3(self):
+        from aeolus.sources.sonitus import normalise_sonitus_data
+        normaliser = normalise_sonitus_data("DCC-AQ1")
+        df = normaliser(pd.DataFrame(MOCK_GAS_DATA))
+        assert all(df["units"] == "ug/m3")
+
+    def test_source_network_is_sonitus(self):
+        from aeolus.sources.sonitus import normalise_sonitus_data
+        normaliser = normalise_sonitus_data("DCC-AQ1")
+        df = normaliser(pd.DataFrame(MOCK_GAS_DATA))
+        assert all(df["source_network"] == "SONITUS")
+
+    def test_negative_values_passed_through(self):
+        from aeolus.sources.sonitus import normalise_sonitus_data
+        normaliser = normalise_sonitus_data("DCC-AQ1")
+        df = normaliser(pd.DataFrame(MOCK_GAS_DATA))
+        so2_vals = df[df["measurand"] == "SO2"]["value"].tolist()
+        assert any(v < 0 for v in so2_vals)
+
+    def test_ratification_is_unvalidated(self):
+        from aeolus.sources.sonitus import normalise_sonitus_data
+        normaliser = normalise_sonitus_data("DCC-AQ1")
+        df = normaliser(pd.DataFrame(MOCK_GAS_DATA))
+        assert all(df["ratification"] == "Unvalidated")
+
+
+class TestFetchSonitusData:
+    @patch("aeolus.sources.sonitus._call_sonitus_api")
+    def test_returns_standard_columns(self, mock_api):
+        from aeolus.sources.sonitus import fetch_sonitus_data
+        mock_api.return_value = MOCK_GAS_DATA
+        df = fetch_sonitus_data(
+            ["DCC-AQ1"],
+            datetime(2025, 6, 1, tzinfo=timezone.utc),
+            datetime(2025, 6, 2, tzinfo=timezone.utc),
+        )
+        for col in DATA_COLUMNS:
+            assert col in df.columns
+
+    @patch("aeolus.sources.sonitus._call_sonitus_api")
+    def test_multi_site_concatenation(self, mock_api):
+        from aeolus.sources.sonitus import fetch_sonitus_data
+        mock_api.side_effect = [MOCK_GAS_DATA, MOCK_PM_DATA]
+        df = fetch_sonitus_data(
+            ["DCC-AQ1", "TNO4435"],
+            datetime(2025, 6, 1, tzinfo=timezone.utc),
+            datetime(2025, 6, 2, tzinfo=timezone.utc),
+        )
+        assert set(df["site_code"]) == {"DCC-AQ1", "TNO4435"}
+
+    @patch("aeolus.sources.sonitus._call_sonitus_api")
+    def test_empty_response_returns_empty_frame(self, mock_api):
+        from aeolus.sources.sonitus import fetch_sonitus_data
+        mock_api.return_value = []
+        df = fetch_sonitus_data(
+            ["DCC-AQ1"],
+            datetime(2025, 6, 1, tzinfo=timezone.utc),
+            datetime(2025, 6, 2, tzinfo=timezone.utc),
+        )
+        assert len(df) == 0
+        assert "site_code" in df.columns
