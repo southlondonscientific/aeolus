@@ -57,6 +57,7 @@ import pandas as pd
 import requests
 
 from ..decorators import retry_on_network_error
+from ..registry import register_source
 from ..transforms import (
     add_column,
     compose,
@@ -500,3 +501,17 @@ def fetch_eea_data(
         return empty_data_frame()
 
     return df.reset_index(drop=True)
+
+
+# ============================================================================
+# SOURCE REGISTRATION
+# ============================================================================
+
+register_source("EEA", {
+    "type": "network",
+    "name": "EEA",
+    "fetch_metadata": fetch_eea_metadata,
+    "fetch_data": fetch_eea_data,
+    "normalise": normalise_eea_data(),
+    "requires_api_key": False,
+})

@@ -458,7 +458,7 @@ def fetch(
 # ============================================================================
 
 # Networks whose fetch_metadata accepts a ``bbox`` keyword argument.
-_BBOX_AWARE_NETWORKS = {"SENSOR_COMMUNITY", "AIRNOW"}
+_BBOX_AWARE_NETWORKS = {"SENSOR_COMMUNITY", "AIRNOW", "EEA"}
 
 
 def _fetch_network_sites(

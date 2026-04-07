@@ -30,6 +30,7 @@ from . import (
     airnow,  # noqa: F401
     airqo,  # noqa: F401
     breathe_london,  # noqa: F401
+    eea,  # noqa: F401
     regulatory,  # noqa: F401
     sensor_community,  # noqa: F401
     sos,  # noqa: F401
@@ -50,6 +51,7 @@ __all__ = [
     "airnow",
     "airqo",
     "breathe_london",
+    "eea",
     "openaq",
     "purpleair",
     "regulatory",

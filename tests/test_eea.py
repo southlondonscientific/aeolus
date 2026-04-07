@@ -337,3 +337,25 @@ class TestFetchEeaData:
         assert len(df) == 0
         for col in DATA_COLUMNS:
             assert col in df.columns
+
+
+class TestSourceRegistration:
+    def test_eea_registered(self):
+        from aeolus.registry import get_source
+        spec = get_source("EEA")
+        assert spec is not None
+        assert spec["name"] == "EEA"
+        assert spec["type"] == "network"
+        assert spec["requires_api_key"] is False
+
+    def test_eea_in_list_sources(self):
+        from aeolus.registry import list_sources
+        sources = list_sources()
+        assert "EEA" in sources
+
+    def test_eea_fetch_metadata_accepts_bbox(self):
+        from aeolus.registry import get_source
+        import inspect
+        spec = get_source("EEA")
+        sig = inspect.signature(spec["fetch_metadata"])
+        assert "bbox" in sig.parameters
