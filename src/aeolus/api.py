@@ -63,6 +63,7 @@ from .types import empty_metadata_frame as _empty_metadata_frame
 
 # Optional sources that require extra pip packages
 _OPTIONAL_SOURCES = {
+    "EEA": "eea",
     "OPENAQ": "openaq",
     "PURPLEAIR": "purpleair",
 }

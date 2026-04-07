@@ -189,113 +189,110 @@ MOCK_PARQUET_RECORDS = [
 ]
 
 
-class TestNormaliseEeaData:
-    def test_standard_columns(self):
-        from aeolus.sources.eea import normalise_eea_data
+MOCK_SPO_MAPPING = {
+    "SPO.IE.IE0131ASample1_8": "IE0131A",
+    "SPO.IE.IE0131ASample1_5": "IE0131A",
+    "SPO.IE.IE007CPSample1_7": "IE007CP",
+}
 
-        zip_bytes = _make_parquet_zip(MOCK_PARQUET_RECORDS)
+
+class TestNormaliseEeaData:
+    """Test the normalisation pipeline with a mocked SPO mapping."""
+
+    def _raw_df(self, records=None):
+        """Build a raw DataFrame from Parquet records via ZIP round-trip."""
+        zip_bytes = _make_parquet_zip(records or MOCK_PARQUET_RECORDS)
         buf = io.BytesIO(zip_bytes)
         with ZipFile(buf) as zf:
             dfs = []
             for name in zf.namelist():
                 if name.endswith(".parquet"):
                     dfs.append(pd.read_parquet(io.BytesIO(zf.read(name))))
-        raw_df = pd.concat(dfs, ignore_index=True)
+        return pd.concat(dfs, ignore_index=True)
 
-        normalise = normalise_eea_data()
-        df = normalise(raw_df)
+    @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
+    def test_standard_columns(self, _mock_mapping):
+        from aeolus.sources.eea import normalise_eea_data
 
+        df = normalise_eea_data()(self._raw_df())
         for col in DATA_COLUMNS:
             assert col in df.columns, f"Missing column: {col}"
         assert len(df.columns) == len(DATA_COLUMNS)
 
-    def test_site_code_extraction(self):
+    @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
+    def test_site_code_extraction(self, _mock_mapping):
         from aeolus.sources.eea import normalise_eea_data
 
-        zip_bytes = _make_parquet_zip(MOCK_PARQUET_RECORDS)
-        buf = io.BytesIO(zip_bytes)
-        with ZipFile(buf) as zf:
-            raw_df = pd.read_parquet(io.BytesIO(zf.read(zf.namelist()[0])))
-
-        normalise = normalise_eea_data()
-        df = normalise(raw_df)
+        df = normalise_eea_data()(self._raw_df())
         assert all(df["site_code"] == "IE0131A")
 
-    def test_pollutant_mapping(self):
+    @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
+    def test_pollutant_mapping(self, _mock_mapping):
         from aeolus.sources.eea import normalise_eea_data
 
-        zip_bytes = _make_parquet_zip(MOCK_PARQUET_RECORDS)
-        buf = io.BytesIO(zip_bytes)
-        with ZipFile(buf) as zf:
-            raw_df = pd.read_parquet(io.BytesIO(zf.read(zf.namelist()[0])))
-
-        normalise = normalise_eea_data()
-        df = normalise(raw_df)
+        df = normalise_eea_data()(self._raw_df())
         assert set(df["measurand"].unique()) == {"NO2", "PM10"}
 
-    def test_invalid_rows_filtered(self):
+    @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
+    def test_invalid_rows_filtered(self, _mock_mapping):
         from aeolus.sources.eea import normalise_eea_data
 
-        zip_bytes = _make_parquet_zip(MOCK_PARQUET_RECORDS)
-        buf = io.BytesIO(zip_bytes)
-        with ZipFile(buf) as zf:
-            raw_df = pd.read_parquet(io.BytesIO(zf.read(zf.namelist()[0])))
+        df = normalise_eea_data()(self._raw_df())
+        assert len(df) == 2  # Third record has Validity=-1
 
-        normalise = normalise_eea_data()
-        df = normalise(raw_df)
-        # The third record has Validity=-1, should be filtered out
-        assert len(df) == 2
-
-    def test_unit_normalisation(self):
+    @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
+    def test_unit_normalisation(self, _mock_mapping):
         from aeolus.sources.eea import normalise_eea_data
 
-        zip_bytes = _make_parquet_zip(MOCK_PARQUET_RECORDS)
-        buf = io.BytesIO(zip_bytes)
-        with ZipFile(buf) as zf:
-            raw_df = pd.read_parquet(io.BytesIO(zf.read(zf.namelist()[0])))
-
-        normalise = normalise_eea_data()
-        df = normalise(raw_df)
+        df = normalise_eea_data()(self._raw_df())
         assert all(df["units"] == "ug/m3")
 
-    def test_verification_to_ratification(self):
+    @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
+    def test_verification_to_ratification(self, _mock_mapping):
         from aeolus.sources.eea import normalise_eea_data
 
-        zip_bytes = _make_parquet_zip(MOCK_PARQUET_RECORDS)
-        buf = io.BytesIO(zip_bytes)
-        with ZipFile(buf) as zf:
-            raw_df = pd.read_parquet(io.BytesIO(zf.read(zf.namelist()[0])))
-
-        normalise = normalise_eea_data()
-        df = normalise(raw_df)
-        # Record 0: Verification=2 -> "Verified", Record 1: Verification=1 -> "Provisional"
-        verified_rows = df[df["measurand"] == "NO2"]
-        provisional_rows = df[df["measurand"] == "PM10"]
-        assert all(verified_rows["ratification"] == "Verified")
-        assert all(provisional_rows["ratification"] == "Provisional")
+        df = normalise_eea_data()(self._raw_df())
+        verified = df[df["measurand"] == "NO2"]
+        provisional = df[df["measurand"] == "PM10"]
+        assert all(verified["ratification"] == "Verified")
+        assert all(provisional["ratification"] == "Provisional")
 
 
 class TestFetchEeaData:
-    @patch("aeolus.sources.eea._download_parquet")
-    def test_standard_columns(self, mock_download):
+    """Test the data fetcher with mocked airbase client."""
+
+    @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
+    @patch("aeolus.sources.eea._get_client")
+    def test_standard_columns(self, mock_client, _mock_mapping):
         from aeolus.sources.eea import fetch_eea_data
 
-        mock_download.return_value = _make_parquet_zip(MOCK_PARQUET_RECORDS)
+        # Mock the airbase client to write parquet files to the temp dir
+        mock_request = MagicMock()
+
+        def fake_download(dir):
+            zip_bytes = _make_parquet_zip(MOCK_PARQUET_RECORDS)
+            buf = io.BytesIO(zip_bytes)
+            with ZipFile(buf) as zf:
+                zf.extractall(dir)
+
+        mock_request.download = fake_download
+        mock_client.return_value.request.return_value = mock_request
+
         df = fetch_eea_data(
             sites=["IE0131A"],
             start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
-            end_date=datetime(2024, 1, 31, tzinfo=timezone.utc),
+            end_date=datetime(2024, 1, 2, tzinfo=timezone.utc),
             country="IE",
         )
         for col in DATA_COLUMNS:
             assert col in df.columns, f"Missing column: {col}"
         assert len(df) > 0
 
-    @patch("aeolus.sources.eea._download_parquet")
-    def test_site_filtering(self, mock_download):
+    @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
+    @patch("aeolus.sources.eea._get_client")
+    def test_site_filtering(self, mock_client, _mock_mapping):
         from aeolus.sources.eea import fetch_eea_data
 
-        # Add a second site to records
         extra_records = MOCK_PARQUET_RECORDS + [
             {
                 "Samplingpoint": "IE/SPO.IE.IE007CPSample1_7",
@@ -308,25 +305,34 @@ class TestFetchEeaData:
                 "Verification": 3,
             },
         ]
-        mock_download.return_value = _make_parquet_zip(extra_records)
+
+        mock_request = MagicMock()
+
+        def fake_download(dir):
+            zip_bytes = _make_parquet_zip(extra_records)
+            buf = io.BytesIO(zip_bytes)
+            with ZipFile(buf) as zf:
+                zf.extractall(dir)
+
+        mock_request.download = fake_download
+        mock_client.return_value.request.return_value = mock_request
 
         df = fetch_eea_data(
             sites=["IE0131A"],
             start_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
-            end_date=datetime(2024, 1, 31, tzinfo=timezone.utc),
+            end_date=datetime(2024, 1, 2, tzinfo=timezone.utc),
             country="IE",
         )
         assert all(df["site_code"] == "IE0131A")
 
-    @patch("aeolus.sources.eea._download_parquet")
-    def test_empty_zip_returns_empty_frame(self, mock_download):
+    @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
+    @patch("aeolus.sources.eea._get_client")
+    def test_empty_download_returns_empty_frame(self, mock_client, _mock_mapping):
         from aeolus.sources.eea import fetch_eea_data
 
-        # Create an empty ZIP
-        buf = io.BytesIO()
-        with ZipFile(buf, "w") as zf:
-            pass
-        mock_download.return_value = buf.getvalue()
+        mock_request = MagicMock()
+        mock_request.download = lambda dir: None  # no files written
+        mock_client.return_value.request.return_value = mock_request
 
         df = fetch_eea_data(
             sites=["IE0131A"],
@@ -388,10 +394,11 @@ class TestLiveIntegration:
     def test_ratification_from_live_data(self):
         from aeolus.sources.eea import fetch_eea_data
 
+        # Use 2024 date — airbase "Verified" dataset covers 2023-2024 for Ireland
         df = fetch_eea_data(
             ["IE0131A"],
-            datetime(2025, 6, 1, tzinfo=timezone.utc),
-            datetime(2025, 6, 2, tzinfo=timezone.utc),
+            datetime(2024, 6, 1, tzinfo=timezone.utc),
+            datetime(2024, 6, 2, tzinfo=timezone.utc),
             country="IE",
         )
         assert len(df) > 0
