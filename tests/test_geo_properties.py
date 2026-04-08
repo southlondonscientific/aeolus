@@ -4,6 +4,7 @@ import math
 
 import pytest
 from hypothesis import given, assume
+from hypothesis import strategies as st
 
 from aeolus.geo import EARTH_RADIUS_KM, haversine_distance, near_to_bbox
 from conftest_strategies import latitudes, longitudes, positive_radii
@@ -91,3 +92,28 @@ class TestNearToBboxProperties:
         assert min_lat2 <= min_lat1
         assert max_lon2 >= max_lon1
         assert max_lat2 >= max_lat1
+
+    @given(
+        lat=st.floats(min_value=70.0, max_value=89.0, allow_nan=False, allow_infinity=False),
+        lon=longitudes,
+        radius=positive_radii,
+    )
+    def test_high_latitude_lon_stretch(self, lat, lon, radius):
+        """At high latitudes the longitude span exceeds the latitude span."""
+        min_lon, min_lat, max_lon, max_lat = near_to_bbox(lat, lon, radius)
+        lat_span = max_lat - min_lat
+        lon_span = max_lon - min_lon
+        assert lon_span > lat_span
+
+    @given(
+        lat=st.floats(min_value=89.0, max_value=89.99, allow_nan=False, allow_infinity=False),
+        lon=longitudes,
+        radius=positive_radii,
+    )
+    def test_bbox_does_not_crash_near_poles(self, lat, lon, radius):
+        """near_to_bbox returns four finite floats near the poles."""
+        result = near_to_bbox(lat, lon, radius)
+        assert len(result) == 4
+        for component in result:
+            assert isinstance(component, float)
+            assert math.isfinite(component)

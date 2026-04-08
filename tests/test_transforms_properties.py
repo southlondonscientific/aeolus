@@ -142,6 +142,17 @@ class TestMeltInvariants:
         assert "measurand" in result.columns
         assert "value" in result.columns
 
+    @given(df=wide_dataframes(min_rows=1, max_rows=20))
+    def test_melt_preserves_nan_count(self, df: pd.DataFrame) -> None:
+        """Total NaN count across pollutant columns survives the melt."""
+        id_vars = ["date", "site"]
+        measurands = [c for c in df.columns if c not in id_vars]
+        assume(len(measurands) > 0)
+        original_nan_count = df[measurands].isna().sum().sum()
+        result = melt_measurands(id_vars=id_vars)(df)
+        melted_nan_count = result["value"].isna().sum()
+        assert melted_nan_count == original_nan_count
+
 
 # ---------------------------------------------------------------------------
 # Deduplication

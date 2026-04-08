@@ -1,5 +1,6 @@
 """Hypothesis property-based tests for aeolus.metrics.base."""
 
+import numpy as np
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
@@ -9,6 +10,7 @@ from aeolus.metrics.base import (
     POLLUTANT_ALIASES,
     Breakpoint,
     calculate_aqi_from_breakpoints,
+    calculate_aqi_from_breakpoints_array,
     ensure_ugm3,
     ppb_to_ugm3,
     standardise_pollutant,
@@ -146,3 +148,74 @@ class TestAQIBreakpoints:
         """Concentrations above all breakpoints return None."""
         result = calculate_aqi_from_breakpoints(conc, _TEST_BREAKPOINTS)
         assert result is None
+
+
+# ── Vectorised AQI breakpoints ─────────────────────────────────────────────
+
+
+class TestVectorisedAQIBreakpoints:
+    @given(
+        concs=st.lists(
+            st.floats(min_value=0.0, max_value=500.0, allow_nan=False, allow_infinity=False),
+            min_size=1,
+            max_size=50,
+        ),
+    )
+    def test_matches_scalar(self, concs):
+        """Each element from the array version matches the scalar version."""
+        arr = np.array(concs)
+        aqi_values, cat_indices = calculate_aqi_from_breakpoints_array(arr, _TEST_BREAKPOINTS)
+        for i, c in enumerate(concs):
+            scalar = calculate_aqi_from_breakpoints(c, _TEST_BREAKPOINTS)
+            if scalar is None:
+                assert np.isnan(aqi_values[i])
+                assert cat_indices[i] == -1
+            else:
+                assert aqi_values[i] == pytest.approx(scalar.value, rel=1e-9)
+
+    @given(
+        concs=st.lists(
+            st.floats(min_value=0.0, max_value=500.0, allow_nan=False, allow_infinity=False),
+            min_size=2,
+            max_size=50,
+        ),
+    )
+    def test_monotonicity_array(self, concs):
+        """Sorted concentrations produce non-decreasing AQI values."""
+        arr = np.sort(np.array(concs))
+        aqi_values, _ = calculate_aqi_from_breakpoints_array(arr, _TEST_BREAKPOINTS)
+        valid = aqi_values[~np.isnan(aqi_values)]
+        if len(valid) > 1:
+            assert np.all(np.diff(valid) >= 0)
+
+    @given(
+        concs=st.lists(
+            st.floats(min_value=500.01, max_value=1e6, allow_nan=False, allow_infinity=False),
+            min_size=1,
+            max_size=20,
+        ),
+    )
+    def test_out_of_range_is_nan(self, concs):
+        """Concentrations above all breakpoints give NaN AQI and -1 category."""
+        arr = np.array(concs)
+        aqi_values, cat_indices = calculate_aqi_from_breakpoints_array(arr, _TEST_BREAKPOINTS)
+        assert np.all(np.isnan(aqi_values))
+        assert np.all(cat_indices == -1)
+
+    @given(
+        concs=st.lists(
+            st.floats(min_value=0.0, max_value=600.0, allow_nan=False, allow_infinity=False),
+            min_size=1,
+            max_size=50,
+        ),
+    )
+    def test_category_indices_valid(self, concs):
+        """In-range concentrations get valid category indices; out-of-range get -1."""
+        arr = np.array(concs)
+        aqi_values, cat_indices = calculate_aqi_from_breakpoints_array(arr, _TEST_BREAKPOINTS)
+        num_categories = len(_TEST_BREAKPOINTS)
+        for i in range(len(concs)):
+            if np.isnan(aqi_values[i]):
+                assert cat_indices[i] == -1
+            else:
+                assert 0 <= cat_indices[i] < num_categories

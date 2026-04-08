@@ -119,3 +119,30 @@ class TestCacheRoundtrip:
             df["value"].reset_index(drop=True),
             check_dtype=False,
         )
+
+    @given(data=st.data())
+    @settings(max_examples=10)
+    def test_roundtrip_preserves_timezone(self, data):
+        """UTC timezone info survives Parquet serialisation."""
+        source = data.draw(sources)
+        site = data.draw(site_codes)
+        start = datetime(2024, 1, 1)
+        end = datetime(2024, 1, 31)
+        df = data.draw(aeolus_dataframes(min_rows=1, max_rows=20))
+
+        put(source, site, start, end, df)
+        result = get(source, site, start, end)
+
+        assert result is not None
+        assert result["date_time"].dt.tz is not None, "date_time lost timezone"
+        assert result["created_at"].dt.tz is not None, "created_at lost timezone"
+        pd.testing.assert_series_equal(
+            result["date_time"].reset_index(drop=True),
+            df["date_time"].reset_index(drop=True),
+            check_dtype=False,
+        )
+        pd.testing.assert_series_equal(
+            result["created_at"].reset_index(drop=True),
+            df["created_at"].reset_index(drop=True),
+            check_dtype=False,
+        )
