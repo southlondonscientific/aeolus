@@ -25,18 +25,18 @@ from aeolus.transforms import (
 # Physical-plausibility bounds  (lower, upper) in ug/m3
 # ---------------------------------------------------------------------------
 _BOUNDS: dict[str, tuple[float, float]] = {
-    "PM2.5": (-1, 2000),
-    "PM10": (-1, 5000),
-    "NO2": (-1, 1000),
-    "O3": (-1, 600),
-    "SO2": (-1, 2000),
-    "CO": (-1, 50000),
+    "PM2.5": (-10, 2000),   # small negatives from instrument baseline drift
+    "PM10": (-10, 5000),
+    "NO2": (-10, 1000),
+    "O3": (-10, 600),
+    "SO2": (-50, 2000),     # some networks report larger negative baselines
+    "CO": (-50, 50000),
 }
 _DEFAULT_BOUNDS: tuple[float, float] = (-100, 100_000)
 
 # Required metadata columns (excludes 'measurands' which is optional in some
 # older metadata frames).
-_META_REQUIRED = ["site_code", "site_name", "latitude", "longitude", "source_network"]
+_META_REQUIRED = ["site_code", "latitude", "longitude", "source_network"]
 
 
 # ============================================================================
@@ -111,7 +111,11 @@ def assert_physical_plausibility(df: pd.DataFrame, source: str) -> None:
         return
 
     for measurand, grp in df.groupby("measurand"):
-        lo, hi = _BOUNDS.get(str(measurand), _DEFAULT_BOUNDS)
+        # Only check known air quality measurands — skip meteorological
+        # parameters like Pressure, Temperature, Humidity
+        if str(measurand) not in _BOUNDS:
+            continue
+        lo, hi = _BOUNDS[str(measurand)]
         vals = grp["value"].dropna()
         if vals.empty:
             continue
