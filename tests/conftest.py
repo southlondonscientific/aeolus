@@ -9,6 +9,10 @@ from pathlib import Path
 import pandas as pd
 import pytest
 import rdata
+from dotenv import load_dotenv
+
+# Load API keys from .env for integration/conformance tests
+load_dotenv()
 
 # Import aeolus.sources to ensure all sources are registered before tests run
 import aeolus.sources  # noqa: F401

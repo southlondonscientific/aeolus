@@ -108,5 +108,6 @@ markers = [
     "integration: marks tests that need API keys",
     "live: marks tests that hit real APIs",
     "property: marks hypothesis property-based tests",
+    "conformance: live data conformance tests — run before releases",
 ]
 
