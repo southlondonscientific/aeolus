@@ -832,8 +832,12 @@ def test_summarise_multiple_pollutants():
 
 
 def test_summarise_data_capture():
-    """Test that data_capture is calculated correctly."""
-    # 12 hours of data over a 24-hour span → ~0.5 capture
+    """Test that data_capture is calculated correctly.
+
+    Frequency-aware: summarise() infers reporting interval from the data.
+    12 readings at 2-hour intervals over a 23-hour span is ~100% capture
+    (every expected observation is present).
+    """
     data = pd.DataFrame([
         {
             "site_code": "MY1",
@@ -845,10 +849,10 @@ def test_summarise_data_capture():
             "ratification": "Ratified",
             "created_at": datetime(2024, 1, 2),
         }
-        for h in range(0, 24, 2)  # Every other hour = 12 records over 23h span
+        for h in range(0, 24, 2)  # Every 2 hours = 12 records, 2h median gap
     ])
 
     result = api.summarise(data)
     assert len(result) == 1
     dc = result["data_capture"].iloc[0]
-    assert 0.4 < dc < 0.6  # Roughly 50%
+    assert 0.9 < dc <= 1.0  # ~100% — all expected 2-hourly readings present

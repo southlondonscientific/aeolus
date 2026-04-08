@@ -104,12 +104,20 @@ class TestSummariseRobustness:
 
     @given(df=aeolus_dataframes(messy=True, min_rows=1))
     @settings(max_examples=80, deadline=None)
-    def test_summarise_data_capture_bounded(self, df: pd.DataFrame) -> None:
-        """data_capture is between 0 and 1 inclusive when result is non-empty."""
+    def test_summarise_data_capture_non_negative(self, df: pd.DataFrame) -> None:
+        """data_capture is non-negative. Values > 1.0 indicate duplicate timestamps."""
         result = summarise(df)
         if not result.empty:
             assert (result["data_capture"] >= 0).all()
-            assert (result["data_capture"] <= 1).all()
+
+    @given(df=aeolus_dataframes(messy=False, min_rows=2))
+    @settings(max_examples=80, deadline=None)
+    def test_summarise_data_capture_bounded_clean(self, df: pd.DataFrame) -> None:
+        """On clean (non-duplicate) data, data_capture is at most 1.0."""
+        deduped = df.drop_duplicates(subset=["site_code", "date_time", "measurand"])
+        result = summarise(deduped)
+        if not result.empty:
+            assert (result["data_capture"] <= 1.001).all()  # small float tolerance
 
     @given(df=aeolus_dataframes(messy=True, min_rows=1))
     @settings(max_examples=80, deadline=None)
@@ -218,3 +226,27 @@ class TestParseLastRobustness:
         assume(not _LAST_PATTERN.match(text.strip()))
         with pytest.raises(ValueError):
             _parse_last(text)
+
+    @given(n=st.integers(min_value=1, max_value=24))
+    @settings(max_examples=50, deadline=None)
+    def test_months_always_valid(self, n: int) -> None:
+        """Month shorthands produce start < end for any current date.
+
+        Covers edge cases like "1m" on March 31 (February has no 31st)
+        and month arithmetic crossing year boundaries.
+        """
+        start, end = _parse_last(f"{n}m")
+        assert start < end
+        assert start.tzinfo is not None  # UTC-aware
+
+    @given(n=st.integers(min_value=1, max_value=20))
+    @settings(max_examples=50, deadline=None)
+    def test_years_always_valid(self, n: int) -> None:
+        """Year shorthands produce start < end.
+
+        Covers the leap-year edge case: "1y" on Feb 29 must not crash
+        even though the previous year has no Feb 29.
+        """
+        start, end = _parse_last(f"{n}y")
+        assert start < end
+        assert start.tzinfo is not None
