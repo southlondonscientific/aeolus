@@ -794,9 +794,17 @@ def summarise(data: pd.DataFrame) -> pd.DataFrame:
         valid = g["value"].notna().sum()
         start = dt.min()
         end = dt.max()
-        # Expected hourly observations between start and end
-        span_hours = max(1, (end - start).total_seconds() / 3600)
-        dc = valid / span_hours
+        # Infer reporting frequency from median gap between consecutive readings,
+        # falling back to hourly if there's only one record.
+        if total >= 2:
+            gaps = dt.sort_values().diff().dropna()
+            median_gap = gaps.median().total_seconds() / 3600  # hours
+            freq_hours = max(median_gap, 1 / 60)  # floor at 1 minute
+        else:
+            freq_hours = 1.0
+        span_hours = (end - start).total_seconds() / 3600
+        expected = (span_hours / freq_hours) + 1 if span_hours > 0 else 1
+        dc = valid / expected
 
         rows.append({
             "site_code": site,
@@ -806,7 +814,7 @@ def summarise(data: pd.DataFrame) -> pd.DataFrame:
             "end": end,
             "records": total,
             "valid": int(valid),
-            "data_capture": round(min(dc, 1.0), 3),
+            "data_capture": round(dc, 3),
         })
 
     return pd.DataFrame(rows)
