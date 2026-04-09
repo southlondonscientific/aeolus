@@ -4,7 +4,7 @@
 
 **[Documentation](https://southlondonscientific.github.io/aeolus/)** · **[GitHub](https://github.com/southlondonscientific/aeolus)** · **[PyPI](https://pypi.org/project/aeolus-aq/)**
 
-Aeolus provides a simple, unified, opinionated workflow for downloading and working with air quality data from multiple sources.
+Aeolus provides a simple, unified, opinionated workflow for downloading and working with air quality data from multiple sources. Access over 28 billion station-hours of monitoring data from 145,000+ locations across 100+ countries through a single consistent API.
 
 Aeolus distinguishes between two types of data source:
 
@@ -55,6 +55,8 @@ print(data.head())
 ```
 
 ## Data Sources
+
+Aeolus connects to 13 monitoring networks and 2 global data portals, providing access to an estimated 28 billion station-hours of air quality data. This spans reference-grade government networks (AURN, EEA, AirNow), low-cost sensor networks (Sensor.Community, PurpleAir, Breathe London), and global aggregation portals (OpenAQ). All sources are normalised to a common 8-column schema, so data from a DEFRA reference monitor in London and a citizen science sensor in Kampala arrive in the same format.
 
 ### UK Regulatory Networks
 
