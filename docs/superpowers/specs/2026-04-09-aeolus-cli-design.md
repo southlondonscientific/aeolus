@@ -63,6 +63,7 @@ Maps to: `aeolus.list_sources()`, `aeolus.get_source_info()`.
 ```
 aeolus find-sites AURN
 aeolus find-sites AURN --near 51.5,-0.13 --radius 10
+aeolus find-sites AURN --lat 51.5 --lon -0.13 --radius 10  # equivalent
 aeolus find-sites --bbox -0.5,51.3,0.3,51.7
 ```
 Maps to: `aeolus.find_sites()`.
@@ -79,6 +80,7 @@ Maps to: `aeolus.download()`. Default output: `<source>_<date>.csv` in current d
 ```
 aeolus get-current AURN --sites MY1 KC1
 aeolus get-current AURN --near 51.5,-0.13
+aeolus get-current AURN --lat 51.5 --lon -0.13   # equivalent
 ```
 Maps to: `aeolus.get_current()`.
 
@@ -93,9 +95,8 @@ Maps to: `aeolus.summarise()`.
 ```
 aeolus plot data.csv
 aeolus plot data.csv -o trend.png
-aeolus plot data.csv --type time-variation   # future: 4-panel decomposition
 ```
-Maps to: `aeolus.viz` plotting functions.
+Maps to: `aeolus.viz` plotting functions. Simple time series only in v1.
 
 ### Layer 2 — `aeolus ask` (LLM-assisted)
 
