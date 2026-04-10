@@ -137,9 +137,21 @@ Text-only responses are unchanged: `{"type": "text", "text": "..."}`.
 `_confirm_and_execute` becomes `_confirm_and_execute_chain`. Pseudocode:
 
 ```python
+MAX_CHAIN_LENGTH = 5
+
 def _confirm_and_execute_chain(result, query, yes, step_mode):
     calls = result["tool_calls"]
     n = len(calls)
+    
+    # Defensive cap — the prompt already discourages long chains, but be
+    # belt-and-braces in case the LLM goes off-piste.
+    if n > MAX_CHAIN_LENGTH:
+        print_error(ValueError(
+            f"The model proposed a chain of {n} steps, which exceeds the "
+            f"maximum of {MAX_CHAIN_LENGTH}. This usually means the request "
+            "was interpreted too broadly. Please rephrase more specifically."
+        ))
+        raise typer.Exit(code=1)
     
     # Display the full plan
     for i, call in enumerate(calls, 1):
@@ -251,8 +263,15 @@ Rules for chaining:
 3. Each step still needs its own confidence and explanation fields. Answer
    them per step, not for the whole chain.
 
-4. Keep chains short. A typical chain is 2-3 steps. If a request seems to
-   need more, your interpretation is probably wrong.
+4. Keep chains short. A typical chain is 2-3 steps, and the maximum is 5.
+   If a request seems to need more, your interpretation is probably wrong —
+   ask yourself whether a single command would work instead.
+
+5. If you need site codes for a download, use `download` with near_lat/near_lon
+   directly. Do NOT chain find_sites before download — find_sites prints a
+   table to the terminal, and you cannot see its output when planning the
+   next step, so the download step would have to guess site codes. The
+   download tool handles location-based site discovery internally.
 ```
 
 Plus one or two examples added to the static knowledge section showing chained queries and their expected tool-call shapes.
@@ -318,11 +337,39 @@ def ask(
 - `test_step_mode_prompts_per_step`: `--step` mode, user answers "n" at step 2, verify step 2 and later don't execute.
 - `test_single_command_suppresses_step_prefix`: length-1 `tool_calls` list doesn't render "Step 1/1:".
 - `test_yes_flag_runs_whole_chain`: `--yes` skips confirmation and runs all steps.
+- `test_chain_exceeding_max_length_is_rejected`: mock a 6-step chain, verify the orchestrator refuses with a helpful error and does not execute any step.
 
 **`test_ask_prompt.py`** — add:
 - `test_prompt_includes_chaining_instructions`: `build_system_prompt()` contains the words "chain" and "identical" (case-insensitive) to verify the new section is included.
 
-**`test_ask_render.py`** — no changes. Render is per-call and unchanged.
+**`test_ask_render.py`** — add consistency tests. These guard against the risk that `render_tool_call` and `_execute_tool_call` drift apart over time (e.g. a new parameter is added to execute but render forgets to display it, so the user sees a command that differs from what actually runs).
+
+For each tool name, a parametrised test verifies that the set of non-meta parameter keys consumed by `render_tool_call` equals the set consumed by `_execute_tool_call` for the same dict. Implementation sketch:
+
+```python
+@pytest.mark.parametrize("tool_name", [
+    "sources", "find_sites", "download", "get_current", "summarise", "plot",
+])
+def test_render_and_execute_consume_same_keys(tool_name):
+    """render and execute must read the same parameters from a tool call."""
+    # Build a tool call with every documented parameter for this tool
+    full_params = _build_full_params_for(tool_name)
+    tool_call = {"name": tool_name, "input": full_params}
+
+    # Render should include every non-meta parameter as a visible flag/value
+    rendered = render_tool_call(tool_call)
+    for key, value in full_params.items():
+        if key in ("confidence", "explanation"):
+            continue
+        # Either the key name, flag form, or the value should appear
+        assert _parameter_visible_in(key, value, rendered), (
+            f"Parameter {key} is executed but not shown in rendered command: {rendered}"
+        )
+```
+
+The helper `_build_full_params_for(tool_name)` returns a dict containing every parameter the tool's JSON schema declares. `_parameter_visible_in(key, value, rendered)` checks that either the flag (`--source`, `--sites`) or the value itself is present in the rendered string.
+
+This is not a perfect test — a buggy renderer could happen to include a substring that matches — but it catches the common "forgot to add the new parameter to both" drift.
 
 ### Live smoke tests
 
@@ -337,5 +384,12 @@ These are manual, run before releases, not part of CI:
 - **Agent loops.** No tool_result feedback. The LLM plans once, we execute.
 - **Cross-step validation.** We do not pre-check that step 2's input file matches step 1's output. If the LLM gets it wrong, the chain fails at execution and the user sees it.
 - **Parallel execution.** Steps always run sequentially, even if they're independent.
-- **Chain length limits.** No hard cap. The prompt discourages long chains; in practice 2-3 steps is typical.
 - **Persistent workflow history.** No replay, no "re-run that chain". Each invocation is independent.
+
+## Acknowledged tech debt (to address in a follow-up)
+
+**Duplication between `commands/*.py` and `_execute_tool_call`.** The orchestrator's `_execute_tool_call` reimplements the action of each CLI command rather than calling them. This means every CLI command change (e.g. when `--near` was added to `download`) has to be reflected in two places, and this spec's `NoDataError` raising only lives in the orchestrator copy. The chaining work makes the duplication slightly worse.
+
+The correct fix is a shared `ops/` module: pure functions like `ops.download(source, sites, start, end, ...)` that both `commands/download.py` and `_execute_tool_call` call into. Render becomes a separate concern that operates on the same parameter dict. This would also make the render/execute consistency enforceable by construction rather than by tests.
+
+We are deliberately deferring this refactor to its own PR. Bundling it with chaining would make the diff huge and hard to review. The consistency tests added in this spec catch the most likely drift in the meantime.
