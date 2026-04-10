@@ -23,8 +23,7 @@ Site counts were obtained from live metadata queries via `aeolus.find_sites()` o
 | WAQN | 70 | 4.0 | 15 | 37 | UK reference |
 | NI | 30 | 4.0 | 15 | 16 | UK reference |
 | AQE | 454 | 3.0 | 15 | 179 | UK reference |
-| LOCAL | 100 | 3.0 | 10 | 26 | UK local authority |
-| LMAM | 100 | 3.0 | 10 | 26 | UK local authority |
+| LAQN | 250 | 4.0 | 10 | 87 | London (ERG/Imperial) |
 | EEA | 7,020 | 3.0 | 10 | 1,846 | European reference |
 | Sonitus | 40 | 5.0 | 5 | 9 | Irish municipal |
 | Sensor.Community | ~35,000 | 2.0 | 5 | 3,068 | Global citizen science |

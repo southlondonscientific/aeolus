@@ -59,17 +59,9 @@ Local authority monitoring sites across England.
 - **Data quality**: Ratified
 - **API key**: Not required
 
-### LOCAL (Local Authority Networks)
+### LAQN (London Air Quality Network)
 
-Additional local authority monitoring networks.
-
-- **Coverage**: England
-- **Data quality**: Ratified
-- **API key**: Not required
-
-### LMAM (London Air Quality Mesh)
-
-Greater London monitoring network.
+London's main regulatory monitoring network, managed by ERG at Imperial College London. ~250 sites across all London boroughs.
 
 - **Coverage**: Greater London
 - **Data quality**: Ratified
@@ -147,8 +139,7 @@ Global citizen science network (formerly luftdaten.info) with 35,000+ low-cost s
 | WAQN | Network | Wales | Reference | Yes | 2000s+ |
 | NI | Network | N. Ireland | Reference | Yes | 2000s+ |
 | AQE | Network | England | Reference | Yes | 2000s+ |
-| LOCAL | Network | England | Reference | Yes | 2000s+ |
-| LMAM | Network | London | Reference | Yes | 2000s+ |
+| LAQN | Network | London | Reference | Yes | 1990s+ |
 | OpenAQ | Portal | Global | Mixed | Yes | 2015+ |
 | PurpleAir | Portal | Global | Indicative | Yes | 2017+ |
 | Breathe London | Network | London | Indicative | Yes | 2019+ |

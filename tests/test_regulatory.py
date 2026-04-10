@@ -322,7 +322,7 @@ class TestMakeMetadataFetcher:
         """Should fetch from correct URL for each network."""
         mock_fetch.return_value = mock_metadata_df
 
-        for network in ["aurn", "saqn", "ni", "waqn", "aqe", "local"]:
+        for network in ["aurn", "saqn", "ni", "waqn", "aqe"]:
             fetcher = make_metadata_fetcher(network)
             fetcher()
 
@@ -530,21 +530,6 @@ class TestSourceRegistration:
         assert source is not None
         assert source["type"] == "network"
 
-    def test_local_registered(self):
-        """LOCAL should be registered as a source."""
-        from aeolus.registry import get_source
-
-        source = get_source("LOCAL")
-        assert source is not None
-        assert source["type"] == "network"
-
-    def test_lmam_registered(self):
-        """LMAM should be registered as a source."""
-        from aeolus.registry import get_source
-
-        source = get_source("LMAM")
-        assert source is not None
-        assert source["type"] == "network"
 
 
 # ============================================================================
@@ -564,8 +549,6 @@ class TestConfiguration:
             "ni",
             "waqn",
             "aqe",
-            "local",
-            "lmam",
         ]
         for network in expected_networks:
             assert network in METADATA_URLS
@@ -580,8 +563,6 @@ class TestConfiguration:
             "ni",
             "waqn",
             "aqe",
-            "local",
-            "lmam",
         ]
         for network in expected_networks:
             assert network in DATA_BASE_URLS

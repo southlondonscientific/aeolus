@@ -53,7 +53,7 @@ data = aeolus.networks.download(
 ```python
 networks = aeolus.networks.list_networks()
 print(networks)
-# ['AURN', 'SAQN', 'WAQN', 'NI', 'AQE', 'LOCAL', 'LMAM', 
+# ['AURN', 'SAQN', 'WAQN', 'NI', 'AQE', 'LAQN',
 #  'BREATHE_LONDON', 'AIRQO', 'AIRNOW', 'SENSOR_COMMUNITY']
 ```
 
@@ -68,8 +68,7 @@ print(networks)
 | WAQN | Welsh Air Quality Network |
 | NI | Northern Ireland Network |
 | AQE | Air Quality England |
-| LOCAL | Local authority networks |
-| LMAM | London air quality mesh |
+| LAQN | London Air Quality Network |
 
 ### Other Networks
 

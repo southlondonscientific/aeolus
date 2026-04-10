@@ -29,7 +29,7 @@ pollutant_names = st.sampled_from(["NO2", "O3", "PM2.5", "PM10", "SO2", "CO"])
 unit_names = st.sampled_from(["ug/m3", "µg/m³", "ppb", "ppm", "mg/m3"])
 
 network_names = st.sampled_from(
-    ["AURN", "SAQN", "WAQN", "BREATHE_LONDON", "AIRQO", "SENSOR_COMMUNITY"]
+    ["AURN", "SAQN", "WAQN", "LAQN", "BREATHE_LONDON", "AIRQO", "SENSOR_COMMUNITY"]
 )
 
 concentrations = st.floats(min_value=-100.0, max_value=10000.0, allow_infinity=False).map(

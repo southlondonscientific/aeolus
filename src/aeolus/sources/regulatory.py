@@ -25,7 +25,6 @@ that provide data through the OpenAir project (Ricardo). Supported networks:
 - NI (Northern Ireland Air Quality Network)
 - WAQN (Wales Air Quality Network)
 - AQE (Air Quality England)
-- Local (Local Monitoring and Management networks)
 
 All networks follow the same data format (RData files from OpenAir), so they
 share common fetching and normalisation functions.
@@ -74,8 +73,6 @@ METADATA_URLS = {
     "ni": "https://www.airqualityni.co.uk/openair/R_data/NI_metadata.RData",
     "waqn": "https://airquality.gov.wales/sites/default/files/openair/R_data/WAQ_metadata.RData",
     "aqe": "https://airqualityengland.co.uk/assets/openair/R_data/AQE_metadata.RData",
-    "local": "https://uk-air.defra.gov.uk/openair/LMAM/R_data/LMAM_metadata.RData",
-    "lmam": "https://uk-air.defra.gov.uk/openair/LMAM/R_data/LMAM_metadata.RData",
 }
 
 DATA_BASE_URLS = {
@@ -85,8 +82,6 @@ DATA_BASE_URLS = {
     "ni": "https://www.airqualityni.co.uk/openair/R_data/",
     "waqn": "https://airquality.gov.wales/sites/default/files/openair/R_data/",
     "aqe": "https://airqualityengland.co.uk/assets/openair/R_data/",
-    "local": "https://uk-air.defra.gov.uk/openair/LMAM/R_data/",
-    "lmam": "https://uk-air.defra.gov.uk/openair/LMAM/R_data/",
 }
 
 # Pollutants/measurands available in regulatory network data
@@ -438,28 +433,3 @@ register_source(
     },
 )
 
-# Register LOCAL (Local authority networks)
-register_source(
-    "LOCAL",
-    {
-        "type": "network",
-        "name": "LOCAL",
-        "fetch_metadata": make_metadata_fetcher("local"),
-        "fetch_data": make_data_fetcher("local"),
-        "normalise": normalise_regulatory_data("LOCAL"),
-        "requires_api_key": False,
-    },
-)
-
-# Register LMAM (London Mobile Air Monitoring)
-register_source(
-    "LMAM",
-    {
-        "type": "network",
-        "name": "LMAM",
-        "fetch_metadata": make_metadata_fetcher("lmam"),
-        "fetch_data": make_data_fetcher("lmam"),
-        "normalise": normalise_regulatory_data("LMAM"),
-        "requires_api_key": False,
-    },
-)

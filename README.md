@@ -13,7 +13,8 @@ Aeolus distinguishes between two types of data source:
 
 | Type | Source | Coverage | API Key |
 |------|--------|----------|---------|
-| Network | [AURN](https://uk-air.defra.gov.uk/), [SAQN](https://www.scottishairquality.scot/), [WAQN](https://airquality.gov.wales/), [NI](https://www.airqualityni.co.uk/), [AQE](https://www.airqualityengland.co.uk/), LOCAL, LMAM | UK regulatory networks | No |
+| Network | [AURN](https://uk-air.defra.gov.uk/), [SAQN](https://www.scottishairquality.scot/), [WAQN](https://airquality.gov.wales/), [NI](https://www.airqualityni.co.uk/), [AQE](https://www.airqualityengland.co.uk/) | UK regulatory networks | No |
+| Network | [LAQN](https://www.londonair.org.uk/) | London Air Quality Network (~250 sites) | No |
 | Network | [Breathe London](https://www.breathelondon.org/) | London low-cost sensors | Yes |
 | Network | [AirQo](https://airqo.net/) | African cities (200+ sensors) | Yes |
 | Network | [Sensor.Community](https://sensor.community/) | Global citizen science (35,000+) | No |
@@ -69,8 +70,7 @@ These networks provide quality-assured data from reference-grade monitors operat
 | **WAQN** | Welsh Air Quality Network | Wales |
 | **NI** | Northern Ireland Network | Northern Ireland |
 | **AQE** | Air Quality England | England (local authorities) |
-| **LOCAL** | Local authority networks | England |
-| **LMAM** | London air quality mesh | Greater London |
+| **LAQN** | London Air Quality Network | Greater London (~250 sites) |
 
 ```python
 # Get metadata for all AURN sites

@@ -71,7 +71,7 @@ import aeolus
 
 sources = aeolus.list_sources()
 print(sources)
-# Networks: AURN, SAQN, WAQN, NI, AQE, LOCAL, LMAM, BREATHE_LONDON, AIRQO, AIRNOW, SENSOR_COMMUNITY
+# Networks: AURN, SAQN, WAQN, NI, AQE, LAQN, BREATHE_LONDON, AIRQO, AIRNOW, SENSOR_COMMUNITY
 # Portals: OPENAQ, PURPLEAIR
 ```
 

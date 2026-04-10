@@ -25,7 +25,7 @@ from datetime import datetime
 data = aeolus.download("AURN", ["MY1"],
     datetime(2024, 1, 1), datetime(2024, 12, 31))
 
-# Also: "SAQN", "WAQN", "NI", "AQE", "LOCAL", "LMAM"
+# Also: "SAQN", "WAQN", "NI", "AQE", "LAQN"
 ```
 
 **Differences:** openair has one function per network. Aeolus uses a single `download()` with the source as a parameter, which also handles non-UK sources (OpenAQ, PurpleAir, AirQo, Sensor.Community, AirNow, Breathe London). openair returns wide-format data (one column per pollutant); Aeolus returns long format (one row per measurement).

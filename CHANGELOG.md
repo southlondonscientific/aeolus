@@ -5,6 +5,25 @@ All notable changes to Aeolus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2026-04-10
+
+### Added
+- **LAQN data source** — London Air Quality Network (~250 sites across Greater London), backed by the ERG/Imperial College London Air API (`api.erg.ic.ac.uk`). No API key required. Replaces the defunct LMAM and LOCAL sources.
+- **EEA data source** — European Environment Agency monitoring network (7,000+ stations across 40+ countries). Uses the EEA Air Quality Download API with Parquet data files. No API key required.
+- **Sonitus data source** — Smart Dublin (Sonitus) air quality and noise monitoring network in Dublin, Ireland. Measures NO2, SO2, CO, NO, O3, PM1, PM2.5, PM10, TSP at 15-minute resolution. No API key required.
+- **Hypothesis property tests** — Property-based tests for geo, transforms, cache, metrics, download pipeline, and LAQN source normalisation.
+- **Conformance test suite** — Live API conformance tests for all data sources, validating schema compliance and data quality against real endpoints.
+
+### Fixed
+- **Frequency-aware `data_capture` in `summarise()`** — Data capture calculation now respects the actual data frequency rather than assuming hourly.
+
+### Removed
+- **LMAM and LOCAL sources** — Both pointed to dead DEFRA RData endpoints (all data URLs returning 404). London coverage is now provided by the LAQN source.
+
+### Known Limitations
+- **LAQN does not support `get_current()`** — The London Air API has no real-time endpoint equivalent to the UK-AIR SOS API used by AURN/SAQN/etc. Use `aeolus.download("LAQN", sites, last="1d")` as a workaround for recent data.
+- **Regulatory sources (AURN, SAQN, etc.) label CO as ug/m3** — CO data from RData files is actually in mg/m3. The LAQN source correctly labels CO as mg/m3. A fix for the regulatory sources is planned for a future release.
+
 ## [0.4.1] - 2026-04-05
 
 ### Fixed

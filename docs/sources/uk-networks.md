@@ -119,35 +119,33 @@ data = aeolus.download(
 )
 ```
 
-## LOCAL (Local Authority Networks)
+## LAQN (London Air Quality Network)
 
-Additional local authority monitoring networks in England.
+London's main regulatory monitoring network, managed by the Environmental Research Group (ERG) at Imperial College London. Provides hourly data from ~250 monitoring sites across Greater London, covering all 33 London boroughs.
 
-```python
-import aeolus
-from datetime import datetime
+Data is accessed via the London Air JSON API. No API key is required.
 
-sites = aeolus.networks.get_metadata("LOCAL")
-data = aeolus.download(
-    sources="LOCAL",
-    sites=sites["site_code"].head(3).tolist(),
-    start_date=datetime(2024, 1, 1),
-    end_date=datetime(2024, 1, 31)
-)
-```
+### Available Pollutants
 
-## LMAM (London Air Quality Mesh)
+- Nitrogen dioxide (NO2)
+- Ozone (O3)
+- Particulate matter (PM2.5, PM10)
+- Sulphur dioxide (SO2)
+- Carbon monoxide (CO)
 
-Greater London monitoring network providing additional coverage across the capital.
+### Usage
 
 ```python
 import aeolus
 from datetime import datetime
 
-sites = aeolus.networks.get_metadata("LMAM")
+# Find sites near a location
+sites = aeolus.find_sites("LAQN", near=(51.5074, -0.1278), radius_km=5)
+
+# Download data
 data = aeolus.download(
-    sources="LMAM",
-    sites=sites["site_code"].head(3).tolist(),
+    sources="LAQN",
+    sites=["MY1", "KC1"],
     start_date=datetime(2024, 1, 1),
     end_date=datetime(2024, 1, 31)
 )

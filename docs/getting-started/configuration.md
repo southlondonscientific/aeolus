@@ -82,8 +82,7 @@ These sources work without any configuration:
 - **WAQN** - Welsh Air Quality Network
 - **NI** - Northern Ireland Air Quality Network
 - **AQE** - Air Quality England
-- **LOCAL** - Local authority monitoring sites
-- **LMAM** - London Mobile Air Monitoring
+- **LAQN** - London Air Quality Network
 - **SENSOR_COMMUNITY** - Global citizen science network
 
 ## Verifying Configuration

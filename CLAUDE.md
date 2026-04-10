@@ -2,7 +2,7 @@
 
 Air quality data downloading and standardisation library for UK and international monitoring networks.
 
-**Current Version:** 0.4.1
+**Current Version:** 0.4.2
 
 ## Quick Start
 
@@ -42,7 +42,8 @@ src/aeolus/
 ├── registry.py          # Source registration system
 ├── transforms.py        # Data normalisation utilities
 ├── sources/             # Data source implementations
-│   ├── regulatory.py    # UK regulatory networks (AURN, SAQN, WAQN, NI, AQE, LOCAL, LMAM)
+│   ├── regulatory.py    # UK regulatory networks (AURN, SAQN, WAQN, NI, AQE)
+│   ├── laqn.py          # London Air Quality Network (ERG/Imperial)
 │   ├── openaq.py        # OpenAQ global portal
 │   ├── breathe_london.py # Breathe London network
 │   ├── airqo.py         # AirQo African network
@@ -71,8 +72,7 @@ src/aeolus/
 | WAQN | No | Wales |
 | NI | No | Northern Ireland |
 | AQE | No | Air Quality England |
-| LOCAL | No | Local authority networks |
-| LMAM | No | London air quality mesh |
+| LAQN | No | London Air Quality Network (~250 sites) |
 | BREATHE_LONDON | Yes (`BL_API_KEY`) | London low-cost sensors |
 | AIRQO | Yes (`AIRQO_API_KEY`) | African cities (200+ sensors) |
 | AIRNOW | Yes (`AIRNOW_API_KEY`) | USA, Canada, Mexico |
