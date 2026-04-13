@@ -259,7 +259,27 @@ class TestNormaliseRegulatoryData:
         assert "created_at" in result.columns
 
         assert all(result["source_network"] == "AURN")
+        # Non-CO measurands should be ug/m3
         assert all(result["units"] == "ug/m3")
+
+    def test_normalise_data_co_units_are_mg_m3(self):
+        """CO should be labelled mg/m3, not ug/m3."""
+        df = pd.DataFrame(
+            {
+                "site": ["Site A"] * 2,
+                "code": ["S1"] * 2,
+                "date": [datetime(2024, 1, 1, 0, 0)] * 2,
+                "NO2": [30.0, 30.0],
+                "CO": [0.3, 0.3],
+            }
+        )
+        normaliser = normalise_regulatory_data("AURN")
+        result = normaliser(df)
+
+        co = result[result["measurand"] == "CO"]
+        no2 = result[result["measurand"] == "NO2"]
+        assert all(co["units"] == "mg/m3")
+        assert all(no2["units"] == "ug/m3")
 
     def test_normalise_data_empty_dataframe(self, mock_empty_df):
         """Should handle empty DataFrame gracefully."""

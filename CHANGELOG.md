@@ -16,13 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Frequency-aware `data_capture` in `summarise()`** — Data capture calculation now respects the actual data frequency rather than assuming hourly.
+- **`data_capture` capped at 1.0 in `summarise()`** — When timestamps were sub-minute apart, the inferred frequency could underestimate expected records, producing `data_capture` > 1.0.
+- **CO units corrected to mg/m3** — All sources (regulatory and LAQN) now correctly label CO as mg/m3. Previously, regulatory sources labelled CO as ug/m3 despite the values being in mg/m3.
 
 ### Removed
 - **LMAM and LOCAL sources** — Both pointed to dead DEFRA RData endpoints (all data URLs returning 404). London coverage is now provided by the LAQN source.
 
 ### Known Limitations
 - **LAQN does not support `get_current()`** — The London Air API has no real-time endpoint equivalent to the UK-AIR SOS API used by AURN/SAQN/etc. Use `aeolus.download("LAQN", sites, last="1d")` as a workaround for recent data.
-- **Regulatory sources (AURN, SAQN, etc.) label CO as ug/m3** — CO data from RData files is actually in mg/m3. The LAQN source correctly labels CO as mg/m3. A fix for the regulatory sources is planned for a future release.
 
 ## [0.4.1] - 2026-04-05
 

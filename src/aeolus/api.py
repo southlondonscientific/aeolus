@@ -804,7 +804,7 @@ def summarise(data: pd.DataFrame) -> pd.DataFrame:
             freq_hours = 1.0
         span_hours = (end - start).total_seconds() / 3600
         expected = (span_hours / freq_hours) + 1 if span_hours > 0 else 1
-        dc = valid / expected
+        dc = min(valid / expected, 1.0)
 
         rows.append({
             "site_code": site,

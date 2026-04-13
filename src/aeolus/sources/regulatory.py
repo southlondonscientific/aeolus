@@ -254,7 +254,12 @@ def normalise_regulatory_data(network_name: str) -> Normaliser:
             convert_timestamps("date_time", unit="s", utc=True),
             add_column("source_network", network_name.upper()),
             add_column("ratification", "None"),
-            add_column("units", "ug/m3"),
+            add_column(
+                "units",
+                lambda df: df["measurand"].map(
+                    lambda m: "mg/m3" if m == "CO" else "ug/m3"
+                ),
+            ),
             add_column("created_at", lambda df: datetime.now(timezone.utc)),
             drop_columns("site_name"),
         )(df)
