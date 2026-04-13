@@ -119,6 +119,28 @@ class TestAQE:
             run_data_conformance(data, "AQE")
 
 
+@pytest.mark.conformance
+class TestLAQN:
+    def test_metadata(self):
+        sites = aeolus.find_sites("LAQN")
+        assert len(sites) > 200, f"Expected >200 LAQN sites, got {len(sites)}"
+        run_metadata_conformance(sites, "LAQN")
+
+    def test_download(self):
+        data = aeolus.download("LAQN", ["MY1", "KC1"], start_date=_START, end_date=_END)
+        if not data.empty:
+            run_data_conformance(data, "LAQN")
+
+    def test_co_units(self):
+        """CO should be labelled mg/m3."""
+        data = aeolus.download("LAQN", ["KC1"], start_date=_START, end_date=_END)
+        co = data[data["measurand"] == "CO"]
+        if not co.empty:
+            assert (co["units"] == "mg/m3").all(), (
+                f"Expected CO units='mg/m3', got {co['units'].unique()}"
+            )
+
+
 # ============================================================================
 # International free (no API key)
 # ============================================================================
