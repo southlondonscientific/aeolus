@@ -33,7 +33,7 @@ uv venv "$VENV_DIR" --python 3.11 --quiet
 echo "==> Installing wheel + test dependencies..."
 uv pip install --python "$VENV_DIR/bin/python" \
     "$WHEEL" \
-    pytest responses freezegun pytest-mock tqdm \
+    pytest responses freezegun pytest-mock tqdm python-dotenv \
     --quiet
 
 echo "==> Listing installed package files..."
