@@ -24,7 +24,6 @@ from aeolus.sources.sensor_community import (
     USER_AGENT,
     VALUE_NAME_MAP,
     RateLimiter,
-    _empty_dataframe,
     _fetch_sensor_archive,
     _get_sensor_types_for_sites,
     _make_request,
@@ -34,6 +33,7 @@ from aeolus.sources.sensor_community import (
     fetch_sensor_community_realtime,
     set_rate_limiting,
 )
+from aeolus.types import empty_data_frame as _empty_dataframe
 
 # ============================================================================
 # Ensure source is registered for tests

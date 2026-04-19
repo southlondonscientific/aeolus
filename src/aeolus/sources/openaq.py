@@ -26,13 +26,14 @@ Data Platform: https://openaq.org/
 
 import logging
 import os
+import warnings
 from datetime import datetime, timezone
 
 import pandas as pd
 
 from ..registry import register_source
 from ..transforms import add_column, compose, select_columns
-from ..types import empty_data_frame
+from ..types import AeolusDataWarning, empty_data_frame, empty_metadata_frame
 
 logger = logging.getLogger(__name__)
 
@@ -158,17 +159,7 @@ def fetch_openaq_metadata(**filters) -> pd.DataFrame:
 
     # Convert to DataFrame
     if not response.results:
-        return pd.DataFrame(
-            columns=[
-                "site_code",
-                "site_name",
-                "latitude",
-                "longitude",
-                "country",
-                "measurands",
-                "source_network",
-            ]
-        )
+        return empty_metadata_frame()
 
     records = []
     for loc in response.results:
@@ -300,7 +291,11 @@ def fetch_openaq_data(
                 continue
 
     if not all_measurements:
-        logger.warning("No measurements found for any location")
+        warnings.warn(
+            "No measurements found for any location",
+            AeolusDataWarning,
+            stacklevel=2,
+        )
         return empty_data_frame()
 
     # Convert to DataFrame and normalise

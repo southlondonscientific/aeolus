@@ -18,16 +18,38 @@
 UK Regulatory Network Data Sources.
 
 This module provides data fetchers for UK regulatory air quality networks
-that provide data through the OpenAir project (Ricardo). Supported networks:
+that publish data through the OpenAir project (Ricardo). Supported networks:
+
 - AURN (Automatic Urban and Rural Network)
 - SAQN (Scottish Air Quality Network)
-- SAQD (Scottish Air Quality Database)
+- SAQD (Scottish Air Quality Database — alias for SAQN)
 - NI (Northern Ireland Air Quality Network)
 - WAQN (Wales Air Quality Network)
 - AQE (Air Quality England)
 
 All networks follow the same data format (RData files from OpenAir), so they
-share common fetching and normalisation functions.
+share common fetching and normalisation functions via factory functions.
+
+Authentication: None required — all endpoints are open.
+
+Primary API endpoints (per-network RData files):
+
+- AURN: https://uk-air.defra.gov.uk/openair/R_data/
+- SAQN/SAQD: https://www.scottishairquality.scot/openair/R_data/
+- NI: https://www.airqualityni.co.uk/openair/R_data/
+- WAQN: https://airquality.gov.wales/sites/default/files/openair/R_data/
+- AQE: https://airqualityengland.co.uk/assets/openair/R_data/
+
+Per-site data URL pattern: ``{base}{SITE}_{YEAR}.RData``
+
+Known quirks:
+
+- AQE has ~2000 sites in its metadata but many are closed; active sites
+  have recent RData files, closed sites return 404.
+- Some sites report CO values in mg/m3 (the original openair convention);
+  we label these correctly via per-measurand units mapping.
+- ``SAQD`` is a historical alias for ``SAQN`` — same endpoint, kept for
+  backwards compatibility.
 """
 
 import struct
@@ -65,7 +87,12 @@ from ..transforms import (
 )
 from ..types import AeolusDataWarning, DataFetcher, MetadataFetcher, Normaliser, empty_data_frame
 
-# Configuration - URLs for each network
+
+# ============================================================================
+# CONSTANTS
+# ============================================================================
+
+# URLs for each network
 METADATA_URLS = {
     "aurn": "https://uk-air.defra.gov.uk/openair/R_data/AURN_metadata.RData",
     "saqn": "https://www.scottishairquality.scot/openair/R_data/SCOT_metadata.RData",
@@ -126,6 +153,11 @@ REGULATORY_MEASURANDS = [
 ]
 
 
+# ============================================================================
+# HTTP CLIENT
+# ============================================================================
+
+
 # Low-level fetcher - downloads and parses RData files
 @retry_on_network_error
 def fetch_rdata(url: str) -> pd.DataFrame | None:
@@ -178,6 +210,11 @@ def _load_sos_mapping() -> dict:
     return _sos_mapping
 
 
+# ============================================================================
+# METADATA
+# ============================================================================
+
+
 # Metadata normalisation pipeline for regulatory networks
 def normalise_regulatory_metadata(network_name: str) -> Normaliser:
     """
@@ -206,6 +243,11 @@ def normalise_regulatory_metadata(network_name: str) -> Normaliser:
     )
 
 
+# ============================================================================
+# DATA
+# ============================================================================
+
+
 # Data normalisation pipeline for regulatory networks
 def normalise_regulatory_data(network_name: str) -> Normaliser:
     """
@@ -225,18 +267,7 @@ def normalise_regulatory_data(network_name: str) -> Normaliser:
         if not measurands_present:
             # No measurands found - return empty DataFrame with standard schema
             warning(f"No measurands found in DataFrame for {network_name}")
-            return pd.DataFrame(
-                columns=[
-                    "site_code",
-                    "date_time",
-                    "measurand",
-                    "value",
-                    "units",
-                    "source_network",
-                    "ratification",
-                    "created_at",
-                ]
-            )
+            return empty_data_frame()
 
         # Apply transformation pipeline
         return compose(
@@ -358,6 +389,11 @@ def make_data_fetcher(network_name: str) -> DataFetcher:
         return normalised
 
     return fetch_data
+
+
+# ============================================================================
+# SOURCE REGISTRATION
+# ============================================================================
 
 
 # Register AURN (the primary network)

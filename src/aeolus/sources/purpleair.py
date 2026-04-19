@@ -386,7 +386,7 @@ def fetch_purpleair_data(
         client = _get_purpleair_client()
     except ValueError as e:
         warning(str(e))
-        return _empty_dataframe(raw=raw)
+        return _empty_raw_dataframe() if raw else empty_data_frame()
 
     all_data = []
 
@@ -422,7 +422,7 @@ def fetch_purpleair_data(
             continue
 
     if not all_data:
-        return _empty_dataframe(raw=raw)
+        return _empty_raw_dataframe() if raw else empty_data_frame()
 
     # Combine all sensor data
     combined = pd.concat(all_data, ignore_index=True)
@@ -470,35 +470,26 @@ def _parse_historic_response(response: dict, sensor_index: str) -> pd.DataFrame:
     return df
 
 
-def _empty_dataframe(raw: bool = False) -> pd.DataFrame:
-    """Return empty DataFrame with correct schema."""
-    if raw:
-        return pd.DataFrame(
-            columns=[
-                "sensor_index",
-                "time_stamp",
-                "pm2.5_atm_a",
-                "pm2.5_atm_b",
-                "pm10.0_atm_a",
-                "pm10.0_atm_b",
-                "pm1.0_atm_a",
-                "pm1.0_atm_b",
-                "humidity_a",
-                "humidity_b",
-                "temperature_a",
-                "temperature_b",
-            ]
-        )
+def _empty_raw_dataframe() -> pd.DataFrame:
+    """Return an empty DataFrame in PurpleAir's pre-normalised (raw API) shape.
+
+    Used only on the internal fetch path before normalisation. For the
+    normalised 8-column output, use ``empty_data_frame()`` from aeolus.types.
+    """
     return pd.DataFrame(
         columns=[
-            "site_code",
-            "date_time",
-            "measurand",
-            "value",
-            "units",
-            "source_network",
-            "ratification",
-            "created_at",
+            "sensor_index",
+            "time_stamp",
+            "pm2.5_atm_a",
+            "pm2.5_atm_b",
+            "pm10.0_atm_a",
+            "pm10.0_atm_b",
+            "pm1.0_atm_a",
+            "pm1.0_atm_b",
+            "humidity_a",
+            "humidity_b",
+            "temperature_a",
+            "temperature_b",
         ]
     )
 

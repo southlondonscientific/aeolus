@@ -310,7 +310,7 @@ def fetch_airnow_data(
         ... )
     """
     if not sites:
-        return _empty_dataframe()
+        return empty_data_frame()
 
     # Parse site codes back to coordinates
     site_coords = {}
@@ -325,7 +325,7 @@ def fetch_airnow_data(
             continue
 
     if not site_coords:
-        return _empty_dataframe()
+        return empty_data_frame()
 
     all_data = []
     fetch_time = datetime.now(timezone.utc)
@@ -345,7 +345,7 @@ def fetch_airnow_data(
             all_data.append(site_data)
 
     if not all_data:
-        return _empty_dataframe()
+        return empty_data_frame()
 
     return pd.concat(all_data, ignore_index=True)
 
@@ -446,22 +446,6 @@ def _fetch_site_historical(
     return pd.DataFrame(records)
 
 
-def _empty_dataframe() -> pd.DataFrame:
-    """Return empty DataFrame with correct schema."""
-    return pd.DataFrame(
-        columns=[
-            "site_code",
-            "date_time",
-            "measurand",
-            "value",
-            "units",
-            "source_network",
-            "ratification",
-            "created_at",
-        ]
-    )
-
-
 # ============================================================================
 # CONVENIENCE FUNCTIONS
 # ============================================================================
@@ -499,7 +483,7 @@ def fetch_airnow_current(
     data = _call_airnow_api("observation/latLong/current/", params)
 
     if not data:
-        return _empty_dataframe()
+        return empty_data_frame()
 
     records = []
     fetch_time = datetime.now(timezone.utc)
@@ -541,7 +525,7 @@ def fetch_airnow_current(
         )
 
     if not records:
-        return _empty_dataframe()
+        return empty_data_frame()
 
     return pd.DataFrame(records)
 

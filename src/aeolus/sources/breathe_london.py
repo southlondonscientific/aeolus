@@ -271,23 +271,9 @@ def fetch_breathe_london_data(
         combined_df = pd.concat(all_data, ignore_index=True)
         return combined_df
     else:
-        return _empty_dataframe()
+        return empty_data_frame()
 
 
-def _empty_dataframe() -> pd.DataFrame:
-    """Return empty DataFrame with correct schema."""
-    return pd.DataFrame(
-        columns=[
-            "site_code",
-            "date_time",
-            "measurand",
-            "value",
-            "units",
-            "source_network",
-            "ratification",
-            "created_at",
-        ]
-    )
 
 
 # ============================================================================

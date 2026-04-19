@@ -560,7 +560,7 @@ def fetch_sensor_community_data(
         ... )
     """
     if not sites:
-        return _empty_dataframe()
+        return empty_data_frame()
 
     # Look up sensor types for all requested sites
     sensor_types = _get_sensor_types_for_sites(sites)
@@ -608,7 +608,7 @@ def fetch_sensor_community_data(
         current_date += timedelta(days=1)
 
     if not all_data:
-        return _empty_dataframe()
+        return empty_data_frame()
 
     result = pd.concat(all_data, ignore_index=True)
 
@@ -747,20 +747,6 @@ def _normalise_sensor_data(
     return pd.DataFrame(records)
 
 
-def _empty_dataframe() -> pd.DataFrame:
-    """Return empty DataFrame with correct schema."""
-    return pd.DataFrame(
-        columns=[
-            "site_code",
-            "date_time",
-            "measurand",
-            "value",
-            "units",
-            "source_network",
-            "ratification",
-            "created_at",
-        ]
-    )
 
 
 # ============================================================================
@@ -850,16 +836,16 @@ def fetch_sensor_community_realtime(
 
     response = _make_request(url)
     if response is None:
-        return _empty_dataframe()
+        return empty_data_frame()
 
     try:
         data = response.json()
     except ValueError:
         warning("Failed to parse JSON response")
-        return _empty_dataframe()
+        return empty_data_frame()
 
     if not data:
-        return _empty_dataframe()
+        return empty_data_frame()
 
     records = []
     fetch_time = datetime.now(timezone.utc)
@@ -906,7 +892,7 @@ def fetch_sensor_community_realtime(
             )
 
     if not records:
-        return _empty_dataframe()
+        return empty_data_frame()
 
     return pd.DataFrame(records)
 

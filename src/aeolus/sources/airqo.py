@@ -425,7 +425,7 @@ def fetch_airqo_data(
         logger.info(f"Total AirQo measurements fetched: {len(combined_df)}")
         return combined_df
     else:
-        return _empty_dataframe()
+        return empty_data_frame()
 
 
 def fetch_airqo_data_by_grid(
@@ -481,12 +481,12 @@ def fetch_airqo_data_by_grid(
             warning(
                 f"AirQo API error for grid {grid_id}: {data.get('message', 'Unknown')}"
             )
-            return _empty_dataframe()
+            return empty_data_frame()
 
         measurements = data.get("measurements", [])
         if not measurements:
             logger.info(f"No measurements found for grid {grid_id}")
-            return _empty_dataframe()
+            return empty_data_frame()
 
         logger.info(f"Found {len(measurements)} measurements for grid {grid_id}")
 
@@ -497,23 +497,9 @@ def fetch_airqo_data_by_grid(
 
     except (requests.RequestException, ValueError, KeyError, TypeError) as e:
         warning(f"Failed to fetch AirQo data for grid {grid_id}: {type(e).__name__}")
-        return _empty_dataframe()
+        return empty_data_frame()
 
 
-def _empty_dataframe() -> pd.DataFrame:
-    """Return empty DataFrame with correct schema."""
-    return pd.DataFrame(
-        columns=[
-            "site_code",
-            "date_time",
-            "measurand",
-            "value",
-            "units",
-            "source_network",
-            "ratification",
-            "created_at",
-        ]
-    )
 
 
 # ============================================================================

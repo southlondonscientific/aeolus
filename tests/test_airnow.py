@@ -16,7 +16,6 @@ from aeolus.sources.airnow import (
     AQI_CATEGORIES,
     PARAMETER_MAP,
     _call_airnow_api,
-    _empty_dataframe,
     _get_api_key,
     fetch_airnow_current,
     fetch_airnow_data,
@@ -525,11 +524,13 @@ class TestFetchCurrent:
 
 
 class TestEmptyDataframe:
-    """Test the _empty_dataframe function."""
+    """Test that empty_data_frame() produces the expected schema for airnow."""
 
     def test_empty_dataframe_has_correct_columns(self):
         """Test that empty DataFrame has all required columns."""
-        df = _empty_dataframe()
+        from aeolus.types import empty_data_frame
+
+        df = empty_data_frame()
 
         expected_columns = [
             "site_code",
