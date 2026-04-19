@@ -91,17 +91,66 @@ The standard LAQM annual-report metric: the mean of hourly values within
 each calendar day, with the day dropped (NaN) if fewer than 75% of hours
 are valid.
 
-R openair:
+### Idiomatic usage
 
-```{r}
-#| eval: false
-daily <- timeAverage(raw, avg.time = "day", data.thresh = 75)
+Each tool consumes data in its native shape and produces a daily summary
+with one function call:
+
+:::: {.columns}
+
+::: {.column width="48%"}
+**R openair**
+
+```r
+daily <- timeAverage(
+  aurn,
+  avg.time = "day",
+  data.thresh = 75
+)
 ```
 
-aeolus:
+openair expects wide-format input
+(one column per pollutant).
+:::
+
+::: {.column width="4%"}
+:::
+
+::: {.column width="48%"}
+**aeolus**
+
+```python
+daily = time_average(
+    aurn,
+    freq="D",
+    data_thresh=0.75,
+)
+```
+
+aeolus expects long-format input
+(one row per measurement).
+:::
+
+::::
+
+The only difference in practice is input shape — both calls take the
+same parameters and produce an equivalent daily summary. aeolus uses
+long format by design (we think it scales better to multi-source,
+multi-pollutant workflows), not because we're translating openair.
+
+### Comparison scaffolding
+
+For the strict numerical parity check, we need to run the _same bytes_
+through both tools and align outputs. The code below reshapes openair's
+wide-format raw data into aeolus's long-format schema, calls
+`time_average`, then pivots the result back to wide so we can diff it
+against the openair reference cell-by-cell. This is test plumbing, not
+idiomatic aeolus code.
 
 ```{python}
 #| label: aeolus-daily
+#| code-fold: true
+#| code-summary: "Show the reshape + pivot plumbing"
 from datetime import datetime, timezone
 from aeolus.metrics import time_average
 
@@ -127,7 +176,10 @@ aeolus_input = pd.DataFrame({
     "created_at": datetime(2024, 1, 1, tzinfo=timezone.utc),
 })
 
+# The actual aeolus call — everything above is format-alignment plumbing
 aeolus_daily_long = time_average(aeolus_input, freq="D", data_thresh=0.75)
+
+# Pivot aeolus's long output back to wide to match openair's shape
 aeolus_daily = aeolus_daily_long.pivot_table(
     index="date_time", columns="measurand", values="value", aggfunc="first"
 ).reset_index().rename(columns={"date_time": "date"})
@@ -136,7 +188,7 @@ aeolus_daily = aeolus_daily.rename(
 )
 ```
 
-### Comparison
+### Numerical comparison
 
 ```{python}
 #| label: compare-daily
