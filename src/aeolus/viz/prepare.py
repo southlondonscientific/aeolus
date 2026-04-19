@@ -374,12 +374,22 @@ def prepare_timeseries(
                     y = p_df[p].values
 
                     x_down, _ = lttb_downsample(x, y, per_pollutant_target)
-                    # Convert back to timestamps using same unit as source dtype
-                    # datetime64[us] -> microseconds, datetime64[ns] -> nanoseconds
-                    dt_unit = str(p_df["date_time"].dtype).split("[")[1].rstrip("]")
-                    all_selected_times.update(
-                        pd.to_datetime(x_down, unit=dt_unit).tolist()
+                    # Convert back to timestamps using the source dtype's resolution.
+                    # Handle both naive ("datetime64[us]") and tz-aware
+                    # ("datetime64[us, UTC]") dtypes — the latter must be parsed
+                    # before the comma.
+                    src_dtype = p_df["date_time"].dtype
+                    # Parse the unit from "datetime64[us]" or "datetime64[us, UTC]".
+                    # Split before the comma to drop the timezone suffix, then strip
+                    # the trailing ']' left over from naive dtypes.
+                    dt_unit = (
+                        str(src_dtype).split("[")[1].split(",")[0].rstrip("]").strip()
                     )
+                    source_tz = getattr(src_dtype, "tz", None)
+                    restored = pd.to_datetime(x_down, unit=dt_unit, utc=source_tz is not None)
+                    if source_tz is not None and str(source_tz) != "UTC":
+                        restored = restored.tz_convert(source_tz)
+                    all_selected_times.update(restored.tolist())
 
             # Filter to union of all selected time points
             wide = wide[wide["date_time"].isin(all_selected_times)].copy()

@@ -436,6 +436,29 @@ class TestPrepareTimeseries:
         assert spec.was_downsampled is True
         assert spec.display_points < spec.original_points
 
+    def test_prepare_downsampling_with_tz_aware_data(self):
+        """Regression: downsampling tz-aware datetime64[us, UTC] used to fail
+        with 'Invalid datetime unit in metadata string'."""
+        import numpy as np
+        import pandas as pd
+        from aeolus.viz.prepare import prepare_timeseries
+
+        # Large enough to trigger downsampling, with 15-min tz-aware timestamps
+        n = 3000
+        df = pd.DataFrame({
+            "site_code": ["BL001"] * n,
+            "date_time": pd.date_range("2024-06-01", periods=n, freq="15min", tz="UTC"),
+            "measurand": ["NO2"] * n,
+            "value": np.random.default_rng(42).uniform(10, 100, n),
+            "units": ["ug/m3"] * n,
+            "source_network": ["TEST"] * n,
+            "ratification": ["None"] * n,
+            "created_at": pd.Timestamp.now(tz="UTC"),
+        })
+        spec = prepare_timeseries(df, downsample=100)
+        assert spec.was_downsampled is True
+        assert spec.display_points < spec.original_points
+
     def test_prepare_without_downsampling(self, sample_aeolus_data):
         """Test disabling downsampling."""
         from aeolus.viz.prepare import prepare_timeseries
