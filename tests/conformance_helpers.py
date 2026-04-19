@@ -228,6 +228,61 @@ def assert_cache_roundtrip(df: pd.DataFrame, source: str) -> None:
 
 
 # ============================================================================
+# Canonical vocabulary assertions (runtime complement to the static tests in
+# tests/test_source_consistency.py — catches runtime string manipulation)
+# ============================================================================
+
+# Keep these in sync with tests/test_source_consistency.py
+_CANONICAL_UNITS = frozenset({
+    "ug/m3", "mg/m3", "ppb", "ppm",
+    "C", "F", "%", "hPa", "Pa", "AQI",
+})
+_CANONICAL_RATIFICATION = frozenset({
+    "Ratified", "Verified", "Validated",
+    "Provisional", "Unvalidated", "Indicative",
+    "Below Detection Limit", "Channel Disagreement", "Single Channel",
+    "None", "Unknown",
+})
+_BAD_POLLUTANT_SPELLINGS = frozenset({
+    "pm25", "PM25", "pm2.5", "pm2_5", "PM_2.5",
+    "pm10", "PM_10",
+    "no2", "nO2", "o3", "co", "so2",
+})
+
+
+def assert_canonical_units(df: pd.DataFrame, source: str) -> None:
+    """Assert every units value is in the canonical vocabulary."""
+    if df.empty or "units" not in df.columns:
+        return
+    bad = set(df["units"].dropna().unique()) - _CANONICAL_UNITS
+    assert not bad, (
+        f"[{source}] emits non-canonical units: {sorted(bad)} "
+        f"(expected one of {sorted(_CANONICAL_UNITS)})"
+    )
+
+
+def assert_canonical_ratification(df: pd.DataFrame, source: str) -> None:
+    """Assert every ratification value is in the canonical vocabulary."""
+    if df.empty or "ratification" not in df.columns:
+        return
+    bad = set(df["ratification"].dropna().unique()) - _CANONICAL_RATIFICATION
+    assert not bad, (
+        f"[{source}] emits non-canonical ratification: {sorted(bad)} "
+        f"(expected one of {sorted(_CANONICAL_RATIFICATION)})"
+    )
+
+
+def assert_no_bad_pollutant_spellings(df: pd.DataFrame, source: str) -> None:
+    """Assert measurand column doesn't contain known misspellings of canonical pollutants."""
+    if df.empty or "measurand" not in df.columns:
+        return
+    bad = set(df["measurand"].dropna().unique()) & _BAD_POLLUTANT_SPELLINGS
+    assert not bad, (
+        f"[{source}] emits non-canonical pollutant spellings: {sorted(bad)}"
+    )
+
+
+# ============================================================================
 # Combined runners
 # ============================================================================
 
@@ -236,6 +291,9 @@ def run_data_conformance(df: pd.DataFrame, source: str) -> None:
     assert_data_schema(df, source)
     assert_data_dtypes(df, source)
     assert_physical_plausibility(df, source)
+    assert_canonical_units(df, source)
+    assert_canonical_ratification(df, source)
+    assert_no_bad_pollutant_spellings(df, source)
     assert_survives_pipeline(df, source)
     assert_summarise_valid(df, source)
     assert_cache_roundtrip(df, source)
