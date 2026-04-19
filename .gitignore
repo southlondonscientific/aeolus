@@ -103,3 +103,8 @@ uv.lock
 plan.md
 AI.md
 .hypothesis/
+
+# Quarto build artefacts
+docs/validation/*.html
+docs/validation/*_files/
+.quarto/
