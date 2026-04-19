@@ -244,6 +244,10 @@ def fetch_laqn_data(
     Returns:
         DataFrame with the standard 8-column data schema.
     """
+    # LAQN API site codes are uppercase; normalise inputs so lowercase
+    # or mixed-case codes from the user work transparently.
+    sites = [s.upper() for s in sites]
+
     dfs = []
     for site in track(sites, description="Downloading LAQN"):
         points = _fetch_site_data(site, start_date, end_date)

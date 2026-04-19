@@ -346,6 +346,22 @@ class TestFetchData:
         assert "EndDate=2024-06-16" in path
 
     @patch("aeolus.sources.laqn._get_json")
+    def test_site_codes_normalised_to_uppercase(self, mock_get, mock_data_response):
+        """Regression: LAQN API is case-sensitive. aeolus must uppercase
+        user-provided site codes so lowercase/mixed case inputs work
+        transparently (and don't silently return 0 rows)."""
+        mock_get.return_value = mock_data_response
+        start = datetime(2024, 6, 15, tzinfo=timezone.utc)
+        end = datetime(2024, 6, 16, tzinfo=timezone.utc)
+
+        # Call with lowercase — the URL path must still contain uppercase
+        fetch_laqn_data(["my1"], start, end)
+
+        path = mock_get.call_args_list[0][0][0]
+        assert "SiteCode=MY1" in path
+        assert "SiteCode=my1" not in path
+
+    @patch("aeolus.sources.laqn._get_json")
     def test_no_data_warns(self, mock_get):
         mock_get.return_value = {"AirQualityData": {"@SiteCode": "X", "Data": []}}
         start = datetime(2024, 1, 1, tzinfo=timezone.utc)

@@ -325,3 +325,22 @@ def test_fetcher_fields_are_callable():
             if val is not None and not callable(val):
                 violations.append(f"{key}: {field} is not callable (type {type(val).__name__})")
     assert not violations, "\n  ".join(["Callable-field violations:"] + violations)
+
+
+# ============================================================================
+# Case-sensitivity contract
+# ============================================================================
+
+
+def test_source_name_lookup_is_case_insensitive():
+    """Registry lookups by source name must be case-insensitive so users
+    can pass either "LAQN" or "laqn" to download()/find_sites()."""
+    for key in list_sources(include_all=True):
+        # Case-invariance holds as long as case variants resolve to the same spec
+        assert get_source(key.lower()) is get_source(key), (
+            f"get_source({key.lower()!r}) did not resolve to the same spec as "
+            f"get_source({key!r}) — source-name lookup is case-sensitive"
+        )
+        assert get_source(key.swapcase()) is get_source(key), (
+            f"get_source({key.swapcase()!r}) failed — swapcase must also resolve"
+        )

@@ -56,6 +56,7 @@ import pandas as pd
 from . import sources as _sources  # noqa: F401
 from .registry import get_source, source_exists
 from .registry import list_sources as _list_sources
+from .types import AeolusDataWarning
 from .types import DATA_COLUMNS as _STANDARD_COLUMNS
 from .types import METADATA_COLUMNS as _METADATA_COLUMNS
 from .types import empty_metadata_frame as _empty_metadata_frame
@@ -339,7 +340,9 @@ def download(
         for source_name, source_sites in sources.items():
             source_spec = get_source(source_name)
             if not source_spec:
-                warnings.warn(f"Unknown source '{source_name}', skipping", UserWarning)
+                warnings.warn(
+                    f"Unknown source '{source_name}', skipping", AeolusDataWarning
+                )
                 continue
 
             try:
@@ -350,7 +353,7 @@ def download(
 
             except Exception as e:
                 warnings.warn(
-                    f"Failed to download from {source_name}: {e}", UserWarning
+                    f"Failed to download from {source_name}: {e}", AeolusDataWarning
                 )
                 all_data[source_name] = pd.DataFrame(columns=_STANDARD_COLUMNS)
 
@@ -485,7 +488,7 @@ def _fetch_portal_sites(
     if not kwargs:
         warnings.warn(
             f"Skipping {name}: portal source requires spatial or keyword filters",
-            UserWarning,
+            AeolusDataWarning,
         )
         return _empty_metadata_frame()
     fetch_fn = spec.get("fetch_metadata") or spec.get("search")
@@ -610,7 +613,7 @@ def find_sites(
         except Exception as e:
             warnings.warn(
                 f"Failed to fetch sites from {name}: {e}",
-                UserWarning,
+                AeolusDataWarning,
             )
 
     if not results:
