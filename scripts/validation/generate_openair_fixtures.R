@@ -99,6 +99,15 @@ monthly <- timeAverage(raw, avg.time = "month", data.thresh = 75)
 cat("  Rows:", nrow(monthly), "\n")
 write_iso_csv(monthly, file.path(OUT_DIR, "aurn_my1_2023_monthly_mean_thresh75.csv"))
 
+cat("\nComputing monthly p95 (data.thresh=75) ...\n")
+# openair's timeAverage supports statistic="percentile" with `percentile=`.
+# Catches quantile-interpolation-method divergences (R default type=7 vs
+# numpy/pandas 'linear' — they should match but worth pinning).
+monthly_p95 <- timeAverage(raw, avg.time = "month", data.thresh = 75,
+                           statistic = "percentile", percentile = 95)
+cat("  Rows:", nrow(monthly_p95), "\n")
+write_iso_csv(monthly_p95, file.path(OUT_DIR, "aurn_my1_2023_monthly_p95_thresh75.csv"))
+
 # ---------------------------------------------------------------------------
 # Multi-year dataset for trend analyses
 # ---------------------------------------------------------------------------
@@ -158,6 +167,34 @@ trend_df$pollutant <- c("no2" = "NO2", "pm2.5" = "PM2.5", "pm10" = "PM10", "o3" 
   tolower(trend_df$pollutant)
 ]
 write.csv(trend_df, file.path(OUT_DIR, "aurn_my1_2020_2023_trend_theilsen.csv"), row.names = FALSE)
+
+# ---------------------------------------------------------------------------
+# Reference output 5: timeVariation decomposition
+# ---------------------------------------------------------------------------
+#
+# openair::timeVariation returns four aggregation tables: hour (0-23),
+# day (wkday Mon=1..Sun=7 by default in openair's numeric coding),
+# month (1-12), and day.hour (24 × 7 heatmap).
+#
+# Each table carries Mean, Lower, Upper, CI level. aeolus computes the same
+# means internally in plot_diurnal / plot_weekly / plot_monthly (see
+# viz/plots.py) — we extract the means here and assert parity.
+
+cat("\nComputing timeVariation (NO2) ...\n")
+pdf(NULL)
+tv <- timeVariation(raw, pollutant = "no2")
+dev.off()
+
+# Extract the four panels, keeping only the aggregation columns
+hour_df <- as.data.frame(tv$data$hour[, c("hour", "Mean", "Lower", "Upper")])
+day_df  <- as.data.frame(tv$data$day[, c("wkday", "Mean", "Lower", "Upper")])
+month_df <- as.data.frame(tv$data$month[, c("mnth", "Mean", "Lower", "Upper")])
+cat("  hour rows:", nrow(hour_df), "  day rows:", nrow(day_df),
+    "  month rows:", nrow(month_df), "\n")
+
+write.csv(hour_df, file.path(OUT_DIR, "aurn_my1_2023_timevariation_hour.csv"), row.names = FALSE)
+write.csv(day_df, file.path(OUT_DIR, "aurn_my1_2023_timevariation_day.csv"), row.names = FALSE)
+write.csv(month_df, file.path(OUT_DIR, "aurn_my1_2023_timevariation_month.csv"), row.names = FALSE)
 
 # ---------------------------------------------------------------------------
 # Provenance — pin what produced these outputs

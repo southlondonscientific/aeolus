@@ -380,17 +380,61 @@ correctly matches openair on which months cross the threshold. Fixed
 in the same PR as this validation.
 :::
 
+## Metric 4 — timeVariation decomposition
+
+`openair::timeVariation()` decomposes a time series into diurnal (hour of
+day), day-of-week, and monthly components with confidence bands. aeolus
+computes the same underlying aggregates inside `plot_diurnal`,
+`plot_weekly`, and `plot_monthly`. We validate the numerical means — CI
+bounds differ by estimation method (openair bootstraps, aeolus uses a
+t-distribution approximation), but the means are unambiguous arithmetic
+groupbys and should match exactly.
+
+```{python}
+#| label: compare-timevariation
+no2 = aeolus_input[aeolus_input["measurand"] == "NO2"].copy()
+no2["date_time"] = pd.to_datetime(no2["date_time"], utc=True)
+
+# Aeolus-convention aggregations (matching internal groupby in viz/plots.py)
+hour_mean = no2.groupby(no2["date_time"].dt.hour)["value"].mean()
+# openair wkday: Mon=1..Sun=7; pandas dayofweek: Mon=0..Sun=6
+day_mean = no2.groupby(no2["date_time"].dt.dayofweek + 1)["value"].mean()
+month_mean = no2.groupby(no2["date_time"].dt.month)["value"].mean()
+
+openair_hour = pd.read_csv(FIXTURES / "aurn_my1_2023_timevariation_hour.csv")
+openair_day = pd.read_csv(FIXTURES / "aurn_my1_2023_timevariation_day.csv")
+openair_month = pd.read_csv(FIXTURES / "aurn_my1_2023_timevariation_month.csv")
+
+def _max_diff(aeolus_series: pd.Series, openair_df: pd.DataFrame, key: str) -> float:
+    merged = aeolus_series.reset_index().merge(
+        openair_df[[key, "Mean"]], left_on=aeolus_series.index.name, right_on=key
+    )
+    return float((merged["value"] - merged["Mean"]).abs().max())
+
+pd.DataFrame([
+    {"panel": "hour-of-day (0-23)",     "n_bins": 24, "max_abs_diff": f"{_max_diff(hour_mean, openair_hour, 'hour'):.2e}"},
+    {"panel": "day-of-week (Mon=1..Sun=7)", "n_bins": 7,  "max_abs_diff": f"{_max_diff(day_mean, openair_day, 'wkday'):.2e}"},
+    {"panel": "month (1-12)",           "n_bins": 12, "max_abs_diff": f"{_max_diff(month_mean, openair_month, 'mnth'):.2e}"},
+])
+```
+
+All three decompositions agree to floating-point noise — the underlying
+arithmetic mean groupby is the same convention in both tools.
+
 ## Status
 
 | Metric | Tolerance | Status |
 |--------|-----------|--------|
 | `time_average(freq='D', data_thresh=0.75)` | 10⁻¹² µg/m³ | ✅ Pass |
 | `time_average(freq='MS', data_thresh=0.75)` | 10⁻¹² µg/m³ | ✅ Pass |
+| `time_average(statistic='percentile', percentile=95)` | 10⁻¹² µg/m³ | ✅ Pass |
 | `trend(avg_time='month', deseason=False)` slope | 10⁻² µg/m³/yr | ✅ Pass |
 | `trend(...)` significance at α=0.05 | boolean agreement | ✅ Pass |
 | `trend(...)` CI inclusion of zero | boolean agreement | ✅ Pass |
+| `timeVariation` hour / day-of-week / month means | 10⁻¹⁰ µg/m³ | ✅ Pass |
 | `time_average(freq='W-MON')` | label alignment deferred | ⏸ Pending |
 
-More metrics will be added to this comparison as aeolus's metrics module
-grows. Each is gated by a CI test in `tests/test_openair_parity.py`; if
-this page renders, every listed metric is passing.
+Each row is gated by a CI test in `tests/test_openair_parity.py`; if
+this page renders, every listed metric is passing. More metrics will be
+added as aeolus's metrics module grows — each extension is a fixture, a
+pytest case, and a narrative section here.

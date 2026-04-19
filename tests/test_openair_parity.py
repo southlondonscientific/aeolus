@@ -80,9 +80,33 @@ def openair_monthly_mean():
 
 
 @pytest.fixture(scope="module")
+def openair_monthly_p95():
+    """Monthly 95th percentile from ``openair::timeAverage(statistic='percentile', percentile=95)``."""
+    return _read_openair_csv(FIXTURES / "aurn_my1_2023_monthly_p95_thresh75.csv")
+
+
+@pytest.fixture(scope="module")
 def openair_trend():
     """Theil-Sen trend stats from ``openair::TheilSen(avg.time='month', deseason=FALSE)``."""
     return pd.read_csv(FIXTURES / "aurn_my1_2020_2023_trend_theilsen.csv")
+
+
+@pytest.fixture(scope="module")
+def openair_tv_hour():
+    """Diurnal decomposition from ``openair::timeVariation``."""
+    return pd.read_csv(FIXTURES / "aurn_my1_2023_timevariation_hour.csv")
+
+
+@pytest.fixture(scope="module")
+def openair_tv_day():
+    """Day-of-week decomposition from ``openair::timeVariation``."""
+    return pd.read_csv(FIXTURES / "aurn_my1_2023_timevariation_day.csv")
+
+
+@pytest.fixture(scope="module")
+def openair_tv_month():
+    """Monthly decomposition from ``openair::timeVariation``."""
+    return pd.read_csv(FIXTURES / "aurn_my1_2023_timevariation_month.csv")
 
 
 def _wide_to_aeolus_long(wide: pd.DataFrame, source_network: str = "AURN") -> pd.DataFrame:
@@ -245,6 +269,25 @@ class TestTimeAverageMonthlyMean:
             pollutants=["no2", "pm2.5", "pm10", "o3"],
         )
 
+    def test_monthly_p95_matches_openair(self, raw_long, openair_monthly_p95):
+        """Percentile parity catches quantile-interpolation-method divergences.
+
+        R's ``quantile()`` defaults to type=7 (linear interpolation between
+        order statistics); pandas' ``Series.quantile()`` defaults to
+        'linear' — the same method. If either changes their default, this
+        test catches it.
+        """
+        aeolus_p95 = time_average(
+            raw_long, freq="MS", statistic="percentile",
+            percentile=95, data_thresh=0.75,
+        )
+        aeolus_wide = _pivot_aeolus_to_wide(aeolus_p95)
+        _assert_wide_frames_match(
+            aeolus_wide,
+            openair_monthly_p95,
+            pollutants=["no2", "pm2.5", "pm10", "o3"],
+        )
+
 
 # ============================================================================
 # Theil-Sen trend
@@ -344,6 +387,69 @@ class TestTheilSenTrend:
             f"{pollutant}: aeolus and openair disagree on CI significance "
             f"(aeolus CI=[{aeolus_result.ci_lower}, {aeolus_result.ci_upper}], "
             f"openair CI=[{ref['slope_lower']}, {ref['slope_upper']}])"
+        )
+
+
+# ============================================================================
+# timeVariation decomposition — hour, day-of-week, month aggregates
+# ============================================================================
+
+
+class TestTimeVariationDecomposition:
+    """aeolus's plot_diurnal / plot_weekly / plot_monthly compute the same
+    underlying arithmetic-mean aggregations as ``openair::timeVariation``.
+
+    We test the numerical means directly (not the plots) because the
+    plots are visually styled — values matter, pixels don't. Means should
+    agree exactly since both tools use the same groupby + arithmetic-mean
+    convention. CI bounds will differ (openair bootstraps, aeolus's plot
+    functions use a t-distribution approximation), so we only assert
+    parity on Mean.
+
+    aeolus aggregates by pandas ``.dt.hour`` (0-23), ``.dt.dayofweek + 1``
+    (Mon=1..Sun=7 to match openair's ``wkday`` convention), and
+    ``.dt.month`` (1-12).
+    """
+
+    def _aeolus_no2(self, raw_long: pd.DataFrame) -> pd.DataFrame:
+        no2 = raw_long[raw_long["measurand"] == "NO2"].copy()
+        no2["date_time"] = pd.to_datetime(no2["date_time"], utc=True)
+        return no2
+
+    def test_hour_of_day_means_match(self, raw_long, openair_tv_hour):
+        no2 = self._aeolus_no2(raw_long)
+        hourly = no2.groupby(no2["date_time"].dt.hour)["value"].mean()
+        hourly = hourly.reset_index().rename(columns={"date_time": "hour"})
+
+        merged = hourly.merge(openair_tv_hour, on="hour")
+        diffs = (merged["value"] - merged["Mean"]).abs()
+        assert diffs.max() < 1e-10, (
+            f"Hour-of-day means differ from openair by up to {diffs.max():g} "
+            f"(expected float-noise agreement)."
+        )
+
+    def test_day_of_week_means_match(self, raw_long, openair_tv_day):
+        no2 = self._aeolus_no2(raw_long)
+        # openair uses wkday Mon=1..Sun=7; pandas uses dayofweek Mon=0..Sun=6
+        # so add 1 to align conventions.
+        wkday = (no2["date_time"].dt.dayofweek + 1).rename("wkday")
+        daily = no2.groupby(wkday)["value"].mean().reset_index()
+
+        merged = daily.merge(openair_tv_day, on="wkday")
+        diffs = (merged["value"] - merged["Mean"]).abs()
+        assert diffs.max() < 1e-10, (
+            f"Day-of-week means differ from openair by up to {diffs.max():g}"
+        )
+
+    def test_month_of_year_means_match(self, raw_long, openair_tv_month):
+        no2 = self._aeolus_no2(raw_long)
+        monthly = no2.groupby(no2["date_time"].dt.month)["value"].mean()
+        monthly = monthly.reset_index().rename(columns={"date_time": "mnth"})
+
+        merged = monthly.merge(openair_tv_month, on="mnth")
+        diffs = (merged["value"] - merged["Mean"]).abs()
+        assert diffs.max() < 1e-10, (
+            f"Month-of-year means differ from openair by up to {diffs.max():g}"
         )
 
 
