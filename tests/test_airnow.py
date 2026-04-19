@@ -289,7 +289,7 @@ class TestFetchMetadata:
         assert "latitude" in df.columns
         assert "longitude" in df.columns
         assert "source_network" in df.columns
-        assert all(df["source_network"] == "AirNow")
+        assert all(df["source_network"] == "AIRNOW")
 
     @patch("aeolus.sources.airnow._call_airnow_api")
     def test_fetch_metadata_unique_sites(self, mock_api, mock_metadata_response):
@@ -427,7 +427,7 @@ class TestFetchData:
             end_date=datetime(2024, 1, 15),
         )
 
-        assert all(df["source_network"] == "AirNow")
+        assert all(df["source_network"] == "AIRNOW")
 
     @patch("aeolus.sources.airnow._call_airnow_api")
     def test_fetch_data_parameter_normalization(
@@ -601,7 +601,7 @@ class TestAeolusDownloadIntegration:
         )
 
         assert not df.empty
-        assert df["source_network"].iloc[0] == "AirNow"
+        assert df["source_network"].iloc[0] == "AIRNOW"
 
     @patch("aeolus.sources.airnow._call_airnow_api")
     def test_download_via_networks_api(self, mock_api, mock_historical_response):
@@ -673,7 +673,7 @@ class TestLiveIntegration:
         assert "site_name" in df.columns
         assert "latitude" in df.columns
         assert "longitude" in df.columns
-        assert all(df["source_network"] == "AirNow")
+        assert all(df["source_network"] == "AIRNOW")
 
         # Should have sites in California (number varies based on active monitors)
         assert len(df) > 20
@@ -695,7 +695,7 @@ class TestLiveIntegration:
 
         if not df.empty:
             assert "site_code" in df.columns
-            assert all(df["source_network"] == "AirNow")
+            assert all(df["source_network"] == "AIRNOW")
 
     def test_live_fetch_historical_data(self):
         """Test fetching historical data."""
@@ -729,7 +729,7 @@ class TestLiveIntegration:
             assert "date_time" in df.columns
             assert "measurand" in df.columns
             assert "value" in df.columns
-            assert all(df["source_network"] == "AirNow")
+            assert all(df["source_network"] == "AIRNOW")
 
             # Values should be reasonable
             assert df["value"].min() >= 0

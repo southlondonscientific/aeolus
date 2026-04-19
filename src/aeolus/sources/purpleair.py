@@ -279,7 +279,7 @@ def _create_metadata_normaliser():
 
     return compose(
         rename_and_convert,
-        add_column("source_network", "PurpleAir"),
+        add_column("source_network", "PURPLEAIR"),
         add_column("measurands", None),
     )
 
@@ -609,7 +609,7 @@ def create_purpleair_normaliser():
         parse_timestamps,
         rename_columns,
         convert_temperature,
-        add_column("source_network", "PurpleAir"),
+        add_column("source_network", "PURPLEAIR"),
         add_column("created_at", datetime.now(timezone.utc)),
         select_columns(
             "site_code",

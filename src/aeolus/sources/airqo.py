@@ -313,7 +313,7 @@ def _create_metadata_normaliser():
                 "description": "description",
             }
         ),
-        add_column("source_network", "AirQo"),
+        add_column("source_network", "AIRQO"),
         add_column("measurands", None),
     )
 
@@ -657,7 +657,7 @@ def create_airqo_normaliser():
         add_units,
         add_quality_flag,
         filter_invalid_rows,
-        add_column("source_network", "AirQo"),
+        add_column("source_network", "AIRQO"),
         add_column("created_at", datetime.now(timezone.utc)),
         select_columns(
             "site_code",

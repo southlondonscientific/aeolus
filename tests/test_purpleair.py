@@ -354,7 +354,7 @@ class TestFetchPurpleairMetadata:
 
         result = fetch_purpleair_metadata()
 
-        assert (result["source_network"] == "PurpleAir").all()
+        assert (result["source_network"] == "PURPLEAIR").all()
 
     @patch("aeolus.sources.purpleair._get_purpleair_client")
     def test_converts_location_type(self, mock_get_client, mock_sensors_response):
@@ -609,7 +609,7 @@ class TestFetchPurpleairData:
             end_date=datetime(2024, 1, 2),
         )
 
-        assert (result["source_network"] == "PurpleAir").all()
+        assert (result["source_network"] == "PURPLEAIR").all()
 
     @patch("aeolus.sources.purpleair._get_purpleair_client")
     def test_raw_parameter_returns_wide_format(
@@ -1160,7 +1160,7 @@ class TestPurpleairNormalizer:
         df = _parse_historic_response(mock_historic_response, "131075")
         result = normaliser(df)
 
-        assert (result["source_network"] == "PurpleAir").all()
+        assert (result["source_network"] == "PURPLEAIR").all()
 
     def test_adds_created_at(self, mock_historic_response):
         """Test that created_at timestamp is added."""
@@ -1271,7 +1271,7 @@ class TestMetadataNormalizer:
 
         result = normaliser(df)
 
-        assert (result["source_network"] == "PurpleAir").all()
+        assert (result["source_network"] == "PURPLEAIR").all()
 
 
 # ============================================================================
@@ -1374,7 +1374,7 @@ class TestPurpleairIntegration:
         assert not result.empty
         assert len(result) == 2
         assert result["site_code"].tolist() == ["131075", "131076"]
-        assert (result["source_network"] == "PurpleAir").all()
+        assert (result["source_network"] == "PURPLEAIR").all()
         assert result["latitude"].dtype == float or "float" in str(
             result["latitude"].dtype
         )
@@ -1401,7 +1401,7 @@ class TestPurpleairIntegration:
             "Humidity",
             "Temperature",
         }
-        assert (result["source_network"] == "PurpleAir").all()
+        assert (result["source_network"] == "PURPLEAIR").all()
         assert pd.api.types.is_datetime64_any_dtype(result["date_time"])
 
     @patch("aeolus.sources.purpleair._get_purpleair_client")
@@ -1471,7 +1471,7 @@ class TestLiveIntegration:
             assert "site_name" in df.columns
             assert "latitude" in df.columns
             assert "longitude" in df.columns
-            assert all(df["source_network"] == "PurpleAir")
+            assert all(df["source_network"] == "PURPLEAIR")
 
             # Should be in London area
             assert df["latitude"].min() > 51.0
@@ -1527,7 +1527,7 @@ class TestLiveIntegration:
             assert "measurand" in df.columns
             assert "value" in df.columns
             assert "ratification" in df.columns
-            assert all(df["source_network"] == "PurpleAir")
+            assert all(df["source_network"] == "PURPLEAIR")
 
             # Should have PM data
             measurands = df["measurand"].unique()

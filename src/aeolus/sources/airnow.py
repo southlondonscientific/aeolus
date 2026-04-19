@@ -259,7 +259,7 @@ def fetch_airnow_metadata(
             "state_code": obs.get("StateCode", ""),
             "reporting_area": obs.get("ReportingArea", ""),
             "measurands": None,
-            "source_network": "AirNow",
+            "source_network": "AIRNOW",
         }
 
     if not sites:
@@ -432,7 +432,7 @@ def _fetch_site_historical(
                         "measurand": measurand,
                         "value": float(value),
                         "units": unit,
-                        "source_network": "AirNow",
+                        "source_network": "AIRNOW",
                         "ratification": "Provisional",
                         "created_at": fetch_time,
                     }
@@ -533,7 +533,7 @@ def fetch_airnow_current(
                 "measurand": measurand,
                 "value": float(aqi),
                 "units": "AQI",
-                "source_network": "AirNow",
+                "source_network": "AIRNOW",
                 "ratification": "Provisional",
                 "created_at": fetch_time,
                 "category": obs.get("Category", {}).get("Name", ""),

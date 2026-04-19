@@ -140,6 +140,22 @@ class TestLAQN:
                 f"Expected CO units='mg/m3', got {co['units'].unique()}"
             )
 
+    def test_same_day_download(self):
+        """Regression: LAQN API rejects same-day StartDate=EndDate queries (HTTP 400).
+        aeolus should transparently handle this."""
+        day = datetime(2024, 6, 15, tzinfo=timezone.utc)
+        data = aeolus.download("LAQN", ["KC1"], start_date=day, end_date=day)
+        assert not data.empty, "Same-day LAQN download returned no data"
+
+    def test_location_type_populated(self):
+        """find_sites should surface @SiteType as location_type."""
+        sites = aeolus.find_sites("LAQN")
+        assert "location_type" in sites.columns
+        # At least some sites should have a location_type value
+        assert sites["location_type"].notna().sum() > 100, (
+            "Expected most LAQN sites to have a location_type"
+        )
+
 
 # ============================================================================
 # International free (no API key)

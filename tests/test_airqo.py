@@ -463,7 +463,7 @@ class TestFetchAirQoMetadata:
 
         result = fetch_airqo_metadata()
 
-        assert (result["source_network"] == "AirQo").all()
+        assert (result["source_network"] == "AIRQO").all()
 
     @responses.activate
     def test_filters_by_country(self, mock_sites_response, monkeypatch):
@@ -547,7 +547,7 @@ class TestFetchAirQoMetadata:
         assert len(result) == 3
         assert "site_code" in result.columns
         assert "source_network" in result.columns
-        assert (result["source_network"] == "AirQo").all()
+        assert (result["source_network"] == "AIRQO").all()
 
     @responses.activate
     def test_fallback_adds_grid_info_to_sites(
@@ -867,7 +867,7 @@ class TestFetchAirQoData:
             end_date=datetime(2024, 1, 2),
         )
 
-        assert (result["source_network"] == "AirQo").all()
+        assert (result["source_network"] == "AIRQO").all()
 
 
 # ============================================================================
@@ -1071,7 +1071,7 @@ class TestAirQoNormalizer:
 
         result = normaliser(df)
 
-        assert (result["source_network"] == "AirQo").all()
+        assert (result["source_network"] == "AIRQO").all()
 
     def test_adds_created_at(self):
         """Test that created_at timestamp is added."""
@@ -1233,7 +1233,7 @@ class TestMetadataNormalizer:
 
         result = normaliser(df)
 
-        assert (result["source_network"] == "AirQo").all()
+        assert (result["source_network"] == "AIRQO").all()
 
 
 # ============================================================================
@@ -1308,7 +1308,7 @@ class TestAirQoIntegration:
         # Verify complete schema
         assert not result.empty
         assert len(result) == 3
-        assert (result["source_network"] == "AirQo").all()
+        assert (result["source_network"] == "AIRQO").all()
         assert "latitude" in result.columns
         assert "longitude" in result.columns
 
@@ -1335,7 +1335,7 @@ class TestAirQoIntegration:
         # 3 measurements x 2 pollutants = 6 rows
         assert len(result) == 6
         assert set(result["measurand"].unique()) == {"PM2.5", "PM10"}
-        assert (result["source_network"] == "AirQo").all()
+        assert (result["source_network"] == "AIRQO").all()
         assert (result["units"] == "ug/m3").all()
         assert pd.api.types.is_datetime64_any_dtype(result["date_time"])
 
@@ -1373,7 +1373,7 @@ class TestLiveIntegration:
         assert "site_name" in df.columns
         assert "latitude" in df.columns
         assert "longitude" in df.columns
-        assert all(df["source_network"] == "AirQo")
+        assert all(df["source_network"] == "AIRQO")
 
         # AirQo primarily covers Africa
         # Coordinates should be roughly in Africa/East Africa
@@ -1389,7 +1389,7 @@ class TestLiveIntegration:
 
         if not df.empty:
             assert "site_code" in df.columns
-            assert all(df["source_network"] == "AirQo")
+            assert all(df["source_network"] == "AIRQO")
 
             # Uganda coordinates roughly: lat 0-4, lon 29-35
             assert df["latitude"].min() > -2
@@ -1433,7 +1433,7 @@ class TestLiveIntegration:
             assert "date_time" in df.columns
             assert "measurand" in df.columns
             assert "value" in df.columns
-            assert all(df["source_network"] == "AirQo")
+            assert all(df["source_network"] == "AIRQO")
 
             # Should have PM data (AirQo focuses on PM2.5)
             measurands = df["measurand"].unique()

@@ -326,7 +326,7 @@ class TestFetchBreatheLondonMetadata:
 
         result = fetch_breathe_london_metadata()
 
-        assert (result["source_network"] == "Breathe London").all()
+        assert (result["source_network"] == "BREATHE_LONDON").all()
 
     @responses.activate
     def test_filters_by_borough(self, mock_single_sensor_response, monkeypatch):
@@ -655,7 +655,7 @@ class TestFetchBreatheLondonData:
             end_date=datetime(2024, 1, 2),
         )
 
-        assert (result["source_network"] == "Breathe London").all()
+        assert (result["source_network"] == "BREATHE_LONDON").all()
 
 
 # ============================================================================
@@ -798,7 +798,7 @@ class TestBreatheLondonNormalizer:
 
         result = normaliser(df)
 
-        assert (result["source_network"] == "Breathe London").all()
+        assert (result["source_network"] == "BREATHE_LONDON").all()
 
     def test_adds_created_at(self):
         """Test that created_at timestamp is added."""
@@ -941,7 +941,7 @@ class TestMetadataNormalizer:
 
         result = normaliser(df)
 
-        assert (result["source_network"] == "Breathe London").all()
+        assert (result["source_network"] == "BREATHE_LONDON").all()
 
     def test_preserves_extra_columns(self):
         """Test that extra columns are preserved."""
@@ -1073,7 +1073,7 @@ class TestBreatheLondonIntegration:
         assert not result.empty
         assert len(result) == 3
         assert result["site_code"].tolist() == ["BL0001", "BL0002", "BL0003"]
-        assert (result["source_network"] == "Breathe London").all()
+        assert (result["source_network"] == "BREATHE_LONDON").all()
         assert result["latitude"].dtype == float or "float" in str(
             result["latitude"].dtype
         )
@@ -1100,7 +1100,7 @@ class TestBreatheLondonIntegration:
         assert not result.empty
         assert len(result) == 3
         assert set(result["measurand"].unique()) == {"NO2", "PM2.5"}
-        assert (result["source_network"] == "Breathe London").all()
+        assert (result["source_network"] == "BREATHE_LONDON").all()
         assert (result["units"] == "ug/m3").all()
         assert pd.api.types.is_datetime64_any_dtype(result["date_time"])
 
@@ -1138,7 +1138,7 @@ class TestLiveIntegration:
         assert "site_name" in df.columns
         assert "latitude" in df.columns
         assert "longitude" in df.columns
-        assert all(df["source_network"] == "Breathe London")
+        assert all(df["source_network"] == "BREATHE_LONDON")
 
         # Breathe London covers Greater London
         assert len(df) > 10  # Should have many sensors
@@ -1154,7 +1154,7 @@ class TestLiveIntegration:
 
         if not df.empty:
             # All should be in Camden
-            assert all(df["source_network"] == "Breathe London")
+            assert all(df["source_network"] == "BREATHE_LONDON")
 
     def test_live_fetch_metadata_by_species(self):
         """Test fetching metadata filtered by species."""
@@ -1207,7 +1207,7 @@ class TestLiveIntegration:
             assert "date_time" in df.columns
             assert "measurand" in df.columns
             assert "value" in df.columns
-            assert all(df["source_network"] == "Breathe London")
+            assert all(df["source_network"] == "BREATHE_LONDON")
 
             # Values should be reasonable
             assert df["value"].min() >= 0

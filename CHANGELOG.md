@@ -5,6 +5,16 @@ All notable changes to Aeolus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3] - 2026-04-19
+
+### Fixed
+- **LAQN same-day queries** — LAQN API rejects `StartDate=X/EndDate=X` with HTTP 400. The adapter now pads `end` by one day when start and end fall on the same calendar day, so current-data and same-day historical queries work.
+- **LAQN missing `location_type`** — `find_sites("LAQN")` now surfaces `@SiteType` (Roadside, Urban Background, Kerbside, Suburban, Industrial, Rural) as the standard `location_type` column, matching AURN and other regulatory sources.
+- **`source_network` inconsistency across six sources** — AIRQO, AIRNOW, BREATHE_LONDON, OPENAQ, PURPLEAIR, and SENSOR_COMMUNITY adapters emitted display names (e.g. `"Breathe London"`) instead of their registry keys (`"BREATHE_LONDON"`). `get_current()` and `download()` lookups by the metadata value silently failed. All sources now emit `source_network` matching their registry key.
+
+### Added
+- **Cross-source consistency tests** (`tests/test_source_consistency.py`) — static checks that every source adapter emits `source_network` matching its registry key, that registry keys are uppercase, and that every spec has the required fields. New sources get these checks for free.
+
 ## [0.4.2] - 2026-04-10
 
 ### Added

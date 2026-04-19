@@ -215,6 +215,17 @@ class TestFetchMetadata:
         assert result["longitude"].dtype == float
 
     @patch("aeolus.sources.laqn._get_json")
+    def test_location_type_populated(self, mock_get, mock_sites_response):
+        """location_type should be populated from @SiteType."""
+        mock_get.return_value = mock_sites_response
+        result = fetch_laqn_metadata()
+        assert "location_type" in result.columns
+        my1 = result[result["site_code"] == "MY1"]
+        kc1 = result[result["site_code"] == "KC1"]
+        assert my1["location_type"].iloc[0] == "Kerbside"
+        assert kc1["location_type"].iloc[0] == "Urban Background"
+
+    @patch("aeolus.sources.laqn._get_json")
     def test_returns_empty_on_none(self, mock_get):
         mock_get.return_value = None
         result = fetch_laqn_metadata()
@@ -317,6 +328,22 @@ class TestFetchData:
         result = fetch_laqn_data(["MY1"], start, end)
         non_co = result[result["measurand"] != "CO"]
         assert (non_co["units"] == "ug/m3").all()
+
+    @patch("aeolus.sources.laqn._get_json")
+    def test_same_day_query_uses_distinct_end_date(self, mock_get, mock_data_response):
+        """LAQN API 400s on StartDate=X/EndDate=X — we must pad end by a day."""
+        mock_get.return_value = mock_data_response
+        same_day = datetime(2024, 6, 15, tzinfo=timezone.utc)
+        fetch_laqn_data(["MY1"], same_day, same_day)
+
+        # Inspect the URL path passed to _get_json
+        call_args = mock_get.call_args_list
+        assert len(call_args) >= 1
+        path = call_args[0][0][0]
+        # StartDate and EndDate must not be the same day
+        assert "StartDate=2024-06-15" in path
+        assert "EndDate=2024-06-15" not in path
+        assert "EndDate=2024-06-16" in path
 
     @patch("aeolus.sources.laqn._get_json")
     def test_no_data_warns(self, mock_get):

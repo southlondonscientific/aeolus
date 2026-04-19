@@ -184,7 +184,7 @@ def _create_metadata_normaliser():
                 "Longitude": "longitude",
             }
         ),
-        add_column("source_network", "Breathe London"),
+        add_column("source_network", "BREATHE_LONDON"),
         add_column("measurands", None),
     )
 
@@ -385,7 +385,7 @@ def create_breathe_london_normaliser():
         standardise_units,
         add_quality_flag,
         filter_invalid_rows,
-        add_column("source_network", "Breathe London"),
+        add_column("source_network", "BREATHE_LONDON"),
         add_column("created_at", datetime.now(timezone.utc)),
         select_columns(
             "site_code",

@@ -415,7 +415,7 @@ def fetch_sensor_community_metadata(
             "measurands": measurands,
             "location_type": "indoor" if location.get("indoor") == 1 else "outdoor",
             "country": location.get("country", ""),
-            "source_network": "Sensor.Community",
+            "source_network": "SENSOR_COMMUNITY",
         }
 
     if not sensors:
@@ -735,7 +735,7 @@ def _normalise_sensor_data(
                     "measurand": measurand,
                     "value": value,
                     "units": units,
-                    "source_network": "Sensor.Community",
+                    "source_network": "SENSOR_COMMUNITY",
                     "ratification": "Unvalidated",
                     "created_at": fetch_time,
                 }
@@ -899,7 +899,7 @@ def fetch_sensor_community_realtime(
                     "measurand": measurand,
                     "value": value,
                     "units": units,
-                    "source_network": "Sensor.Community",
+                    "source_network": "SENSOR_COMMUNITY",
                     "ratification": "Unvalidated",
                     "created_at": fetch_time,
                 }

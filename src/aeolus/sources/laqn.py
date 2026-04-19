@@ -32,7 +32,7 @@ Data portal: https://www.londonair.org.uk/
 """
 
 import warnings
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from logging import getLogger
 
 import pandas as pd
@@ -126,7 +126,7 @@ def normalise_laqn_metadata():
             "longitude",
             lambda df: pd.to_numeric(df["longitude"], errors="coerce"),
         ),
-        select_columns(*METADATA_COLUMNS),
+        select_columns(*METADATA_COLUMNS, "location_type"),
         reset_index(),
     )
 
@@ -157,6 +157,7 @@ def fetch_laqn_metadata(**filters) -> pd.DataFrame:
             "site_name": s.get("@SiteName", "").strip("- "),
             "latitude": lat,
             "longitude": lon,
+            "location_type": s.get("@SiteType", "") or None,
         })
 
     if not rows:
@@ -172,7 +173,12 @@ def fetch_laqn_metadata(**filters) -> pd.DataFrame:
 
 
 def _month_ranges(start: datetime, end: datetime):
-    """Yield (start, end) pairs chunked by calendar month."""
+    """Yield (start, end) pairs chunked by calendar month.
+
+    The LAQN API rejects same-day queries (StartDate=X/EndDate=X → HTTP 400),
+    so callers should ensure ``end`` is at least one day after ``start``.
+    See ``_fetch_site_data`` which pads ``end`` accordingly.
+    """
     cursor = start.replace(day=1)
     while cursor <= end:
         chunk_start = max(cursor, start)
@@ -188,10 +194,19 @@ def _month_ranges(start: datetime, end: datetime):
 
 def _fetch_site_data(site_code: str, start: datetime, end: datetime) -> list[dict]:
     """Fetch data for one site, chunking by month to avoid API timeouts."""
+    # LAQN API rejects same-day queries with HTTP 400. Ensure at least
+    # one day of range so current/recent data queries don't break.
+    if end.date() <= start.date():
+        end = start + timedelta(days=1)
+
     all_points = []
     for chunk_start, chunk_end in _month_ranges(start, end):
         start_str = chunk_start.strftime("%Y-%m-%d")
         end_str = chunk_end.strftime("%Y-%m-%d")
+        # If the chunk collapses to a single day (can happen at month
+        # boundaries), pad the end by one day.
+        if end_str == start_str:
+            end_str = (chunk_end + timedelta(days=1)).strftime("%Y-%m-%d")
         path = (
             f"Data/Site/SiteCode={site_code}"
             f"/StartDate={start_str}/EndDate={end_str}/Json"

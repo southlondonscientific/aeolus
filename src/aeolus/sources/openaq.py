@@ -187,7 +187,7 @@ def fetch_openaq_metadata(**filters) -> pd.DataFrame:
                 "longitude": loc.coordinates.longitude if loc.coordinates else None,
                 "country": loc.country.code if loc.country else None,
                 "measurands": measurands or None,
-                "source_network": "OpenAQ",
+                "source_network": "OPENAQ",
             }
         )
 
@@ -339,7 +339,7 @@ def _normalise(df: pd.DataFrame) -> pd.DataFrame:
     df["units"] = df["units"].replace(unit_map)
 
     # Add standard columns
-    df["source_network"] = "OpenAQ"
+    df["source_network"] = "OPENAQ"
     df["ratification"] = "Unvalidated"
     df["created_at"] = datetime.now(timezone.utc)
 

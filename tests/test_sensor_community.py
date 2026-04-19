@@ -407,7 +407,7 @@ class TestFetchMetadata:
         assert "longitude" in df.columns
         assert "sensor_type" in df.columns
         assert "source_network" in df.columns
-        assert df["source_network"].iloc[0] == "Sensor.Community"
+        assert df["source_network"].iloc[0] == "SENSOR_COMMUNITY"
 
     @patch("aeolus.sources.sensor_community._make_request")
     def test_fetch_metadata_caches_sensor_types(
@@ -564,7 +564,7 @@ class TestFetchRealtime:
 
         df = fetch_sensor_community_realtime()
 
-        assert all(df["source_network"] == "Sensor.Community")
+        assert all(df["source_network"] == "SENSOR_COMMUNITY")
 
     @patch("aeolus.sources.sensor_community._make_request")
     def test_fetch_realtime_ratification(self, mock_request, mock_realtime_response):
@@ -663,7 +663,7 @@ class TestFetchData:
                 "measurand": ["PM2.5"],
                 "value": [22.3],
                 "units": ["ug/m3"],
-                "source_network": ["Sensor.Community"],
+                "source_network": ["SENSOR_COMMUNITY"],
                 "ratification": ["Unvalidated"],
                 "created_at": [datetime.now()],
             }
@@ -756,7 +756,7 @@ class TestNormalizeSensorData:
         assert "site_code" in result.columns
         assert "measurand" in result.columns
         assert set(result["measurand"].unique()) == {"PM10", "PM2.5"}
-        assert all(result["source_network"] == "Sensor.Community")
+        assert all(result["source_network"] == "SENSOR_COMMUNITY")
         assert all(result["ratification"] == "Unvalidated")
         assert all(result["site_code"] == "12345")
 
@@ -877,7 +877,7 @@ class TestAeolusDownloadIntegration:
                 "measurand": ["PM2.5"],
                 "value": [22.3],
                 "units": ["ug/m3"],
-                "source_network": ["Sensor.Community"],
+                "source_network": ["SENSOR_COMMUNITY"],
                 "ratification": ["Unvalidated"],
                 "created_at": [datetime.now()],
             }
@@ -891,7 +891,7 @@ class TestAeolusDownloadIntegration:
         )
 
         assert not df.empty
-        assert df["source_network"].iloc[0] == "Sensor.Community"
+        assert df["source_network"].iloc[0] == "SENSOR_COMMUNITY"
 
     @patch("aeolus.sources.sensor_community._fetch_sensor_archive")
     @patch("aeolus.sources.sensor_community._get_sensor_types_for_sites")
@@ -907,7 +907,7 @@ class TestAeolusDownloadIntegration:
                 "measurand": ["PM2.5"],
                 "value": [22.3],
                 "units": ["ug/m3"],
-                "source_network": ["Sensor.Community"],
+                "source_network": ["SENSOR_COMMUNITY"],
                 "ratification": ["Unvalidated"],
                 "created_at": [datetime.now()],
             }
@@ -952,7 +952,7 @@ class TestLiveIntegration:
         assert "latitude" in df.columns
         assert "longitude" in df.columns
         assert "sensor_type" in df.columns
-        assert all(df["source_network"] == "Sensor.Community")
+        assert all(df["source_network"] == "SENSOR_COMMUNITY")
 
         # Filter to valid coordinates (some sensors have lat=0 or missing data)
         valid_coords = df[(df["latitude"] > 1) & (df["longitude"] != 0)]
@@ -1061,7 +1061,7 @@ class TestLiveIntegration:
             assert "date_time" in df.columns
             assert "measurand" in df.columns
             assert "value" in df.columns
-            assert all(df["source_network"] == "Sensor.Community")
+            assert all(df["source_network"] == "SENSOR_COMMUNITY")
             assert all(df["ratification"] == "Unvalidated")
 
     def test_live_aeolus_download_integration(self):

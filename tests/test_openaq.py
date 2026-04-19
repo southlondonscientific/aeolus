@@ -324,7 +324,7 @@ class TestFetchOpenaqMetadata:
 
         result = fetch_openaq_metadata(country="GB")
 
-        assert (result["source_network"] == "OpenAQ").all()
+        assert (result["source_network"] == "OPENAQ").all()
 
 
 # ============================================================================
@@ -670,7 +670,7 @@ class TestNormalize:
 
         result = _normalise(df)
 
-        assert (result["source_network"] == "OpenAQ").all()
+        assert (result["source_network"] == "OPENAQ").all()
 
     def test_adds_ratification(self):
         """Test that ratification column is added."""
@@ -908,7 +908,7 @@ class TestOpenAQIntegration:
         assert result["latitude"].iloc[0] == 51.5225
         assert result["longitude"].iloc[0] == -0.1546
         assert result["country"].iloc[0] == "GB"
-        assert result["source_network"].iloc[0] == "OpenAQ"
+        assert result["source_network"].iloc[0] == "OPENAQ"
 
     @patch("aeolus.sources.openaq._get_client")
     def test_full_data_workflow(self, mock_get_client, mock_sensor, mock_measurement):
@@ -937,7 +937,7 @@ class TestOpenAQIntegration:
         assert result["measurand"].iloc[0] == "NO2"
         assert result["value"].iloc[0] == 45.2
         assert result["units"].iloc[0] == "ug/m3"
-        assert result["source_network"].iloc[0] == "OpenAQ"
+        assert result["source_network"].iloc[0] == "OPENAQ"
         assert pd.api.types.is_datetime64_any_dtype(result["date_time"])
 
 
@@ -983,7 +983,7 @@ class TestLiveIntegration:
         assert "site_name" in df.columns
         assert "latitude" in df.columns
         assert "longitude" in df.columns
-        assert all(df["source_network"] == "OpenAQ")
+        assert all(df["source_network"] == "OPENAQ")
 
         # Should have UK locations
         assert all(df["country"] == "GB")
@@ -1041,7 +1041,7 @@ class TestLiveIntegration:
             assert "measurand" in df.columns
             assert "value" in df.columns
             assert "units" in df.columns
-            assert all(df["source_network"] == "OpenAQ")
+            assert all(df["source_network"] == "OPENAQ")
 
             # Values should be reasonable
             assert df["value"].min() >= 0
