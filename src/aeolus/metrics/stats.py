@@ -90,33 +90,92 @@ def _infer_data_frequency(series: pd.Series) -> pd.Timedelta:
 
 
 def _expected_observations(data_freq: pd.Timedelta, target_freq: str) -> float:
-    """Calculate the expected number of observations in a target period."""
+    """Calculate the expected number of observations in a target period.
+
+    Used when the caller just needs a scalar "expected" (e.g. for reporting).
+    For per-bin calculation (the right way for variable-length periods like
+    MS, YS, Q) use :func:`_expected_observations_per_bin` instead.
+
+    Kept as a thin wrapper over the per-bin helper for backwards compatibility.
+    """
     target_td = pd.tseries.frequencies.to_offset(target_freq)
-    # For variable-length periods like M or Y, use approximate durations
-    approx = {
-        "M": pd.Timedelta(days=30),
-        "MS": pd.Timedelta(days=30),
-        "ME": pd.Timedelta(days=30),
-        "Y": pd.Timedelta(days=365),
-        "YS": pd.Timedelta(days=365),
-        "YE": pd.Timedelta(days=365),
-        "Q": pd.Timedelta(days=91),
-        "QS": pd.Timedelta(days=91),
-        "QE": pd.Timedelta(days=91),
-        "W": pd.Timedelta(days=7),
-    }
+    # For fixed-length offsets, nanos gives us the duration directly
     if target_td is not None:
         try:
             target_duration = pd.Timedelta(target_td.nanos, unit="ns")
         except (AttributeError, ValueError):
-            target_duration = approx.get(target_freq, pd.Timedelta(days=1))
+            # Variable-length; fall back to a representative value
+            target_duration = _APPROX_DURATION.get(
+                target_freq, pd.Timedelta(days=1)
+            )
     else:
-        target_duration = approx.get(target_freq, pd.Timedelta(days=1))
+        target_duration = _APPROX_DURATION.get(target_freq, pd.Timedelta(days=1))
 
     if data_freq.total_seconds() <= 0:
         return 1.0
 
     return target_duration / data_freq
+
+
+# Approximate durations for variable-length periods. Only used by the
+# scalar _expected_observations() fallback — per-bin calculation uses
+# actual calendar durations, not these.
+_APPROX_DURATION = {
+    "M": pd.Timedelta(days=30),
+    "MS": pd.Timedelta(days=30),
+    "ME": pd.Timedelta(days=30),
+    "Y": pd.Timedelta(days=365),
+    "YS": pd.Timedelta(days=365),
+    "YE": pd.Timedelta(days=365),
+    "Q": pd.Timedelta(days=91),
+    "QS": pd.Timedelta(days=91),
+    "QE": pd.Timedelta(days=91),
+    "W": pd.Timedelta(days=7),
+}
+
+
+def _expected_observations_per_bin(
+    data_freq: pd.Timedelta,
+    target_freq: str,
+    bin_start_index: pd.DatetimeIndex,
+) -> pd.Series:
+    """Expected observation count for each resample bin, using the bin's
+    actual calendar duration.
+
+    Critical for variable-length periods:
+
+    - **Months** vary 28-31 days (672-744 hours)
+    - **Years** vary 365-366 days
+    - **Quarters** vary 90-92 days
+    - **Months containing DST transitions** gain or lose one hour
+
+    Using a fixed 30-day approximation inflates data capture by up to ~3% on
+    31-day months and deflates it on 28-day months, which pushes the
+    LAQM 75%-capture threshold across the wrong boundary for months with
+    genuinely marginal coverage.
+
+    Returns a Series aligned with ``bin_start_index`` giving the expected
+    number of observations per bin.
+    """
+    if data_freq.total_seconds() <= 0:
+        return pd.Series(1.0, index=bin_start_index)
+
+    # Compute each bin's actual end. For period-aligned offsets (MS, YS, QS,
+    # W, D) the next bin's start *is* this bin's end, and pandas can give
+    # us that via the offset arithmetic.
+    offset = pd.tseries.frequencies.to_offset(target_freq)
+    if offset is None:
+        # Shouldn't happen for valid freq strings, but defensively return
+        # the scalar approximation replicated across bins
+        scalar = _expected_observations(data_freq, target_freq)
+        return pd.Series(scalar, index=bin_start_index)
+
+    # For each bin start, compute bin_end = bin_start + 1 * offset
+    # This respects calendar arithmetic: e.g. MS + 1 month lands on the
+    # first of the next month, handling 28-31 day variations and leap years.
+    bin_ends = bin_start_index + offset
+    bin_durations = bin_ends - bin_start_index
+    return bin_durations / data_freq
 
 
 def time_average(
@@ -174,7 +233,6 @@ def time_average(
 
         # Infer source data frequency for data capture calculation
         data_freq = _infer_data_frequency(group["date_time"])
-        expected = _expected_observations(data_freq, freq)
 
         values = g["value"]
 
@@ -198,13 +256,19 @@ def time_average(
 
         counts = values.resample(freq).count()
 
-        # Data capture: fraction of expected observations present
-        if expected > 0:
+        # Data capture: fraction of expected observations present.
+        # Expected count is computed per-bin using each bin's actual
+        # calendar duration — not a fixed 30-day / 365-day approximation.
+        # This matters for monthly/yearly/quarterly aggregations where
+        # period length varies (28-31 days, 365-366 days, etc.) and around
+        # DST transitions where a month gains/loses an hour.
+        expected = _expected_observations_per_bin(data_freq, freq, counts.index)
+        with np.errstate(divide="ignore", invalid="ignore"):
             dc = counts / expected
-        else:
-            dc = pd.Series(1.0, index=counts.index)
+        dc = dc.fillna(1.0 if len(counts) == 0 else 0.0)
 
-        # Cap data capture at 1.0 (can exceed 1 for variable-length periods)
+        # Cap data capture at 1.0 (can exceed 1 at DST spring-forward when
+        # pandas resamples a 23-hour period and data_freq divides it unevenly)
         dc = dc.clip(upper=1.0)
 
         # Apply threshold: set value to NaN where data capture is insufficient
@@ -477,12 +541,16 @@ def trend(
         agg_mean = values.resample(freq).mean()
         agg_count = values.resample(freq).count()
 
-        # Infer data frequency for threshold calculation
+        # Infer data frequency for threshold calculation.
+        # Uses per-bin expected counts so variable-length periods (months
+        # of 28-31 days, leap years, DST transitions) get the correct
+        # capture denominator — matches the behaviour of time_average().
         data_freq = _infer_data_frequency(site_df.reset_index()["date_time"])
-        expected = _expected_observations(data_freq, freq)
+        expected = _expected_observations_per_bin(data_freq, freq, agg_count.index)
 
-        if expected > 0 and data_thresh > 0:
-            dc = (agg_count / expected).clip(upper=1.0)
+        if data_thresh > 0:
+            with np.errstate(divide="ignore", invalid="ignore"):
+                dc = (agg_count / expected).clip(upper=1.0)
             agg_mean = agg_mean.where(dc >= data_thresh)
 
         # Drop NaN values

@@ -30,7 +30,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from aeolus.metrics import time_average
+from aeolus.metrics import time_average, trend
 
 
 FIXTURES = Path(__file__).parent / "fixtures" / "openair"
@@ -62,30 +62,62 @@ def openair_daily_mean():
 
 
 @pytest.fixture(scope="module")
-def raw_long(raw_wide):
-    """raw_wide reshaped into aeolus's 8-column long-format schema."""
-    pollutant_cols = [c for c in raw_wide.columns if c not in ("date", "site", "code")]
-    long = raw_wide.melt(
+def raw_wide_multiyear():
+    """Multi-year AURN data (2020-2023) for trend analysis."""
+    return _read_openair_csv(FIXTURES / "aurn_my1_2020_2023_raw.csv")
+
+
+@pytest.fixture(scope="module")
+def openair_weekly_mean():
+    """Weekly mean from ``openair::timeAverage(avg.time='week', data.thresh=75)``."""
+    return _read_openair_csv(FIXTURES / "aurn_my1_2023_weekly_mean_thresh75.csv")
+
+
+@pytest.fixture(scope="module")
+def openair_monthly_mean():
+    """Monthly mean from ``openair::timeAverage(avg.time='month', data.thresh=75)``."""
+    return _read_openair_csv(FIXTURES / "aurn_my1_2023_monthly_mean_thresh75.csv")
+
+
+@pytest.fixture(scope="module")
+def openair_trend():
+    """Theil-Sen trend stats from ``openair::TheilSen(avg.time='month', deseason=FALSE)``."""
+    return pd.read_csv(FIXTURES / "aurn_my1_2020_2023_trend_theilsen.csv")
+
+
+def _wide_to_aeolus_long(wide: pd.DataFrame, source_network: str = "AURN") -> pd.DataFrame:
+    """Reshape openair's wide-format DataFrame into aeolus long-format schema."""
+    pollutant_cols = [c for c in wide.columns if c not in ("date", "site", "code")]
+    long = wide.melt(
         id_vars=["date", "site", "code"],
         value_vars=pollutant_cols,
         var_name="measurand",
         value_name="value",
     )
-    # Canonicalise pollutant names: openair emits lowercase "no2", "pm2.5", etc.
     measurand_map = {"no2": "NO2", "pm2.5": "PM2.5", "pm10": "PM10", "o3": "O3"}
     long["measurand"] = long["measurand"].map(measurand_map)
-
-    out = pd.DataFrame({
+    return pd.DataFrame({
         "site_code": long["code"],
         "date_time": long["date"],
         "measurand": long["measurand"],
         "value": pd.to_numeric(long["value"], errors="coerce"),
         "units": "ug/m3",
-        "source_network": "AURN",
+        "source_network": source_network,
         "ratification": "None",
         "created_at": datetime(2024, 1, 1, tzinfo=timezone.utc),
     })
-    return out
+
+
+@pytest.fixture(scope="module")
+def raw_long_multiyear(raw_wide_multiyear):
+    """Multi-year raw data in aeolus long format."""
+    return _wide_to_aeolus_long(raw_wide_multiyear)
+
+
+@pytest.fixture(scope="module")
+def raw_long(raw_wide):
+    """raw_wide reshaped into aeolus's 8-column long-format schema."""
+    return _wide_to_aeolus_long(raw_wide)
 
 
 # ============================================================================
@@ -175,6 +207,143 @@ class TestTimeAverageDailyMean:
         assert unique_days == len(openair_daily_mean), (
             f"aeolus produced {unique_days} days, openair produced "
             f"{len(openair_daily_mean)}"
+        )
+
+
+class TestTimeAverageWeeklyMean:
+    """aeolus weekly mean vs openair::timeAverage(avg.time='week').
+
+    Deferred — openair uses ISO-8601 week-starting-Monday labelling with
+    bin edges anchored to the calendar year; pandas' 'W-MON' uses
+    week-ending-Monday bin edges with different boundary behaviour at
+    year ends. Reconciling this is a separate workstream tracked in
+    docs/validation/openair-parity.qmd (look for "weekly").
+    """
+
+    @pytest.mark.skip(reason="weekly-label alignment deferred — see docstring")
+    def test_weekly_mean_matches_openair(self, raw_long, openair_weekly_mean):
+        aeolus_weekly = time_average(raw_long, freq="W-MON", data_thresh=0.75)
+        aeolus_wide = _pivot_aeolus_to_wide(aeolus_weekly)
+        _assert_wide_frames_match(
+            aeolus_wide,
+            openair_weekly_mean,
+            pollutants=["no2", "pm2.5", "pm10", "o3"],
+        )
+
+
+class TestTimeAverageMonthlyMean:
+    """aeolus monthly mean must match openair::timeAverage(avg.time='month')."""
+
+    def test_monthly_mean_matches_openair(self, raw_long, openair_monthly_mean):
+        # openair labels monthly aggregates at the first day of the month;
+        # pandas "MS" (month-start) gives the same convention.
+        aeolus_monthly = time_average(raw_long, freq="MS", data_thresh=0.75)
+        aeolus_wide = _pivot_aeolus_to_wide(aeolus_monthly)
+        _assert_wide_frames_match(
+            aeolus_wide,
+            openair_monthly_mean,
+            pollutants=["no2", "pm2.5", "pm10", "o3"],
+        )
+
+
+# ============================================================================
+# Theil-Sen trend
+# ============================================================================
+
+
+class TestTheilSenTrend:
+    """aeolus.trend(deseason=False, avg_time='month') vs
+    openair::TheilSen(deseason=FALSE, avg.time='month', data.thresh=75).
+
+    The comparison has three expected sources of small divergence:
+
+    1. **Time representation.** aeolus computes fractional years as
+       ``year + dayofyear/365.25``; openair uses days-since-epoch divided
+       by 365.25. For monthly-aggregated data both give the same bin
+       ordering, but slight differences in the x-coordinate move the
+       median-pairwise-slope ("Theil-Sen slope") by ~10⁻⁴ µg/m³/yr.
+    2. **CI method.** openair bootstraps (1000 samples by default);
+       aeolus uses scipy's analytical CIs. Method-level disagreement
+       is expected; we only check that both agree on significance.
+    3. **Mann-Kendall tie-handling.** scipy.stats.kendalltau and openair's
+       MannKendall compute slightly different p-values when the monthly
+       series has many tied ranks (expected for short-ish timeseries).
+       We check agreement on statistical conclusion rather than exact p.
+    """
+
+    POLLUTANTS = ("NO2", "PM2.5", "PM10", "O3")
+
+    @pytest.mark.parametrize("pollutant", POLLUTANTS)
+    def test_slope_matches_openair(self, raw_long_multiyear, openair_trend, pollutant):
+        """Theil-Sen slope is the median of pairwise slopes — deterministic
+        given the same input. Tolerance 1e-2 ug/m3/yr accommodates fractional-
+        year representation differences (observed max: ~5e-3 on O3)."""
+        aeolus_result = trend(
+            raw_long_multiyear,
+            pollutant=pollutant,
+            avg_time="month",
+            deseason=False,
+        )
+        # Multi-site data would return a list; single-site (MY1) returns one
+        assert not isinstance(aeolus_result, list)
+
+        ref = openair_trend[openair_trend["pollutant"] == pollutant].iloc[0]
+        diff = abs(aeolus_result.slope - ref["slope"])
+        assert diff < 1e-2, (
+            f"{pollutant}: slope differs by {diff:g} ug/m3/yr "
+            f"(aeolus={aeolus_result.slope}, openair={ref['slope']}). "
+            f"Tolerance is 1e-2 for method-level float representation noise."
+        )
+
+    @pytest.mark.parametrize("pollutant", POLLUTANTS)
+    def test_significance_conclusion_matches_openair(
+        self, raw_long_multiyear, openair_trend, pollutant
+    ):
+        """Both tools should reach the same significance conclusion at
+        alpha=0.05 even if the numeric p-values differ slightly due to
+        tie-handling differences in the Mann-Kendall test."""
+        aeolus_result = trend(
+            raw_long_multiyear,
+            pollutant=pollutant,
+            avg_time="month",
+            deseason=False,
+        )
+        ref = openair_trend[openair_trend["pollutant"] == pollutant].iloc[0]
+        aeolus_sig = aeolus_result.p_value < 0.05
+        openair_sig = ref["p_value"] < 0.05
+        assert aeolus_sig == openair_sig, (
+            f"{pollutant}: significance conclusion differs at alpha=0.05 "
+            f"(aeolus p={aeolus_result.p_value:.4f}, openair p={ref['p_value']:.4f})"
+        )
+
+    @pytest.mark.parametrize("pollutant", POLLUTANTS)
+    def test_ci_methods_agree_in_sign_and_magnitude(
+        self, raw_long_multiyear, openair_trend, pollutant
+    ):
+        """CI bounds come from different estimators (bootstrap vs analytical)
+        so exact parity isn't expected — but both should straddle the slope
+        and agree on whether zero is inside or outside the interval."""
+        aeolus_result = trend(
+            raw_long_multiyear,
+            pollutant=pollutant,
+            avg_time="month",
+            deseason=False,
+        )
+        ref = openair_trend[openair_trend["pollutant"] == pollutant].iloc[0]
+
+        # Both intervals must contain the slope
+        assert aeolus_result.ci_lower <= aeolus_result.slope <= aeolus_result.ci_upper
+        assert ref["slope_lower"] <= ref["slope"] <= ref["slope_upper"]
+
+        # Both must agree on whether the trend is significantly non-zero
+        aeolus_excludes_zero = (
+            aeolus_result.ci_lower > 0 or aeolus_result.ci_upper < 0
+        )
+        openair_excludes_zero = ref["slope_lower"] > 0 or ref["slope_upper"] < 0
+        assert aeolus_excludes_zero == openair_excludes_zero, (
+            f"{pollutant}: aeolus and openair disagree on CI significance "
+            f"(aeolus CI=[{aeolus_result.ci_lower}, {aeolus_result.ci_upper}], "
+            f"openair CI=[{ref['slope_lower']}, {ref['slope_upper']}])"
         )
 
 

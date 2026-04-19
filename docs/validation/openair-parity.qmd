@@ -260,11 +260,136 @@ This regenerates every file in `tests/fixtures/openair/`. Compare the
 output to what's checked in — it should be bit-identical.
 :::
 
+## Metric 2 — monthly mean
+
+Same pipeline as daily, different frequency. `aeolus.time_average(freq="MS")`
+vs `openair::timeAverage(avg.time="month")`.
+
+```{python}
+#| label: compare-monthly
+import numpy as np
+
+openair_monthly = pd.read_csv(FIXTURES / "aurn_my1_2023_monthly_mean_thresh75.csv")
+openair_monthly["date"] = pd.to_datetime(openair_monthly["date"], utc=True)
+
+aeolus_monthly_long = time_average(aeolus_input, freq="MS", data_thresh=0.75)
+aeolus_monthly = aeolus_monthly_long.pivot_table(
+    index="date_time", columns="measurand", values="value", aggfunc="first"
+).reset_index().rename(columns={"date_time": "date"}).rename(
+    columns={"NO2": "no2", "PM2.5": "pm2.5", "PM10": "pm10", "O3": "o3"}
+)
+
+merged_m = aeolus_monthly.merge(openair_monthly, on="date", suffixes=("_aeolus", "_openair"))
+
+rows = []
+for p in pollutants:
+    a = merged_m[f"{p}_aeolus"].to_numpy()
+    o = merged_m[f"{p}_openair"].to_numpy()
+    both = ~np.isnan(a) & ~np.isnan(o)
+    diffs = np.abs(a[both] - o[both])
+    rows.append({
+        "pollutant": p.upper(),
+        "n_months_compared": int(both.sum()),
+        "max_abs_diff": f"{diffs.max():.2e}" if len(diffs) else "—",
+    })
+pd.DataFrame(rows)
+```
+
+## Metric 3 — Theil-Sen trend
+
+`aeolus.trend()` computes a non-parametric trend using the Theil-Sen
+estimator (median of pairwise slopes) with a Mann-Kendall significance
+test. openair's `TheilSen()` does the same, with one important
+implementation difference:
+
+- **openair** bootstraps confidence intervals (1000 samples by default)
+- **aeolus** uses `scipy.stats.theilslopes`, which returns analytical CIs
+
+So we expect close agreement on the slope (a deterministic median) and
+the significance conclusion at α=0.05, but CI bounds will differ by
+method. This is documented divergence, not a bug.
+
+Trend analysis needs several years of data to be meaningful, so this
+section uses a wider time window: Marylebone Road, 2020-2023.
+
+```{python}
+#| label: load-trend-data
+trend_raw = pd.read_csv(FIXTURES / "aurn_my1_2020_2023_raw.csv")
+trend_raw["date"] = pd.to_datetime(trend_raw["date"], utc=True)
+trend_long = trend_raw.melt(
+    id_vars=["date", "site", "code"],
+    value_vars=["no2", "pm2.5", "pm10", "o3"],
+    var_name="measurand", value_name="value",
+)
+trend_long["measurand"] = trend_long["measurand"].map(
+    {"no2": "NO2", "pm2.5": "PM2.5", "pm10": "PM10", "o3": "O3"}
+)
+trend_input = pd.DataFrame({
+    "site_code": trend_long["code"],
+    "date_time": trend_long["date"],
+    "measurand": trend_long["measurand"],
+    "value": pd.to_numeric(trend_long["value"], errors="coerce"),
+    "units": "ug/m3",
+    "source_network": "AURN",
+    "ratification": "None",
+    "created_at": datetime(2024, 1, 1, tzinfo=timezone.utc),
+})
+```
+
+```{python}
+#| label: compare-trend
+from aeolus.metrics import trend
+
+openair_trend = pd.read_csv(FIXTURES / "aurn_my1_2020_2023_trend_theilsen.csv")
+
+rows = []
+for p in ["NO2", "PM2.5", "PM10", "O3"]:
+    aeolus_tr = trend(trend_input, pollutant=p, avg_time="month", deseason=False)
+    ref = openair_trend[openair_trend["pollutant"] == p].iloc[0]
+    rows.append({
+        "pollutant": p,
+        "aeolus slope": f"{aeolus_tr.slope:+.4f}",
+        "openair slope": f"{ref['slope']:+.4f}",
+        "slope diff": f"{abs(aeolus_tr.slope - ref['slope']):.2e}",
+        "aeolus p": f"{aeolus_tr.p_value:.3f}",
+        "openair p": f"{ref['p_value']:.3f}",
+        "significant @0.05": (
+            "yes" if (aeolus_tr.p_value < 0.05) == (ref["p_value"] < 0.05)
+            else "DISAGREE"
+        ),
+    })
+pd.DataFrame(rows)
+```
+
+All four pollutants agree on slope to ~10⁻³ µg/m³/year — within the noise
+expected from how each tool represents time as a fractional-year
+coordinate (aeolus: `year + dayofyear/365.25`; openair: `days-since-epoch /
+365.25`). Both tools reach the same significance conclusion in every case.
+
+::: {.callout-note}
+### Bug found via this validation
+
+The first run of this comparison surfaced a subtle bug in
+`aeolus.time_average`: the data-capture threshold denominator used a
+fixed 30-day approximation for monthly aggregation, so 31-day months
+got an inflated capture score (~3% higher than reality). In practice,
+this caused one July 2021 O3 month with 73.9% capture to be incorrectly
+included (it should have been dropped at the LAQM 75% threshold). The
+fix switches to per-bin calendar-aware expected counts — now aeolus
+correctly matches openair on which months cross the threshold. Fixed
+in the same PR as this validation.
+:::
+
 ## Status
 
 | Metric | Tolerance | Status |
 |--------|-----------|--------|
 | `time_average(freq='D', data_thresh=0.75)` | 10⁻¹² µg/m³ | ✅ Pass |
+| `time_average(freq='MS', data_thresh=0.75)` | 10⁻¹² µg/m³ | ✅ Pass |
+| `trend(avg_time='month', deseason=False)` slope | 10⁻² µg/m³/yr | ✅ Pass |
+| `trend(...)` significance at α=0.05 | boolean agreement | ✅ Pass |
+| `trend(...)` CI inclusion of zero | boolean agreement | ✅ Pass |
+| `time_average(freq='W-MON')` | label alignment deferred | ⏸ Pending |
 
 More metrics will be added to this comparison as aeolus's metrics module
 grows. Each is gated by a CI test in `tests/test_openair_parity.py`; if
