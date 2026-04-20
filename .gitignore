@@ -108,3 +108,25 @@ AI.md
 docs/validation/*.html
 docs/validation/*_files/
 .quarto/
+
+# R output
+Rplots.pdf
+
+# Ad-hoc CSV exports / demo outputs at root
+south_london_7d.csv
+demo_analysis_output/
+
+# Draft articles and scaffolds (not yet ready for version control)
+paper.md
+paper.bib
+AQN_ARTICLE_SCAFFOLD.md
+QUICK_WINS_CC.md
+
+# Untracked dev concept notes
+docs/dev/aeolus_ask_concept.md
+docs/dev/use_cases_v040.md
+
+# Ephemeral superpowers plans (already-committed ones stay tracked)
+docs/superpowers/plans/2026-04-07-eea-sonitus-sources.md
+docs/superpowers/plans/2026-04-08-conformance-tests.md
+docs/superpowers/plans/2026-04-08-hypothesis-mutmut-testing.md
