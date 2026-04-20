@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+message: "If you use Aeolus in your research, please cite it as below."
+title: "Aeolus: a Python toolkit for air quality data analysis"
+abstract: >-
+  Aeolus is an opinionated Python library for downloading, standardising and
+  analysing air quality data from UK, European and international monitoring
+  networks and global aggregation portals. It provides a unified 8-column
+  pandas DataFrame schema, regulatory statistics, trend analysis, and
+  openair-style temporal variation plots.
+authors:
+  - family-names: Dobson
+    given-names: Ruaraidh
+    email: ruaraidh.dobson@gmail.com
+    affiliation: South London Scientific
+type: software
+license: GPL-3.0-or-later
+repository-code: "https://github.com/southlondonscientific/aeolus"
+url: "https://southlondonscientific.github.io/aeolus/"
+keywords:
+  - air quality
+  - pollution
+  - AURN
+  - monitoring
+  - environmental data
+  - atmospheric science
+  - open data
+  - openaq
+  - sensor network
+  - PM2.5
+  - NO2
+version: 0.4.3
+date-released: 2026-04-19

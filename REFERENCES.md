@@ -39,7 +39,7 @@ The openair project provides pre-processed data files from UK regulatory monitor
 | WAQN | Natural Resources Wales | https://airquality.gov.wales/sites/default/files/openair/R_data/ |
 | NI | DAERA Northern Ireland | https://www.airqualityni.co.uk/openair/R_data/ |
 | AQE | Air Quality England (Ricardo) | https://airqualityengland.co.uk/assets/openair/R_data/ |
-| LOCAL/LMAM | Local authority networks | https://uk-air.defra.gov.uk/openair/LMAM/R_data/ |
+| LAQN | ERG, Imperial College London | https://api.erg.ic.ac.uk/AirQuality/ |
 
 ### OpenAQ
 

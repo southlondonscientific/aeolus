@@ -423,6 +423,8 @@ register_source(
 )
 
 # Register SAQD (alias for SAQN)
+# Marked non-primary so it stays out of default list_sources()/find_sites() —
+# SAQD and SAQN share the same endpoint and data; SAQN is the documented name.
 register_source(
     "SAQD",
     {
@@ -432,6 +434,7 @@ register_source(
         "fetch_data": make_data_fetcher("saqd"),
         "normalise": normalise_regulatory_data("SAQD"),
         "requires_api_key": False,
+        "primary": False,
     },
 )
 
