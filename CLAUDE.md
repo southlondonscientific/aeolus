@@ -35,7 +35,7 @@ source .venv/bin/activate
 ## Project Structure
 
 ```
-notebooks/                   # 7 user story Jupyter notebooks (v0.4.0)
+notebooks/                   # 8 user story Jupyter notebooks (v0.4.0)
 src/aeolus/
 ├── __init__.py          # Public API (download, list_sources, etc.)
 ├── api.py               # Main download() function implementation
@@ -95,7 +95,9 @@ OpenAQ and PurpleAir require optional SDK packages not available on conda-forge:
 |-------|----------------|----------|
 | `openaq` | `pip install aeolus_aq[openaq]` | OpenAQ portal access |
 | `purpleair` | `pip install aeolus_aq[purpleair]` | PurpleAir portal access |
-| `all` | `pip install aeolus_aq[all]` | All optional sources |
+| `stats` | `pip install aeolus_aq[stats]` | `statsmodels` for deseasonalisation in `trend()` |
+| `progress` | `pip install aeolus_aq[progress]` | `tqdm` progress bars for bulk downloads |
+| `all` | `pip install aeolus_aq[all]` | OpenAQ + PurpleAir + statsmodels |
 
 For conda users: `conda install -c conda-forge aeolus_aq` then `pip install openaq purpleair-api` for portal sources.
 

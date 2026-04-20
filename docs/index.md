@@ -25,12 +25,16 @@ Aeolus provides a unified Python interface for accessing air quality data from m
 | SAQN | Scottish network | No |
 | WAQN | Welsh network | No |
 | NI | Northern Ireland network | No |
+| AQE | Air Quality England (local authorities) | No |
+| LAQN | London Air Quality Network (~250 sites) | No |
+| EEA | European Environment Agency (40+ countries, 7,000+ stations) | No |
 | OpenAQ | Global (100+ countries) | Yes |
 | Breathe London | London low-cost sensors | Yes |
 | AirQo | African cities | Yes |
 | EPA AirNow | US, Canada, Mexico (2,500+ stations) | Yes |
 | PurpleAir | Global (30,000+ sensors) | Yes |
 | Sensor.Community | Global citizen science (35,000+ sensors) | No |
+| Sonitus | Smart Dublin, Ireland | No |
 
 ## Quick Example
 

@@ -15,10 +15,12 @@ Aeolus distinguishes between two types of data source:
 |------|--------|----------|---------|
 | Network | [AURN](https://uk-air.defra.gov.uk/), [SAQN](https://www.scottishairquality.scot/), [WAQN](https://airquality.gov.wales/), [NI](https://www.airqualityni.co.uk/), [AQE](https://www.airqualityengland.co.uk/) | UK regulatory networks | No |
 | Network | [LAQN](https://www.londonair.org.uk/) | London Air Quality Network (~250 sites) | No |
+| Network | [EEA](https://www.eea.europa.eu/) | European Environment Agency (40+ countries, 7,000+ stations) | No |
 | Network | [Breathe London](https://www.breathelondon.org/) | London low-cost sensors | Yes |
 | Network | [AirQo](https://airqo.net/) | African cities (200+ sensors) | Yes |
 | Network | [Sensor.Community](https://sensor.community/) | Global citizen science (35,000+) | No |
 | Network | [EPA AirNow](https://www.airnow.gov/) | USA, Canada, Mexico | Yes |
+| Network | [Sonitus](https://smartdublin.ie/) | Smart Dublin, Ireland | No |
 | Portal | [OpenAQ](https://openaq.org/) | Global (100+ countries) | Yes |
 | Portal | [PurpleAir](https://www.purpleair.com/) | Global low-cost sensors (30,000+) | Yes |
 
@@ -57,7 +59,7 @@ print(data.head())
 
 ## Data Sources
 
-Aeolus connects to 13 monitoring networks and 2 global data portals, providing access to an estimated 28 billion station-hours of air quality data. This spans reference-grade government networks (AURN, EEA, AirNow), low-cost sensor networks (Sensor.Community, PurpleAir, Breathe London), and global aggregation portals (OpenAQ). All sources are normalised to a common 8-column schema, so data from a DEFRA reference monitor in London and a citizen science sensor in Kampala arrive in the same format.
+Aeolus connects to 12 monitoring networks and 2 global data portals, providing access to an estimated 28 billion station-hours of air quality data. This spans reference-grade government networks (AURN, EEA, AirNow), low-cost sensor networks (Sensor.Community, PurpleAir, Breathe London), and global aggregation portals (OpenAQ). All sources are normalised to a common 8-column schema, so data from a DEFRA reference monitor in London and a citizen science sensor in Kampala arrive in the same format.
 
 ### UK Regulatory Networks
 

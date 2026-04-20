@@ -51,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 #### User Story Notebooks
-- **7 executable Jupyter notebooks** covering real-world air quality workflows, mapped to validated user personas (researcher, consultant, local authority officer, citizen scientist, health researcher, journalist, IoT developer):
+- **8 executable Jupyter notebooks** covering real-world air quality workflows, mapped to validated user personas (researcher, consultant, local authority officer, citizen scientist, health researcher, journalist, IoT developer):
   - `01_london_no2_comparison` - Roadside vs background NO2 with diurnal/weekly decomposition
   - `02_pm25_compliance_report` - Monthly PM2.5 report with WHO guidelines and DAQI bands
   - `03_sensor_vs_reference` - PurpleAir vs AURN cross-source comparison with R2/RMSE

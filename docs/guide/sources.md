@@ -130,6 +130,22 @@ Global citizen science network (formerly luftdaten.info) with 35,000+ low-cost s
 - **API key**: Not required
 - **Documentation**: [Sensor.Community](../sources/sensor-community.md)
 
+### EEA (European Environment Agency)
+
+Pan-European monitoring data from national reference networks, aggregated by the European Environment Agency. 7,000+ stations across 40+ countries.
+
+- **Coverage**: Europe (EU/EEA member states)
+- **Data quality**: Reference (national regulatory networks)
+- **API key**: Not required
+
+### Sonitus (Smart Dublin)
+
+Air quality and noise monitoring network in Dublin, Ireland. Measures NO2, SO2, CO, NO, O3, PM1, PM2.5, PM10, and TSP at 15-minute resolution.
+
+- **Coverage**: Dublin, Ireland
+- **Data quality**: Indicative (low-cost multi-parameter)
+- **API key**: Not required
+
 ## Comparing Sources
 
 | Source | Type | Coverage | Quality | Real-time | Historical |
@@ -140,9 +156,11 @@ Global citizen science network (formerly luftdaten.info) with 35,000+ low-cost s
 | NI | Network | N. Ireland | Reference | Yes | 2000s+ |
 | AQE | Network | England | Reference | Yes | 2000s+ |
 | LAQN | Network | London | Reference | Yes | 1990s+ |
+| EEA | Network | Europe | Reference | No | 2013+ |
 | OpenAQ | Portal | Global | Mixed | Yes | 2015+ |
 | PurpleAir | Portal | Global | Indicative | Yes | 2017+ |
 | Breathe London | Network | London | Indicative | Yes | 2019+ |
 | AirQo | Network | Africa | Indicative | Yes | 2020+ |
 | EPA AirNow | Network | N. America | Provisional | Yes | ~45 days |
 | Sensor.Community | Network | Global | Unvalidated | Yes | 2015+ |
+| Sonitus | Network | Dublin, Ireland | Indicative | Yes | 2020+ |

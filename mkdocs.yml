@@ -82,12 +82,14 @@ nav:
       - Visualization: guide/visualization.md
   - Data Sources:
       - UK Networks: sources/uk-networks.md
+      - EEA: sources/eea.md
       - OpenAQ: sources/openaq.md
       - Breathe London: sources/breathe-london.md
       - AirQo: sources/airqo.md
       - EPA AirNow: sources/airnow.md
       - PurpleAir: sources/purpleair.md
       - Sensor.Community: sources/sensor-community.md
+      - Sonitus (Dublin): sources/sonitus.md
   - Coming from R/openair?: dev/openair_comparison.md
   - API Reference:
       - Overview: api/index.md
