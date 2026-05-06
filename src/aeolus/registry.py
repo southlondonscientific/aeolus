@@ -207,3 +207,29 @@ def clear_registry() -> None:
     """
     global _SOURCES
     _SOURCES.clear()
+
+
+# Sources that require an optional pip extra to be installed.
+OPTIONAL_SOURCES = {
+    "OPENAQ": "openaq",
+    "PURPLEAIR": "purpleair",
+}
+
+
+def unknown_source_message(name: str) -> str:
+    """Build a helpful 'Unknown source' error message.
+
+    Used by the public API and the network/portal submodules so that
+    every layer surfaces the same actionable list of available sources
+    (and the optional-SDK install hint when relevant).
+    """
+    upper = name.upper()
+    available = ", ".join(list_sources())
+    msg = f"Unknown source: {name}\nAvailable sources: {available}"
+    if upper in OPTIONAL_SOURCES:
+        extra = OPTIONAL_SOURCES[upper]
+        msg += (
+            f"\n\nNote: {upper} requires an optional SDK. "
+            f"Install it with: pip install aeolus_aq[{extra}]"
+        )
+    return msg

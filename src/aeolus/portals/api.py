@@ -28,7 +28,8 @@ from datetime import datetime
 
 import pandas as pd
 
-from ..registry import get_source
+from .._dates import resolve_dates
+from ..registry import get_source, unknown_source_message
 
 
 def find_sites(portal: str, **filters) -> pd.DataFrame:
@@ -75,7 +76,7 @@ def find_sites(portal: str, **filters) -> pd.DataFrame:
     source_spec = get_source(portal)
 
     if not source_spec:
-        raise ValueError(f"Unknown portal: {portal}")
+        raise ValueError(unknown_source_message(portal))
 
     # Verify it's a portal
     source_type = source_spec.get("type", "portal")
@@ -106,8 +107,9 @@ def find_sites(portal: str, **filters) -> pd.DataFrame:
 def download(
     portal: str,
     sites: list[str],
-    start_date: datetime,
-    end_date: datetime,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+    last: str | None = None,
 ) -> pd.DataFrame:
     """
     Download air quality data from a portal.
@@ -117,6 +119,8 @@ def download(
         sites: List of site codes (obtained from find_sites())
         start_date: Start of date range (inclusive)
         end_date: End of date range (inclusive)
+        last: Date range shorthand, e.g. "6h", "30d", "2w", "6m", "1y".
+              Mutually exclusive with start_date/end_date.
 
     Returns:
         DataFrame with standardised schema:
@@ -146,11 +150,13 @@ def download(
         ...     datetime(2024, 1, 1),
         ...     datetime(2024, 1, 31)
         ... )
+        >>> # Or with last= shorthand
+        >>> data = aeolus.portals.download("OPENAQ", site_codes, last="30d")
     """
     source_spec = get_source(portal)
 
     if not source_spec:
-        raise ValueError(f"Unknown portal: {portal}")
+        raise ValueError(unknown_source_message(portal))
 
     # Verify it's a portal
     source_type = source_spec.get("type", "portal")
@@ -164,6 +170,8 @@ def download(
     fetcher = source_spec.get("fetch_data")
     if not fetcher:
         raise ValueError(f"Portal {portal} does not support data downloading")
+
+    start_date, end_date = resolve_dates(start_date, end_date, last)
 
     from .. import cache as _cache
 

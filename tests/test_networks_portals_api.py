@@ -206,8 +206,8 @@ def test_networks_get_metadata_with_filters(mock_network_metadata):
 
 
 def test_networks_get_metadata_unknown_source():
-    """Test that unknown network raises ValueError."""
-    with pytest.raises(ValueError, match="Unknown network"):
+    """Test that unknown network raises ValueError with the shared message."""
+    with pytest.raises(ValueError, match="Unknown source: NONEXISTENT"):
         networks_api.get_metadata("NONEXISTENT")
 
 
@@ -255,11 +255,45 @@ def test_networks_download_success(mock_network_data):
 
 
 def test_networks_download_unknown_source():
-    """Test that unknown network raises ValueError."""
-    with pytest.raises(ValueError, match="Unknown network"):
+    """Test that unknown network raises ValueError with the shared message."""
+    with pytest.raises(ValueError, match="Unknown source: NONEXISTENT"):
         networks_api.download(
             "NONEXISTENT", ["SITE1"], datetime(2024, 1, 1), datetime(2024, 1, 31)
         )
+
+
+def test_networks_download_accepts_last_shorthand(mock_network_data):
+    """networks.download honours last= the same way the top-level download does."""
+    register_source(
+        "TEST_NETWORK",
+        {
+            "type": "network",
+            "name": "Test Network",
+            "fetch_metadata": lambda: pd.DataFrame(),
+            "fetch_data": mock_network_data,
+            "requires_api_key": False,
+        },
+    )
+
+    # Should not raise — date range is resolved from last="7d".
+    result = networks_api.download("TEST_NETWORK", ["SITE1"], last="7d")
+    assert isinstance(result, pd.DataFrame)
+
+
+def test_networks_download_requires_dates_or_last():
+    """Calling download without dates and without last= raises."""
+    register_source(
+        "TEST_NETWORK",
+        {
+            "type": "network",
+            "name": "Test Network",
+            "fetch_metadata": lambda: pd.DataFrame(),
+            "fetch_data": lambda *a: pd.DataFrame(),
+            "requires_api_key": False,
+        },
+    )
+    with pytest.raises(ValueError, match="start_date and end_date are required"):
+        networks_api.download("TEST_NETWORK", ["SITE1"])
 
 
 def test_networks_download_portal_type(mock_portal_data):
@@ -347,8 +381,8 @@ def test_portals_find_sites_success(mock_portal_search):
 
 
 def test_portals_find_sites_unknown_source():
-    """Test that unknown portal raises ValueError."""
-    with pytest.raises(ValueError, match="Unknown portal"):
+    """Test that unknown portal raises ValueError with the shared message."""
+    with pytest.raises(ValueError, match="Unknown source: NONEXISTENT"):
         portals_api.find_sites("NONEXISTENT", country="GB")
 
 
@@ -412,8 +446,8 @@ def test_portals_download_success(mock_portal_data):
 
 
 def test_portals_download_unknown_source():
-    """Test that unknown portal raises ValueError."""
-    with pytest.raises(ValueError, match="Unknown portal"):
+    """Test that unknown portal raises ValueError with the shared message."""
+    with pytest.raises(ValueError, match="Unknown source: NONEXISTENT"):
         portals_api.download(
             "NONEXISTENT", ["LOC1"], datetime(2024, 1, 1), datetime(2024, 1, 31)
         )

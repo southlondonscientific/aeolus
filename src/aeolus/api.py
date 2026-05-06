@@ -45,7 +45,6 @@ Basic usage:
     ... )
 """
 
-import re
 import warnings
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -54,95 +53,18 @@ import pandas as pd
 
 # Import sources to trigger registration
 from . import sources as _sources  # noqa: F401
-from .registry import get_source, source_exists
+from ._dates import parse_last as _parse_last
+from ._dates import resolve_dates as _resolve_dates
+from .registry import (
+    get_source,
+    source_exists,
+    unknown_source_message as _unknown_source_message,
+)
 from .registry import list_sources as _list_sources
 from .types import AeolusDataWarning
 from .types import DATA_COLUMNS as _STANDARD_COLUMNS
 from .types import METADATA_COLUMNS as _METADATA_COLUMNS
 from .types import empty_metadata_frame as _empty_metadata_frame
-
-
-# Optional sources that require extra pip packages
-_OPTIONAL_SOURCES = {
-    "OPENAQ": "openaq",
-    "PURPLEAIR": "purpleair",
-}
-
-
-def _unknown_source_message(name: str) -> str:
-    """Build a helpful error message for an unknown source."""
-    upper = name.upper()
-    available = ", ".join(_list_sources())
-    msg = f"Unknown source: {name}\nAvailable sources: {available}"
-    if upper in _OPTIONAL_SOURCES:
-        extra = _OPTIONAL_SOURCES[upper]
-        msg += (
-            f"\n\nNote: {upper} requires an optional SDK. "
-            f"Install it with: pip install aeolus_aq[{extra}]"
-        )
-    return msg
-
-
-_LAST_RE = re.compile(
-    r"^(\d+)\s*"
-    r"(min|mins|minute|minutes|h|hr|hrs|hour|hours"
-    r"|d|day|days|w|week|weeks|m|month|months|y|year|years)$",
-    re.I,
-)
-
-_LAST_UNITS = {
-    "min": "minutes", "mins": "minutes", "minute": "minutes", "minutes": "minutes",
-    "h": "hours", "hr": "hours", "hrs": "hours", "hour": "hours", "hours": "hours",
-    "d": "days", "day": "days", "days": "days",
-    "w": "weeks", "week": "weeks", "weeks": "weeks",
-    "m": "months", "month": "months", "months": "months",
-    "y": "years", "year": "years", "years": "years",
-}
-
-
-def _parse_last(last: str) -> tuple[datetime, datetime]:
-    """Parse a ``last="30d"`` shorthand into (start_date, end_date).
-
-    Supported units: min/minute/minutes, h/hr/hrs/hour/hours,
-    d/day/days, w/week/weeks, m/month/months, y/year/years.
-    ``end_date`` is always now (UTC). ``start_date`` is ``end_date - duration``.
-    """
-    match = _LAST_RE.match(last.strip())
-    if not match:
-        raise ValueError(
-            f"Invalid last value: {last!r}. "
-            "Expected format like '6h', '30d', '2w', '6m', '1y'."
-        )
-    n = int(match.group(1))
-    unit = _LAST_UNITS[match.group(2).lower()]
-
-    end = datetime.now(tz=timezone.utc)
-
-    if unit == "minutes":
-        start = end - timedelta(minutes=n)
-    elif unit == "hours":
-        start = end - timedelta(hours=n)
-    elif unit == "days":
-        start = end - timedelta(days=n)
-    elif unit == "weeks":
-        start = end - timedelta(weeks=n)
-    elif unit == "months":
-        total_months = end.year * 12 + end.month - n
-        y, m = divmod(total_months - 1, 12)
-        m += 1
-        day = min(end.day, [31, 29 if y % 4 == 0 and (y % 100 != 0 or y % 400 == 0) else 28,
-                            31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1])
-        if y < 1:
-            raise ValueError(f"Date range goes before year 1: last='{n}m'")
-        start = end.replace(year=y, month=m, day=day)
-    elif unit == "years":
-        if end.year - n < 1:
-            raise ValueError(f"Date range goes before year 1: last='{n}y'")
-        start = end.replace(year=end.year - n)
-    else:
-        raise ValueError(f"Unsupported unit: {unit}")
-
-    return start, end
 
 
 def _fetch_single_source(
@@ -278,18 +200,8 @@ def download(
         ...     combine=False
         ... )
     """
-    # Handle last= shorthand
-    if last is not None:
-        if start_date is not None or end_date is not None:
-            raise ValueError(
-                "Cannot use 'last' together with 'start_date'/'end_date'. "
-                "Use one or the other."
-            )
-        start_date, end_date = _parse_last(last)
-
-    # Validate required parameters
-    if start_date is None or end_date is None:
-        raise ValueError("start_date and end_date are required (or use last='6h', last='30d', etc.)")
+    # Resolve last= shorthand and validate that we have a date range.
+    start_date, end_date = _resolve_dates(start_date, end_date, last)
 
     # Case 1: Single source (string) - simple case
     if isinstance(sources, str):
@@ -421,7 +333,7 @@ def fetch(
     end_date: datetime = None,
     last: str | None = None,
     **kwargs,
-) -> pd.DataFrame:
+) -> pd.DataFrame | dict[str, pd.DataFrame]:
     """
     Alias for download(). Download air quality data.
 
@@ -431,10 +343,13 @@ def fetch(
         start_date: Start of date range
         end_date: End of date range
         last: Date range shorthand (e.g. "6h", "30d", "6m")
-        **kwargs: Additional arguments passed to download()
+        **kwargs: Additional arguments passed to download(), including
+            ``combine``: when False with a dict of sources, returns a
+            ``dict[source_name, DataFrame]`` instead of a single frame.
 
     Returns:
-        pd.DataFrame: Air quality data
+        DataFrame, or ``dict[str, pd.DataFrame]`` when ``combine=False``
+        is passed for a multi-source dict input.
 
     Example:
         >>> data = aeolus.fetch("AURN", ["MY1"], last="30d")
@@ -464,16 +379,26 @@ def _fetch_network_sites(
 def _fetch_portal_sites(
     name: str, spec: dict, search_bbox: tuple | None, filters: dict
 ) -> pd.DataFrame:
-    """Fetch site metadata from a portal source."""
+    """Fetch site metadata from a portal source.
+
+    Portals are unbounded — they reject discovery calls without at least
+    one filter or a spatial constraint. Raise here so the caller can
+    decide whether to surface the failure (single explicit source) or
+    warn-and-continue (iterating all sources). This matches
+    :func:`aeolus.portals.find_sites` so the same call is consistent
+    across the public API and the submodule.
+    """
     kwargs = dict(filters)
     if search_bbox is not None:
         kwargs["bbox"] = search_bbox
     if not kwargs:
-        warnings.warn(
-            f"Skipping {name}: portal source requires spatial or keyword filters",
-            AeolusDataWarning,
+        raise ValueError(
+            f"{name} is a portal and requires search filters or a spatial "
+            f"constraint (near=, bbox=).\n\n"
+            f"Examples:\n"
+            f"  aeolus.find_sites('{name}', country='GB')\n"
+            f"  aeolus.find_sites('{name}', near=(51.5, -0.1), radius_km=20)"
         )
-        return _empty_metadata_frame()
     fetch_fn = spec.get("fetch_metadata") or spec.get("search")
     return fetch_fn(**kwargs)
 
@@ -586,6 +511,11 @@ def find_sites(
         search_bbox = bbox
 
     # --- fetch from each source ---
+    # The top-level find_sites is the graceful wrapper: it always returns
+    # a DataFrame and warn-and-continues on per-source failures (missing
+    # API key, missing filters, etc.). Callers who want loud failures
+    # use aeolus.networks.get_metadata / aeolus.portals.find_sites
+    # directly — those raise.
     results: list[pd.DataFrame] = []
     for name in source_names:
         spec = get_source(name)

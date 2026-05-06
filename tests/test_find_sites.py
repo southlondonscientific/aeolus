@@ -311,9 +311,16 @@ def test_unknown_source_raises():
         api.find_sites("NOPE")
 
 
-def test_portal_without_filters_skipped(register_test_portal):
-    """Portal source with no spatial/keyword filters is skipped with warning."""
-    with pytest.warns(UserWarning, match="Skipping TEST_PORTAL"):
+def test_portal_without_filters_warns_and_returns_empty(register_test_portal):
+    """Top-level find_sites warn-and-continues for any per-source failure.
+
+    The submodule ``aeolus.portals.find_sites`` raises ValueError when no
+    filters are provided; the top-level wrapper deliberately swallows
+    that into a warning so the result is always a schema-correct
+    DataFrame (graceful for the iterate-many case and the missing-API-key
+    case).
+    """
+    with pytest.warns(UserWarning, match="Failed to fetch sites"):
         result = api.find_sites("TEST_PORTAL")
 
     assert result.empty
