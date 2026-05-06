@@ -48,9 +48,20 @@ _CANARY_KEY = "canary-1234567890abcdef-TEST-KEY"
 
 @pytest.fixture
 def _clear_api_keys(monkeypatch):
-    """Remove every API-key env var for the duration of a test."""
+    """Remove every API-key env var for the duration of a test.
+
+    OpenAQ caches its SDK client at module level (``openaq._client``);
+    if an earlier test instantiated it with a real key from ``.env``,
+    the cached client persists across tests and the missing-key path
+    silently never fires. Reset it here so the env-var clearing has
+    real effect.
+    """
     for _, env_var in API_KEY_SOURCES:
         monkeypatch.delenv(env_var, raising=False)
+
+    from aeolus.sources import openaq as _openaq
+
+    monkeypatch.setattr(_openaq, "_client", None)
     yield
 
 
