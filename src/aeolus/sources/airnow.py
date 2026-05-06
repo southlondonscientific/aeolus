@@ -44,7 +44,7 @@ import requests
 
 from ..decorators import retry_on_network_error
 from ..registry import register_source
-from ..types import AeolusDataWarning, empty_data_frame
+from ..types import AeolusDataWarning, empty_data_frame, empty_metadata_frame
 
 logger = getLogger(__name__)
 
@@ -235,7 +235,7 @@ def fetch_airnow_metadata(
                 AeolusDataWarning,
                 stacklevel=2,
             )
-        return empty_data_frame()
+        return empty_metadata_frame()
 
     # Extract unique sites
     sites = {}
@@ -263,7 +263,7 @@ def fetch_airnow_metadata(
         }
 
     if not sites:
-        return empty_data_frame()
+        return empty_metadata_frame()
 
     return pd.DataFrame(list(sites.values()))
 

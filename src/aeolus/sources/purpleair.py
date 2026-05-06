@@ -41,7 +41,7 @@ import requests
 from ..decorators import retry_on_network_error
 from ..registry import register_source
 from ..transforms import add_column, compose, select_columns
-from ..types import AeolusDataWarning, empty_data_frame
+from ..types import AeolusDataWarning, empty_data_frame, empty_metadata_frame
 
 logger = getLogger(__name__)
 
@@ -180,7 +180,7 @@ def fetch_purpleair_metadata(**filters) -> pd.DataFrame:
     except ValueError as e:
         warning(str(e))
         warnings.warn(str(e), AeolusDataWarning, stacklevel=2)
-        return empty_data_frame()
+        return empty_metadata_frame()
 
     # Build API parameters
     params = {
@@ -220,7 +220,7 @@ def fetch_purpleair_metadata(**filters) -> pd.DataFrame:
             AeolusDataWarning,
             stacklevel=2,
         )
-        return empty_data_frame()
+        return empty_metadata_frame()
 
     if not response or "data" not in response:
         warnings.warn(
@@ -228,7 +228,7 @@ def fetch_purpleair_metadata(**filters) -> pd.DataFrame:
             AeolusDataWarning,
             stacklevel=2,
         )
-        return empty_data_frame()
+        return empty_metadata_frame()
 
     # Convert response to DataFrame
     # Response format: {"fields": [...], "data": [[...], [...], ...]}
@@ -236,7 +236,7 @@ def fetch_purpleair_metadata(**filters) -> pd.DataFrame:
     data = response.get("data", [])
 
     if not data:
-        return empty_data_frame()
+        return empty_metadata_frame()
 
     # Use fields directly from API response (sensor_index is included)
     df = pd.DataFrame(data, columns=fields)

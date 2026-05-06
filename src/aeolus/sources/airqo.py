@@ -39,7 +39,7 @@ import requests
 from ..decorators import retry_on_network_error
 from ..registry import register_source
 from ..transforms import add_column, compose, rename_columns, select_columns
-from ..types import AeolusDataWarning, empty_data_frame
+from ..types import AeolusDataWarning, empty_data_frame, empty_metadata_frame
 
 logger = getLogger(__name__)
 
@@ -166,7 +166,7 @@ def fetch_airqo_metadata(**filters) -> pd.DataFrame:
             AeolusDataWarning,
             stacklevel=2,
         )
-        return empty_data_frame()
+        return empty_metadata_frame()
 
     if not data.get("success") or "sites" not in data:
         warning(
@@ -177,7 +177,7 @@ def fetch_airqo_metadata(**filters) -> pd.DataFrame:
             AeolusDataWarning,
             stacklevel=2,
         )
-        return empty_data_frame()
+        return empty_metadata_frame()
 
     sites = data["sites"]
 
@@ -214,13 +214,13 @@ def fetch_airqo_metadata(**filters) -> pd.DataFrame:
             logger.warning(f"Grids fallback also failed: {type(e).__name__}")
 
     if not sites:
-        return empty_data_frame()
+        return empty_metadata_frame()
 
     # Convert to DataFrame
     df = pd.DataFrame(sites)
 
     if df.empty:
-        return df
+        return empty_metadata_frame()
 
     # Normalize to standard schema
     normaliser = _create_metadata_normaliser()

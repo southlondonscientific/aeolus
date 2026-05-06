@@ -317,21 +317,27 @@ class TestFetchMetadata:
 
     @patch("aeolus.sources.airnow._call_airnow_api")
     def test_fetch_metadata_empty_response(self, mock_api):
-        """Test handling of empty response."""
+        """Empty response returns the 6-col metadata schema, not the data schema."""
+        from aeolus.types import METADATA_COLUMNS
+
         mock_api.return_value = []
 
         df = fetch_airnow_metadata()
 
         assert df.empty
+        assert list(df.columns) == METADATA_COLUMNS
 
     @patch("aeolus.sources.airnow._call_airnow_api")
     def test_fetch_metadata_api_failure(self, mock_api):
-        """Test handling of API failure."""
+        """API failure returns the metadata schema, not the data schema."""
+        from aeolus.types import METADATA_COLUMNS
+
         mock_api.return_value = None
 
         df = fetch_airnow_metadata()
 
         assert df.empty
+        assert list(df.columns) == METADATA_COLUMNS
 
     @patch("aeolus.sources.airnow._call_airnow_api")
     def test_fetch_metadata_site_code_format(self, mock_api, mock_metadata_response):

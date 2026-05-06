@@ -433,7 +433,9 @@ class TestFetchPurpleairMetadata:
 
     @patch("aeolus.sources.purpleair._get_purpleair_client")
     def test_returns_empty_on_no_results(self, mock_get_client, mock_empty_response):
-        """Test that empty response returns empty DataFrame."""
+        """Empty response returns the metadata schema, not the data schema."""
+        from aeolus.types import METADATA_COLUMNS
+
         mock_client = MagicMock()
         mock_client.request_multiple_sensors_data.return_value = mock_empty_response
         mock_get_client.return_value = mock_client
@@ -442,10 +444,13 @@ class TestFetchPurpleairMetadata:
 
         assert isinstance(result, pd.DataFrame)
         assert result.empty
+        assert list(result.columns) == METADATA_COLUMNS
 
     @patch("aeolus.sources.purpleair._get_purpleair_client")
     def test_returns_empty_on_api_error(self, mock_get_client):
-        """Test that API errors return empty DataFrame with warning."""
+        """API errors return the metadata schema, not the data schema."""
+        from aeolus.types import METADATA_COLUMNS
+
         mock_client = MagicMock()
         mock_client.request_multiple_sensors_data.side_effect = PurpleAirAPIError("API Error")
         mock_get_client.return_value = mock_client
@@ -454,6 +459,7 @@ class TestFetchPurpleairMetadata:
 
         assert isinstance(result, pd.DataFrame)
         assert result.empty
+        assert list(result.columns) == METADATA_COLUMNS
 
 
 # ============================================================================

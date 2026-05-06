@@ -485,7 +485,9 @@ class TestFetchAirQoMetadata:
 
     @responses.activate
     def test_returns_empty_on_api_error(self, monkeypatch):
-        """Test that API errors return empty DataFrame with warning."""
+        """API errors return an empty metadata-schema DataFrame with warning."""
+        from aeolus.types import METADATA_COLUMNS
+
         monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
@@ -498,12 +500,15 @@ class TestFetchAirQoMetadata:
 
         assert isinstance(result, pd.DataFrame)
         assert result.empty
+        assert list(result.columns) == METADATA_COLUMNS
 
     @responses.activate
     def test_returns_empty_on_unsuccessful_response(
         self, mock_error_response, monkeypatch
     ):
-        """Test that unsuccessful API response returns empty DataFrame."""
+        """Unsuccessful API response returns the metadata schema."""
+        from aeolus.types import METADATA_COLUMNS
+
         monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
 
         responses.add(
@@ -517,6 +522,7 @@ class TestFetchAirQoMetadata:
 
         assert isinstance(result, pd.DataFrame)
         assert result.empty
+        assert list(result.columns) == METADATA_COLUMNS
 
     @responses.activate
     def test_falls_back_to_grids_summary_when_sites_empty(
