@@ -671,5 +671,9 @@ register_source(
         "fetch_data": fetch_airqo_data,
         "normalise": create_airqo_normaliser(),
         "requires_api_key": True,
+        # AirQo metadata does not expose per-site measurands. Their network
+        # is dominated by low-cost PM sensors; declaring PM defaults lets
+        # find_sites(measurand="PM2.5") surface AirQo sites.
+        "default_measurands": ["PM2.5", "PM10"],
     },
 )

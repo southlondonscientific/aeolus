@@ -455,5 +455,9 @@ register_source(
         "fetch_data": fetch_breathe_london_data,
         "normalise": create_breathe_london_normaliser(),
         "requires_api_key": True,
+        # ListSensors does not expose per-site measurands. Most BL nodes
+        # report NO2 and PM2.5; declaring these lets find_sites(measurand=)
+        # surface BL sites instead of silently dropping them.
+        "default_measurands": ["NO2", "PM2.5"],
     },
 )

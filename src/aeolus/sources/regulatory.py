@@ -406,6 +406,7 @@ register_source(
         "fetch_data": make_data_fetcher("aurn"),
         "normalise": normalise_regulatory_data("AURN"),
         "requires_api_key": False,
+        "sos_backend": "AURN-SOS",
     },
 )
 
@@ -419,6 +420,7 @@ register_source(
         "fetch_data": make_data_fetcher("saqn"),
         "normalise": normalise_regulatory_data("SAQN"),
         "requires_api_key": False,
+        "sos_backend": "SAQN-SOS",
     },
 )
 
@@ -448,6 +450,7 @@ register_source(
         "fetch_data": make_data_fetcher("ni"),
         "normalise": normalise_regulatory_data("NI"),
         "requires_api_key": False,
+        "sos_backend": "NI-SOS",
     },
 )
 
@@ -461,6 +464,7 @@ register_source(
         "fetch_data": make_data_fetcher("waqn"),
         "normalise": normalise_regulatory_data("WAQN"),
         "requires_api_key": False,
+        "sos_backend": "WAQN-SOS",
     },
 )
 
@@ -474,6 +478,7 @@ register_source(
         "fetch_data": make_data_fetcher("aqe"),
         "normalise": normalise_regulatory_data("AQE"),
         "requires_api_key": False,
+        "sos_backend": "AQE-SOS",
     },
 )
 

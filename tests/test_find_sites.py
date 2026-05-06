@@ -36,6 +36,7 @@ def reset_registry():
         regulatory,
         sensor_community,
         sonitus,
+        sos,
     )
 
     for module in [
@@ -49,6 +50,7 @@ def reset_registry():
         regulatory,
         sensor_community,
         sonitus,
+        sos,
     ]:
         importlib.reload(module)
 
@@ -553,3 +555,52 @@ def test_measurands_column_present(register_free_network):
     """Metadata always includes a measurands column."""
     result = api.find_sites("FREE_NET")
     assert "measurands" in result.columns
+
+
+@pytest.fixture
+def register_default_measurands_network():
+    """Register a network that declares default_measurands and reports None per site."""
+    rows = [
+        ("D1", "Site D", 51.50, -0.13),
+        ("D2", "Site D2", 51.48, 0.00),
+    ]
+
+    def _meta(**kw):
+        df = _make_metadata(rows, "DEFAULT_NET")
+        df["measurands"] = [None, None]
+        return df
+
+    register_source(
+        "DEFAULT_NET",
+        {
+            "type": "network",
+            "name": "Default Measurands Network",
+            "fetch_metadata": _meta,
+            "fetch_data": lambda sites, s, e: pd.DataFrame(),
+            "normalise": lambda df: df,
+            "requires_api_key": False,
+            "default_measurands": ["NO2", "PM2.5"],
+        },
+    )
+
+
+def test_measurand_filter_uses_source_defaults(register_default_measurands_network):
+    """Sites with measurands=None are matched against source default_measurands."""
+    result = api.find_sites("DEFAULT_NET", measurand="NO2")
+    assert len(result) == 2
+    assert set(result["site_code"]) == {"D1", "D2"}
+
+
+def test_measurand_filter_default_no_match(register_default_measurands_network):
+    """source default_measurands not matching the wanted measurand still excludes."""
+    result = api.find_sites("DEFAULT_NET", measurand="SO2")
+    assert len(result) == 0
+
+
+def test_measurand_filter_default_does_not_override_populated(
+    register_measurand_network,
+):
+    """Sources without default_measurands keep the strict 'exclude None' behaviour."""
+    result = api.find_sites("MEAS_NET", measurand="NO2")
+    # C1 has measurands=None and MEAS_NET has no default_measurands → excluded.
+    assert "C1" not in set(result["site_code"])

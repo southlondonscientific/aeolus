@@ -910,5 +910,6 @@ register_source(
         "fetch_data": fetch_sensor_community_data,
         "normalise": lambda df: df,  # Normalisation happens in fetch_sensor_community_data
         "requires_api_key": False,
+        "bbox_aware": True,
     },
 )

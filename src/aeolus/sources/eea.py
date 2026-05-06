@@ -624,4 +624,5 @@ register_source("EEA", {
     "fetch_data": fetch_eea_data,
     "normalise": normalise_eea_data(),
     "requires_api_key": False,
+    "bbox_aware": True,
 })

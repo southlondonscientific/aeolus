@@ -236,6 +236,43 @@ def clear_cache(source: str | None = None) -> int:
     return count
 
 
+def fetch_with_cache(
+    source: str,
+    sites: list[str],
+    start_date: datetime,
+    end_date: datetime,
+    fetcher,
+) -> pd.DataFrame:
+    """Fetch via *fetcher*, transparently caching the result.
+
+    The single entry point used by every download path so that direct
+    submodule calls (``aeolus.networks.download``, ``aeolus.portals.download``)
+    benefit from the same cache as the top-level ``aeolus.download``.
+
+    Args:
+        source: Data source name (e.g. ``"AURN"``).
+        sites: Site codes — order does not affect the cache key.
+        start_date: Start of date range.
+        end_date: End of date range.
+        fetcher: Callable ``(sites, start_date, end_date) -> DataFrame``
+            invoked on a cache miss.
+
+    Returns:
+        The cached or freshly-fetched DataFrame.
+    """
+    if not _cache_enabled:
+        return fetcher(sites, start_date, end_date)
+
+    site_key = ",".join(sorted(sites))
+    cached = get(source, site_key, start_date, end_date)
+    if cached is not None:
+        return cached
+
+    data = fetcher(sites, start_date, end_date)
+    put(source, site_key, start_date, end_date, data)
+    return data
+
+
 def cache_info() -> dict:
     """
     Return information about the current cache state.

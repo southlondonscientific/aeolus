@@ -162,10 +162,22 @@ class SourceSpec(_SourceSpecRequired, total=False):
             Set to False for alternative backends (e.g. SOS) that duplicate
             a primary source's stations.
         fetch_latest: Function that fetches the most recent readings.
+        bbox_aware: Whether ``fetch_metadata`` accepts a ``bbox`` keyword
+            argument for server-side rectangular filtering.
+        sos_backend: Name of the registered SOS-style "near-real-time"
+            backend for this source (e.g. ``"AURN-SOS"``). Used by
+            :func:`aeolus.get_current` to route to the right source.
+        default_measurands: Pollutants the source is known to measure when
+            its per-site ``measurands`` column is unpopulated (``None``).
+            Used by :func:`aeolus.find_sites` to keep these sites from
+            being silently dropped by ``measurand=`` filters.
     """
     type: str
     primary: bool
     fetch_latest: DataFetcher
+    bbox_aware: bool
+    sos_backend: str
+    default_measurands: list[str]
 
 
 # Standard column names - for reference and validation

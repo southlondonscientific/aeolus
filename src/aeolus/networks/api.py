@@ -140,7 +140,9 @@ def download(
     if not fetcher:
         raise ValueError(f"Network {network} does not support data downloading")
 
-    return fetcher(sites, start_date, end_date)
+    from .. import cache as _cache
+
+    return _cache.fetch_with_cache(network, sites, start_date, end_date, fetcher)
 
 
 def list_networks() -> list[str]:
