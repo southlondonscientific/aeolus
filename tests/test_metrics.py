@@ -1012,6 +1012,24 @@ class TestBoundaryValues:
         result_1h = china.calculate(120.0, "O3", averaging_period="1h")
         assert result_1h.category == "Excellent"  # 1-hour breakpoints are higher
 
+    def test_china_o3_8h_extends_above_aqi_300(self):
+        """8-hour O3 above 800 µg/m³ uses extended (1-hour) breakpoints.
+
+        HJ 633-2012 only defines AQI 0-300 for 8-hour O3. Above that,
+        the spec says to fall back to the 1-hour table. Pre-fix, an
+        8-hour reading of 900 µg/m³ fell off the end of the 8-hour
+        table and got capped at AQI 500. Post-fix, it interpolates
+        within the extended 801-1000 µg/m³ → AQI 301-400 band.
+        """
+        from aeolus.metrics.indices import china
+
+        result = china.calculate(900.0, "O3", averaging_period="8h")
+        # Post-fix: value falls inside the 801-1000 → 301-400 band.
+        assert 300 < result.value < 401
+        # Category bucket spans 301-500, so the name itself doesn't
+        # change — but the AQI value would have been a wrong 500 before.
+        assert result.category == "Severely Polluted"
+
     def test_india_o3_averaging_switch(self):
         """Test India NAQI O3 switches from 8-hour to 1-hour at high values."""
         from aeolus.metrics.indices import india_naqi

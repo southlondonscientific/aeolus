@@ -381,6 +381,23 @@ def aq_stats(
         ["site_code", "year", "measurand"], observed=True
     ):
         g = group.set_index("date_time").sort_index()
+
+        # Annual stats are defined for hourly data — sub-hourly inputs
+        # would otherwise inflate data_capture above 1.0 and double-count
+        # exceedance_hours_200. Resample to hourly means first.
+        if len(g.index) >= 2:
+            inferred_gap = g.index.to_series().diff().median()
+            if (
+                pd.notna(inferred_gap)
+                and inferred_gap < pd.Timedelta(hours=1)
+            ):
+                g = (
+                    g["value"]
+                    .resample("1h")
+                    .mean()
+                    .to_frame("value")
+                )
+
         values = g["value"].dropna()
 
         if values.empty:
@@ -388,7 +405,7 @@ def aq_stats(
 
         # Expected hours in this year
         hours_in_year = 8784 if calendar.isleap(yr) else 8760
-        dc = len(values) / hours_in_year
+        dc = min(len(values) / hours_in_year, 1.0)
 
         row = {
             "site_code": site,

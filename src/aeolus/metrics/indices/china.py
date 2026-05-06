@@ -293,14 +293,18 @@ O3_1HR_BREAKPOINTS = [
     _make_breakpoint(1001, 1200, 401, 500),
 ]
 
-# O3 (µg/m³, 8-hour)
+# O3 (µg/m³, 8-hour). HJ 633-2012 only defines AQI 0-300 for 8-hour
+# O3 (0-800 µg/m³). For AQI > 300, the standard says to fall back to
+# the 1-hour table — extended here so 8-hour readings above 800 µg/m³
+# don't return None and silently cap at AQI 500.
 O3_8HR_BREAKPOINTS = [
     _make_breakpoint(0, 100, 0, 50),
     _make_breakpoint(101, 160, 51, 100),
     _make_breakpoint(161, 215, 101, 150),
     _make_breakpoint(216, 265, 151, 200),
     _make_breakpoint(266, 800, 201, 300),
-    # Note: 8-hour O3 uses same breakpoints as 1-hour for AQI > 300
+    _make_breakpoint(801, 1000, 301, 400),
+    _make_breakpoint(1001, 1200, 401, 500),
 ]
 
 BREAKPOINTS = {

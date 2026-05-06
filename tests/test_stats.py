@@ -309,6 +309,35 @@ class TestAQStats:
         result = aq_stats(data, data_thresh=0)
         assert result["annual_mean"].iloc[0] == pytest.approx(42.0)
 
+    def test_subhourly_data_resampled_for_data_capture(self):
+        """Sub-hourly inputs are aggregated to hourly so DC stays ≤ 1.
+
+        Pre-fix, 15-minute data produced data_capture ≈ 4.0 (35 040 obs
+        / 8760 hours), trivially passing any threshold and silently
+        double-counting NO2 exceedance hours.
+        """
+        # Build a year of 15-minute data
+        idx = pd.date_range(
+            "2024-01-01 00:00",
+            "2024-12-31 23:45",
+            freq="15min",
+            tz="UTC",
+        )
+        data = pd.DataFrame(
+            {
+                "site_code": "S1",
+                "date_time": idx,
+                "measurand": "NO2",
+                "value": 30.0,
+                "units": "ug/m3",
+                "source_network": "T",
+            }
+        )
+        result = aq_stats(data, data_thresh=0)
+        assert result["data_capture"].iloc[0] <= 1.0
+        # 15-min data → ~8784 hourly bins for leap year 2024 → DC ≈ 1.0
+        assert result["data_capture"].iloc[0] == pytest.approx(1.0, abs=0.01)
+
     def test_percentiles(self):
         """p95 and p99 are calculated."""
         data = _make_year_data(value=30.0)
