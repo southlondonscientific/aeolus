@@ -5,6 +5,7 @@ Tests the API calls, metadata fetching, data fetching, and normalization
 pipeline with mocked HTTP responses.
 """
 
+import warnings
 from datetime import datetime
 
 import pandas as pd
@@ -20,6 +21,7 @@ from aeolus.sources.breathe_london import (
     fetch_breathe_london_data,
     fetch_breathe_london_metadata,
 )
+from aeolus.types import AeolusDataWarning
 
 # ============================================================================
 # Fixtures for Mock API Responses
@@ -329,59 +331,136 @@ class TestFetchBreatheLondonMetadata:
         assert (result["source_network"] == "BREATHE_LONDON").all()
 
     @responses.activate
-    def test_filters_by_borough(self, mock_single_sensor_response, monkeypatch):
-        """Test filtering by borough."""
+    def test_calls_list_sensors_with_no_query_params(
+        self, mock_sensors_response, monkeypatch
+    ):
+        """ListSensors rejects all query params; we must always call it bare."""
         monkeypatch.setenv("BL_API_KEY", "test_key_123")
 
         responses.add(
             responses.GET,
             f"{BREATHE_LONDON_API_BASE}/ListSensors",
-            json=mock_single_sensor_response,
+            json=mock_sensors_response,
+            status=200,
+        )
+
+        fetch_breathe_london_metadata(borough="Camden", radius_km=5,
+                                      latitude=51.5, longitude=-0.1)
+
+        # No filters should ever leak into the request URL — they are all
+        # applied client-side after the response is normalised.
+        request_url = responses.calls[0].request.url
+        for forbidden in ("borough", "radius_km", "latitude", "longitude",
+                          "species", "site=", "sponsor", "facility"):
+            assert forbidden not in request_url, (
+                f"{forbidden!r} should not be sent to BL API: {request_url}"
+            )
+
+    @responses.activate
+    def test_filters_by_borough(self, mock_sensors_response, monkeypatch):
+        """Borough filter is applied client-side on the full response."""
+        monkeypatch.setenv("BL_API_KEY", "test_key_123")
+
+        responses.add(
+            responses.GET,
+            f"{BREATHE_LONDON_API_BASE}/ListSensors",
+            json=mock_sensors_response,
             status=200,
         )
 
         result = fetch_breathe_london_metadata(borough="Camden")
 
-        # Check that filter was passed to API
-        assert "borough=Camden" in responses.calls[0].request.url
         assert len(result) == 1
+        assert result.iloc[0]["site_code"] == "BL0001"
+        assert result.iloc[0]["Borough"] == "Camden"
 
     @responses.activate
-    def test_filters_by_species(self, mock_single_sensor_response, monkeypatch):
-        """Test filtering by species."""
+    def test_borough_filter_is_case_insensitive(
+        self, mock_sensors_response, monkeypatch
+    ):
+        """Borough match should ignore case."""
         monkeypatch.setenv("BL_API_KEY", "test_key_123")
 
         responses.add(
             responses.GET,
             f"{BREATHE_LONDON_API_BASE}/ListSensors",
-            json=mock_single_sensor_response,
+            json=mock_sensors_response,
             status=200,
         )
 
-        fetch_breathe_london_metadata(species="NO2")
+        result = fetch_breathe_london_metadata(borough="CAMDEN")
 
-        assert "species=NO2" in responses.calls[0].request.url
+        assert len(result) == 1
+        assert result.iloc[0]["site_code"] == "BL0001"
 
     @responses.activate
-    def test_filters_by_location(self, mock_single_sensor_response, monkeypatch):
-        """Test filtering by geographic location."""
+    def test_filters_by_site(self, mock_sensors_response, monkeypatch):
+        """Site filter matches a single record."""
         monkeypatch.setenv("BL_API_KEY", "test_key_123")
 
         responses.add(
             responses.GET,
             f"{BREATHE_LONDON_API_BASE}/ListSensors",
-            json=mock_single_sensor_response,
+            json=mock_sensors_response,
             status=200,
         )
 
-        fetch_breathe_london_metadata(
-            latitude=51.5074, longitude=-0.1278, radius_km=5
+        result = fetch_breathe_london_metadata(site="BL0002")
+
+        assert len(result) == 1
+        assert result.iloc[0]["site_code"] == "BL0002"
+
+    @responses.activate
+    def test_filters_by_location(self, mock_sensors_response, monkeypatch):
+        """Lat/lng/radius applies client-side haversine and adds distance_km."""
+        monkeypatch.setenv("BL_API_KEY", "test_key_123")
+
+        responses.add(
+            responses.GET,
+            f"{BREATHE_LONDON_API_BASE}/ListSensors",
+            json=mock_sensors_response,
+            status=200,
         )
 
-        request_url = responses.calls[0].request.url
-        assert "latitude=51.5074" in request_url
-        assert "longitude=-0.1278" in request_url
-        assert "radius_km=5" in request_url
+        # Centred near Camden — Camden + Westminster sites both within 5km,
+        # Hackney site (BL0003) ~5.5km away should be excluded.
+        result = fetch_breathe_london_metadata(
+            latitude=51.5279, longitude=-0.1328, radius_km=3,
+        )
+
+        assert "distance_km" in result.columns
+        # Result is sorted nearest-first
+        assert result["distance_km"].is_monotonic_increasing
+        # Camden site is first (we centred on it)
+        assert result.iloc[0]["site_code"] == "BL0001"
+        # Hackney is excluded
+        assert "BL0003" not in result["site_code"].values
+
+    def test_location_filter_requires_all_three_args(self):
+        """Partial location filter is a programming error."""
+        with pytest.raises(ValueError, match="latitude, longitude, and radius_km"):
+            fetch_breathe_london_metadata(latitude=51.5)
+
+    @responses.activate
+    def test_species_filter_warns_and_ignores(
+        self, mock_sensors_response, monkeypatch
+    ):
+        """species= is in the historical signature but BL ListSensors
+        doesn't expose per-site species — filter is a no-op with a warning."""
+        monkeypatch.setenv("BL_API_KEY", "test_key_123")
+
+        responses.add(
+            responses.GET,
+            f"{BREATHE_LONDON_API_BASE}/ListSensors",
+            json=mock_sensors_response,
+            status=200,
+        )
+
+        with pytest.warns(AeolusDataWarning, match="species"):
+            result = fetch_breathe_london_metadata(species="NO2")
+
+        # All sites are returned (filter ignored, no other filters)
+        assert len(result) == 3
 
     @responses.activate
     def test_returns_empty_dataframe_on_no_results(
@@ -420,7 +499,7 @@ class TestFetchBreatheLondonMetadata:
 
     @responses.activate
     def test_ignores_none_filter_values(self, mock_sensors_response, monkeypatch):
-        """Test that None filter values are not included in query."""
+        """None filter values should be skipped (no warning, no filtering)."""
         monkeypatch.setenv("BL_API_KEY", "test_key_123")
 
         responses.add(
@@ -430,11 +509,14 @@ class TestFetchBreatheLondonMetadata:
             status=200,
         )
 
-        fetch_breathe_london_metadata(borough="Camden", species=None)
+        # species=None must not trip the species-not-supported warning
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", AeolusDataWarning)
+            result = fetch_breathe_london_metadata(borough="Camden", species=None)
 
-        request_url = responses.calls[0].request.url
-        assert "borough=Camden" in request_url
-        assert "species" not in request_url
+        # borough="Camden" still applied
+        assert len(result) == 1
+        assert result.iloc[0]["site_code"] == "BL0001"
 
 
 # ============================================================================

@@ -102,26 +102,33 @@ def _call_breathe_london_api(endpoint: str, params: dict) -> dict:
 
 def fetch_breathe_london_metadata(**filters) -> pd.DataFrame:
     """
-    Fetch site metadata from Breathe London API.
+    Fetch site metadata from Breathe London.
+
+    The Breathe London ``ListSensors`` endpoint does not accept any query
+    parameters — it always returns the full sensor list and rejects any
+    filter with ``400 Invalid parameter(s)``.  This function therefore
+    fetches the full list and applies the documented filters
+    *client-side* on the returned DataFrame.
 
     Args:
-        **filters: Optional filters for metadata query:
-            - site: Site code
-            - borough: Borough name
-            - species: Pollutant species
-            - sponsor: Site sponsor
-            - facility: Facility type
-            - latitude: Latitude (requires longitude and radius_km)
-            - longitude: Longitude (requires latitude and radius_km)
-            - radius_km: Search radius in km
+        **filters: Optional client-side filters:
+            - site: Match a single ``site_code`` (case-insensitive).
+            - borough: Match ``Borough`` (case-insensitive equality).
+            - sponsor: Match ``SponsorName`` (case-insensitive equality).
+            - facility: Match ``Facility`` (case-insensitive equality).
+            - latitude, longitude, radius_km: Circular spatial filter.
+              All three are required together.  Adds a ``distance_km``
+              column and sorts nearest-first.
 
     Returns:
         pd.DataFrame: Site metadata with standardised schema:
             - site_code: Unique site identifier
             - site_name: Human-readable site name
-            - latitude: Site latitude
-            - longitude: Site longitude
-            - source_network: "Breathe London"
+            - latitude: Site latitude (numeric)
+            - longitude: Site longitude (numeric)
+            - source_network: "BREATHE_LONDON"
+            Plus all original BL fields (Borough, Facility, SponsorName,
+            SiteClassification, etc.) preserved unchanged.
 
     Example:
         >>> # Get all sensors
@@ -130,22 +137,15 @@ def fetch_breathe_london_metadata(**filters) -> pd.DataFrame:
         >>> # Get sensors in a specific borough
         >>> metadata = fetch_breathe_london_metadata(borough="Camden")
         >>>
-        >>> # Get NO2 sensors within 5km of a point
+        >>> # Get sensors within 5km of a point
         >>> metadata = fetch_breathe_london_metadata(
-        ...     species="NO2",
-        ...     latitude=51.5074,
-        ...     longitude=-0.1278,
-        ...     radius_km=5
+        ...     latitude=51.5074, longitude=-0.1278, radius_km=5,
         ... )
     """
-    # Build query parameters from filters
-    params = {}
-    for key, value in filters.items():
-        if value is not None:
-            params[key] = value
-
+    # ListSensors rejects all query parameters; always call bare and
+    # filter the response client-side.
     try:
-        data = _call_breathe_london_api("ListSensors", params)
+        data = _call_breathe_london_api("ListSensors", {})
     except (requests.RequestException, ValueError, KeyError, TypeError) as e:
         warning(f"Failed to fetch Breathe London metadata: {e}")
         warnings.warn(
@@ -158,15 +158,70 @@ def fetch_breathe_london_metadata(**filters) -> pd.DataFrame:
     if not data:
         return empty_data_frame()
 
-    # Convert to DataFrame
     df = pd.DataFrame(data)
-
     if df.empty:
         return df
 
-    # Normalize column names
-    normaliser = _create_metadata_normaliser()
-    return normaliser(df)
+    df = _create_metadata_normaliser()(df)
+    return _apply_metadata_filters(df, filters)
+
+
+def _apply_metadata_filters(df: pd.DataFrame, filters: dict) -> pd.DataFrame:
+    """Apply client-side filters to normalised BL metadata."""
+    if df.empty:
+        return df
+
+    site = filters.get("site")
+    if site is not None and "site_code" in df.columns:
+        df = df[df["site_code"].astype(str).str.casefold() == str(site).casefold()]
+
+    for filter_key, column in (
+        ("borough", "Borough"),
+        ("sponsor", "SponsorName"),
+        ("facility", "Facility"),
+    ):
+        value = filters.get(filter_key)
+        if value is not None and column in df.columns:
+            df = df[df[column].astype(str).str.casefold() == str(value).casefold()]
+
+    lat = filters.get("latitude")
+    lon = filters.get("longitude")
+    radius_km = filters.get("radius_km")
+    if lat is not None or lon is not None or radius_km is not None:
+        if lat is None or lon is None or radius_km is None:
+            raise ValueError(
+                "latitude, longitude, and radius_km must all be provided together"
+            )
+        from ..geo import haversine_distance
+
+        has_coords = df["latitude"].notna() & df["longitude"].notna()
+        df = df[has_coords].copy()
+        df["distance_km"] = df.apply(
+            lambda row: haversine_distance(
+                lat, lon, row["latitude"], row["longitude"]
+            ),
+            axis=1,
+        )
+        df = df[df["distance_km"] <= radius_km].sort_values("distance_km")
+
+    if "species" in filters and filters["species"] is not None:
+        warnings.warn(
+            "fetch_breathe_london_metadata: 'species' filter is not supported — "
+            "the ListSensors endpoint does not expose per-site measurands. "
+            "Filter ignored.",
+            AeolusDataWarning,
+            stacklevel=2,
+        )
+
+    return df.reset_index(drop=True)
+
+
+def _coerce_lat_lng(df: pd.DataFrame) -> pd.DataFrame:
+    """Convert latitude/longitude columns to numeric — BL returns strings."""
+    for col in ("latitude", "longitude"):
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+    return df
 
 
 def _create_metadata_normaliser():
@@ -184,6 +239,7 @@ def _create_metadata_normaliser():
                 "Longitude": "longitude",
             }
         ),
+        _coerce_lat_lng,
         add_column("source_network", "BREATHE_LONDON"),
         add_column("measurands", None),
     )
