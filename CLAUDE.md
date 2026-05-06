@@ -277,3 +277,7 @@ Mock API responses are defined as pytest fixtures within each test file.
 - `get_current()` auto-routes AURN→AURN-SOS for near-real-time readings
 - SOS station mapping is shipped as `_sos_mapping.json`; refresh with `from aeolus.sources.sos import rebuild_sos_mapping; rebuild_sos_mapping()`
 - Progress bars require `pip install tqdm` (or `pip install aeolus[progress]`); without it, falls back to logging
+
+## Cross-product session log
+
+A running log of development across all SLS products lives at `../SLS-PRODUCT-DEV.md`. At the end of any session that materially changes this project's state (commits, deploys, design decisions, new dependencies), append an entry to that file's Session Log section (newest first) and update the Status Snapshot row for this product. The template and conventions are in the log's "How to update" section — keep entries terse (~250 words) with Achieved / Decisions / Next / Open subsections. Skip for trivial sessions (single-line fixes, pure exploration, no commits).
