@@ -165,7 +165,9 @@ def download(
     if not fetcher:
         raise ValueError(f"Portal {portal} does not support data downloading")
 
-    return fetcher(sites, start_date, end_date)
+    from .. import cache as _cache
+
+    return _cache.fetch_with_cache(portal, sites, start_date, end_date, fetcher)
 
 
 def list_portals() -> list[str]:

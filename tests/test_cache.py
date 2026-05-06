@@ -318,7 +318,7 @@ class TestCacheInfo:
 
 class TestDownloadIntegration:
     def test_cache_used_on_second_call(self, sample_data, isolated_cache):
-        """Verify the cache integration in api._fetch_single_source."""
+        """Top-level api.download caches across calls."""
         from unittest.mock import MagicMock
 
         from aeolus import api
@@ -326,24 +326,78 @@ class TestDownloadIntegration:
         start = datetime(2024, 1, 1)
         end = datetime(2024, 1, 31)
 
-        # Mock the network download
-        mock_download = MagicMock(return_value=sample_data)
+        mock_fetcher = MagicMock(return_value=sample_data)
 
         with patch.dict(
             "aeolus.registry._SOURCES",
-            {"TEST_NET": {"type": "network", "fetch_data": mock_download, "primary": True}},
+            {
+                "TEST_NET": {
+                    "type": "network",
+                    "fetch_data": mock_fetcher,
+                    "primary": True,
+                }
+            },
         ):
-            with patch("aeolus.networks.api.download", mock_download):
-                # First call — should hit the network
-                enable_cache(cache_dir=isolated_cache)
-                result1 = api._fetch_single_source("TEST_NET", ["MY1"], start, end)
-                assert mock_download.call_count == 1
+            enable_cache(cache_dir=isolated_cache)
+            result1 = api._fetch_single_source("TEST_NET", ["MY1"], start, end)
+            assert mock_fetcher.call_count == 1
 
-                # Second call — should use cache
-                result2 = api._fetch_single_source("TEST_NET", ["MY1"], start, end)
-                assert mock_download.call_count == 1  # not called again
+            result2 = api._fetch_single_source("TEST_NET", ["MY1"], start, end)
+            assert mock_fetcher.call_count == 1  # cache hit
 
-                pd.testing.assert_frame_equal(
-                    result1.reset_index(drop=True),
-                    result2.reset_index(drop=True),
-                )
+            pd.testing.assert_frame_equal(
+                result1.reset_index(drop=True),
+                result2.reset_index(drop=True),
+            )
+
+    def test_networks_download_uses_cache(self, sample_data, isolated_cache):
+        """Direct aeolus.networks.download calls share the cache."""
+        from unittest.mock import MagicMock
+
+        from aeolus import networks
+
+        start = datetime(2024, 1, 1)
+        end = datetime(2024, 1, 31)
+
+        mock_fetcher = MagicMock(return_value=sample_data)
+
+        with patch.dict(
+            "aeolus.registry._SOURCES",
+            {
+                "TEST_NET": {
+                    "type": "network",
+                    "fetch_data": mock_fetcher,
+                    "primary": True,
+                }
+            },
+        ):
+            enable_cache(cache_dir=isolated_cache)
+            networks.download("TEST_NET", ["MY1"], start, end)
+            networks.download("TEST_NET", ["MY1"], start, end)
+            assert mock_fetcher.call_count == 1
+
+    def test_portals_download_uses_cache(self, sample_data, isolated_cache):
+        """Direct aeolus.portals.download calls share the cache."""
+        from unittest.mock import MagicMock
+
+        from aeolus import portals
+
+        start = datetime(2024, 1, 1)
+        end = datetime(2024, 1, 31)
+
+        mock_fetcher = MagicMock(return_value=sample_data)
+
+        with patch.dict(
+            "aeolus.registry._SOURCES",
+            {
+                "TEST_PORTAL": {
+                    "type": "portal",
+                    "fetch_data": mock_fetcher,
+                    "primary": True,
+                }
+            },
+        ):
+            enable_cache(cache_dir=isolated_cache)
+            portals.download("TEST_PORTAL", ["LOC1"], start, end)
+            portals.download("TEST_PORTAL", ["LOC1"], start, end)
+            assert mock_fetcher.call_count == 1

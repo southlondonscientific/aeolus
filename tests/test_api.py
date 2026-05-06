@@ -54,6 +54,7 @@ def reset_registry():
         regulatory,
         sensor_community,
         sonitus,
+        sos,
     )
 
     for module in [
@@ -67,6 +68,7 @@ def reset_registry():
         regulatory,
         sensor_community,
         sonitus,
+        sos,
     ]:
         importlib.reload(module)
 

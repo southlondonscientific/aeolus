@@ -543,5 +543,6 @@ register_source(
         "fetch_data": fetch_airnow_data,
         "normalise": lambda df: df,  # Normalisation happens in fetch_airnow_data
         "requires_api_key": True,
+        "bbox_aware": True,
     },
 )

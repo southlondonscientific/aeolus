@@ -192,6 +192,7 @@ def _register_mock_aurn_and_sos():
             "fetch_data": lambda sites, s, e: pd.DataFrame(),
             "normalise": lambda df: df,
             "requires_api_key": False,
+            "sos_backend": "AURN-SOS",
         },
     )
 

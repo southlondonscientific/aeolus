@@ -148,35 +148,21 @@ def _parse_last(last: str) -> tuple[datetime, datetime]:
 def _fetch_single_source(
     source_name: str, source_sites: list[str], start_date: datetime, end_date: datetime
 ) -> pd.DataFrame:
-    """Fetch data from a single source, using cache if enabled."""
-    from . import cache as _cache
+    """Dispatch a single-source download to the appropriate submodule.
 
-    # Check cache
-    if _cache.is_enabled():
-        # Cache per (source, sorted-site-list, dates)
-        cache_site_key = ",".join(sorted(source_sites))
-        cached = _cache.get(source_name, cache_site_key, start_date, end_date)
-        if cached is not None:
-            return cached
-
-    # Fetch from network
+    Caching is applied inside each submodule's ``download`` so direct
+    submodule calls also benefit from the cache.
+    """
     source_spec = get_source(source_name)
     source_type = source_spec.get("type", "network")
 
     if source_type == "network":
         from .networks import download as network_download
-        data = network_download(source_name, source_sites, start_date, end_date)
-    elif source_type == "portal":
+        return network_download(source_name, source_sites, start_date, end_date)
+    if source_type == "portal":
         from .portals import download as portal_download
-        data = portal_download(source_name, source_sites, start_date, end_date)
-    else:
-        raise ValueError(f"Unknown source type: {source_type}")
-
-    # Store in cache
-    if _cache.is_enabled():
-        _cache.put(source_name, cache_site_key, start_date, end_date, data)
-
-    return data
+        return portal_download(source_name, source_sites, start_date, end_date)
+    raise ValueError(f"Unknown source type: {source_type}")
 
 
 def list_sources(include_all: bool = False) -> list[str]:
@@ -460,16 +446,13 @@ def fetch(
 # find_sites() — Unified Site Discovery
 # ============================================================================
 
-# Networks whose fetch_metadata accepts a ``bbox`` keyword argument.
-_BBOX_AWARE_NETWORKS = {"SENSOR_COMMUNITY", "AIRNOW", "EEA"}
-
 
 def _fetch_network_sites(
     name: str, spec: dict, search_bbox: tuple | None, filters: dict
 ) -> pd.DataFrame:
     """Fetch site metadata from a network source."""
     kwargs = dict(filters)
-    if search_bbox is not None and name in _BBOX_AWARE_NETWORKS:
+    if search_bbox is not None and spec.get("bbox_aware"):
         kwargs["bbox"] = search_bbox
     try:
         return spec["fetch_metadata"](**kwargs)
@@ -530,8 +513,12 @@ def find_sites(
         radius_km: Radius in km when *near* is used (default 50).
         bbox: ``(min_lon, min_lat, max_lon, max_lat)`` rectangular filter.
         measurand: Filter to sites that measure this pollutant (or any of
-            the given list).  Sites with unknown measurands (``None``) are
-            excluded when this filter is active.
+            the given list).  Sites with a populated ``measurands`` list
+            are matched against it.  Sites whose ``measurands`` is
+            ``None`` are matched against their source's
+            ``default_measurands`` (declared in the SourceSpec) when set,
+            and excluded otherwise — this preserves the "old/decommissioned
+            site" semantics for networks that populate measurands per-site.
         include_all: When *source* is ``None``, include sources that require
             an API key and warn on failures.
         **filters: Source-specific keyword filters (e.g. ``country``,
@@ -655,14 +642,27 @@ def find_sites(
         else:
             wanted = set(measurand)
 
-        def _has_measurand(m):
-            if m is None or not isinstance(m, list):
-                return False
-            return bool(wanted & set(m))
+        # Cache the per-source default_measurands lookup once.
+        source_defaults: dict[str, set[str]] = {}
+        for src_name in combined["source_network"].unique():
+            spec = get_source(src_name)
+            defaults = (spec or {}).get("default_measurands")
+            if defaults:
+                source_defaults[src_name] = set(defaults)
 
-        combined = combined[combined["measurands"].map(_has_measurand)].reset_index(
-            drop=True
-        )
+        def _matches(row):
+            m = row["measurands"]
+            if isinstance(m, list):
+                return bool(wanted & set(m))
+            # measurands is None / NaN / unknown — fall back to the
+            # source-declared defaults if any. This catches sources whose
+            # metadata feeds don't expose per-site measurands.
+            defaults = source_defaults.get(row["source_network"])
+            if defaults is None:
+                return False
+            return bool(wanted & defaults)
+
+        combined = combined[combined.apply(_matches, axis=1)].reset_index(drop=True)
 
     # --- order columns: core -> distance_km -> extras ---
     core = [c for c in _METADATA_COLUMNS if c in combined.columns]
@@ -679,14 +679,6 @@ def find_sites(
 # ============================================================================
 # get_current() — Near-Real-Time Data via SOS
 # ============================================================================
-
-_SOS_BACKENDS = {
-    "AURN": "AURN-SOS",
-    "SAQN": "SAQN-SOS",
-    "WAQN": "WAQN-SOS",
-    "NI": "NI-SOS",
-    "AQE": "AQE-SOS",
-}
 
 
 def get_current(
@@ -719,15 +711,13 @@ def get_current(
     """
     source_upper = source.upper()
 
-    # Route to SOS backend if available
-    backend = _SOS_BACKENDS.get(source_upper, source_upper)
+    # Route to SOS backend declared by the primary source, if any.
+    primary_spec = get_source(source_upper)
+    backend = (primary_spec or {}).get("sos_backend", source_upper)
 
     spec = get_source(backend)
     if spec is None:
-        available = ", ".join(list_sources(include_all=True))
-        raise ValueError(
-            f"Unknown source: {source}\nAvailable sources: {available}"
-        )
+        raise ValueError(_unknown_source_message(source))
 
     # Use fetch_latest if available, otherwise fall back to fetch_data
     # with a short window
@@ -735,15 +725,17 @@ def get_current(
     if fetch_latest is not None:
         return fetch_latest(sites)
 
-    # Fallback: fetch last 4 hours and keep the latest reading
+    # Fallback: fetch last 4 hours and keep the latest reading.
+    # Bypass the cache here — "current" data must always be live.
     from datetime import timedelta
 
-    now = datetime.now(tz=__import__("datetime").timezone.utc)
+    now = datetime.now(tz=timezone.utc)
     start = now - timedelta(hours=4)
 
-    from .networks import download as network_download
-
-    df = network_download(backend, sites, start, now)
+    fetch_data = spec.get("fetch_data")
+    if fetch_data is None:
+        raise ValueError(f"Source {backend} has no fetch_data implementation")
+    df = fetch_data(sites, start, now)
     if df.empty:
         return df
 
