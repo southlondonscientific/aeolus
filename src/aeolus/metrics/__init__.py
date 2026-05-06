@@ -60,6 +60,7 @@ from .base import (
     ensure_ugm3_array,
     get_available_pollutants,
     standardise_pollutant,
+    to_index_unit,
     validate_data,
 )
 from .indices import get_index
@@ -200,6 +201,13 @@ def aqi_summary(
     # Validate input
     validate_data(data)
 
+    # WHO is a guideline check, not an AQI — it has no calculate()/breakpoints.
+    if index.upper() == "WHO":
+        raise ValueError(
+            "WHO is a guideline-compliance check, not an AQI. "
+            "Use metrics.aqi_check_who(data, target=...) instead."
+        )
+
     # Get index info
     index_info = get_index(index)
     if index_info is None:
@@ -237,70 +245,90 @@ def aqi_summary(
     df["pollutant_std"] = df["measurand"].apply(standardise_pollutant)
     df = df[df["pollutant_std"].isin(usable_pollutants)]
 
+    # Compute each pollutant's required rolling average (8h for O3, 24h for
+    # PM, 1h for NO2, etc.) so that AQI is derived from the same window the
+    # index is defined on. The AQI for a period is the worst (max) rolling
+    # value within that period — this matches how the regulators report it.
+    df = df.sort_values(["site_code", "pollutant_std", "date_time"])
+    rolling_chunks: list[pd.DataFrame] = []
+    for (site, pollutant), g in df.groupby(
+        ["site_code", "pollutant_std"], observed=True
+    ):
+        avg_period = _get_averaging_period(index_module, pollutant)
+        window_hours = _period_to_hours(avg_period)
+        gi = g.set_index("date_time").sort_index().copy()
+        gi["value_ugm3"] = ensure_ugm3_array(
+            gi["value"].values, pollutant, gi["units"]
+        )
+        gi["rolling_avg"] = (
+            gi["value_ugm3"]
+            .rolling(
+                window=f"{window_hours}h",
+                min_periods=max(1, int(window_hours * 0.75)),
+            )
+            .mean()
+        )
+        rolling_chunks.append(gi.reset_index())
+
+    if not rolling_chunks:
+        return _empty_aqi_summary_frame(format, overall_only)
+    df_r = pd.concat(rolling_chunks, ignore_index=True)
+
     # Determine period grouping
     if freq is None:
-        df["period"] = "all"
+        df_r["period"] = "all"
     else:
-        df["period"] = df["date_time"].dt.to_period(freq).astype(str)
+        df_r["period"] = df_r["date_time"].dt.to_period(freq).astype(str)
 
     # Group and calculate statistics
     results = []
-
-    for (site, period, pollutant), group in df.groupby(
+    for (site, period, pollutant), group in df_r.groupby(
         ["site_code", "period", "pollutant_std"], observed=True
     ):
-        # Convert units to µg/m³ (vectorized)
-        values_ugm3 = ensure_ugm3_array(
-            group["value"].values,
-            pollutant,
-            group["units"],
-        )
+        valid_raw = pd.Series(group["value_ugm3"]).dropna()
+        valid_rolling = pd.Series(group["rolling_avg"]).dropna()
 
-        # Filter out NaN values
-        valid_mask = ~pd.isna(values_ugm3)
-        values_series = pd.Series(values_ugm3[valid_mask])
-
-        if len(values_series) == 0:
+        if valid_raw.empty:
             continue
 
-        # Calculate statistics
         stats = {
             "site_code": site,
             "period": period,
             "pollutant": pollutant,
-            "mean": values_series.mean(),
-            "median": values_series.median(),
-            "p25": values_series.quantile(0.25),
-            "p75": values_series.quantile(0.75),
-            "min": values_series.min(),
-            "max": values_series.max(),
+            "mean": valid_raw.mean(),
+            "median": valid_raw.median(),
+            "p25": valid_raw.quantile(0.25),
+            "p75": valid_raw.quantile(0.75),
+            "min": valid_raw.min(),
+            "max": valid_raw.max(),
         }
 
-        # Calculate coverage
+        # Per-group coverage: use this (site, pollutant, period)'s actual
+        # span rather than the dataset-wide span, which would mis-attribute
+        # coverage in mixed-pollutant inputs.
         if freq is not None:
             expected_hours = _get_expected_hours(freq)
-            stats["coverage"] = len(values_series) / expected_hours
         else:
-            # For "all" period, calculate based on date range
-            date_range = df["date_time"].max() - df["date_time"].min()
-            expected_hours = max(1, date_range.total_seconds() / 3600)
-            stats["coverage"] = len(values_series) / expected_hours
+            span = group["date_time"].max() - group["date_time"].min()
+            expected_hours = max(1.0, span.total_seconds() / 3600 + 1)
+        stats["coverage"] = min(len(valid_raw) / expected_hours, 1.0)
 
-        # Calculate AQI using the appropriate statistic for the index
-        aqi_result = _calculate_pollutant_aqi(
-            index_module,
-            index,
-            pollutant,
-            stats,
-        )
-
-        stats["aqi_value"] = aqi_result.value
-        stats["aqi_category"] = aqi_result.category
+        # AQI is the worst-case rolling value in the period. Skip if
+        # rolling-window coverage was insufficient throughout.
+        if valid_rolling.empty:
+            stats["aqi_value"] = None
+            stats["aqi_category"] = None
+        else:
+            aqi_result = _calculate_pollutant_aqi(
+                index_module, index, pollutant, valid_rolling.max()
+            )
+            stats["aqi_value"] = aqi_result.value
+            stats["aqi_category"] = aqi_result.category
 
         results.append(stats)
 
     if not results:
-        return pd.DataFrame()
+        return _empty_aqi_summary_frame(format, overall_only)
 
     result_df = pd.DataFrame(results)
 
@@ -372,6 +400,12 @@ def aqi_timeseries(
     """
     validate_data(data)
 
+    if index.upper() == "WHO":
+        raise ValueError(
+            "WHO is a guideline-compliance check, not an AQI. "
+            "Use metrics.aqi_check_who(data, target=...) instead."
+        )
+
     index_info = get_index(index)
     if index_info is None:
         raise ValueError(f"Unknown index '{index}'. Available: {list_indices()}")
@@ -382,9 +416,6 @@ def aqi_timeseries(
     df["date_time"] = pd.to_datetime(df["date_time"])
     df["pollutant_std"] = df["measurand"].apply(standardise_pollutant)
     df = df.sort_values(["site_code", "pollutant_std", "date_time"])
-
-    # Check if index module has vectorized calculate_array function
-    has_vectorized = hasattr(index_module, "calculate_array")
 
     result_dfs = []
 
@@ -411,39 +442,32 @@ def aqi_timeseries(
             group["units"],
         )
 
-        # Calculate rolling average
+        # Calculate rolling average in µg/m³
         group["rolling_avg"] = (
             group["value_ugm3"]
             .rolling(
                 window=f"{window_hours}h",
-                min_periods=int(window_hours * 0.75),  # 75% coverage
+                min_periods=max(1, int(window_hours * 0.75)),
             )
             .mean()
         )
 
-        # Calculate AQI - use vectorized if available
-        if has_vectorized:
-            # Vectorized calculation (much faster)
-            rolling_values = group["rolling_avg"].values
-            aqi_values, aqi_categories = index_module.calculate_array(
-                rolling_values, pollutant
+        # Convert each rolling value into the index's expected unit and call
+        # calculate scalar-by-scalar. We do not use calculate_array here
+        # because it bypasses the unit conversion required for US EPA /
+        # China / India NAQI.
+        aqi_values: list = []
+        aqi_categories: list = []
+        for val in group["rolling_avg"].values:
+            if pd.isna(val):
+                aqi_values.append(None)
+                aqi_categories.append(None)
+                continue
+            result = _calculate_pollutant_aqi(
+                index_module, index, pollutant, float(val)
             )
-        else:
-            # Fallback to scalar calculation
-            aqi_values = []
-            aqi_categories = []
-            for val in group["rolling_avg"].values:
-                if pd.isna(val):
-                    aqi_values.append(None)
-                    aqi_categories.append(None)
-                else:
-                    try:
-                        result = index_module.calculate(val, pollutant)
-                        aqi_values.append(result.value)
-                        aqi_categories.append(result.category)
-                    except Exception:
-                        aqi_values.append(None)
-                        aqi_categories.append(None)
+            aqi_values.append(result.value)
+            aqi_categories.append(result.category)
 
         # Build result DataFrame for this group
         group_result = pd.DataFrame(
@@ -463,7 +487,17 @@ def aqi_timeseries(
         result_dfs.append(group_result)
 
     if not result_dfs:
-        return pd.DataFrame()
+        cols = [
+            "site_code",
+            "date_time",
+            "pollutant",
+            "value",
+            "aqi_value",
+            "aqi_category",
+        ]
+        if include_rolling:
+            cols.append("rolling_avg")
+        return pd.DataFrame(columns=cols)
 
     return pd.concat(result_dfs, ignore_index=True)
 
@@ -615,30 +649,91 @@ def _get_expected_hours(freq: str) -> int:
     return expected.get(freq, 24)
 
 
+def _index_unit(index_module, pollutant: str) -> str:
+    """Return the unit *index_module*'s breakpoints expect for *pollutant*.
+
+    Falls back to µg/m³ when the index doesn't expose a unit map (most do
+    not — only US EPA, China, India NAQI publish breakpoints in non-µg/m³
+    units).
+    """
+    if hasattr(index_module, "get_unit"):
+        return index_module.get_unit(pollutant)
+    units = getattr(index_module, "UNITS", {})
+    return units.get(pollutant.upper(), "µg/m³")
+
+
 def _calculate_pollutant_aqi(
     index_module,
     index: str,
     pollutant: str,
-    stats: dict,
+    concentration_ugm3: float,
 ) -> AQIResult:
-    """Calculate AQI for a pollutant using appropriate statistic."""
-    # Different indices use different statistics
-    # DAQI/EPA: typically use max of rolling averages
-    # For summary purposes, we use the mean
+    """Calculate AQI for a pollutant from a µg/m³ concentration.
 
-    concentration = stats["mean"]
+    Performs the µg/m³ → ppm/ppb/mg/m³ conversion that each index's
+    breakpoint table requires before invoking ``index_module.calculate``.
+    """
+    target_unit = _index_unit(index_module, pollutant)
+    concentration_native = to_index_unit(
+        concentration_ugm3, pollutant, target_unit
+    )
 
     try:
-        return index_module.calculate(concentration, pollutant)
+        return index_module.calculate(float(concentration_native), pollutant)
     except Exception:
         return AQIResult(
             value=None,
             category=None,
             color=None,
             pollutant=pollutant,
-            concentration=concentration,
+            concentration=concentration_ugm3,
             unit="µg/m³",
         )
+
+
+_AQI_LONG_COLUMNS = [
+    "site_code",
+    "period",
+    "pollutant",
+    "mean",
+    "median",
+    "p25",
+    "p75",
+    "min",
+    "max",
+    "coverage",
+    "aqi_value",
+    "aqi_category",
+]
+
+_AQI_OVERALL_COLUMNS = [
+    "site_code",
+    "period",
+    "aqi_value",
+    "aqi_category",
+    "dominant_pollutant",
+]
+
+
+def _empty_aqi_summary_frame(
+    fmt: "FormatType", overall_only: bool
+) -> pd.DataFrame:
+    """Return an empty DataFrame with the columns aqi_summary documents."""
+    if overall_only:
+        return pd.DataFrame(columns=_AQI_OVERALL_COLUMNS)
+    if fmt == "wide":
+        # Without rows we cannot know which pollutant columns to emit;
+        # surface only the always-present columns.
+        return pd.DataFrame(
+            columns=[
+                "site_code",
+                "period",
+                "overall_aqi",
+                "overall_category",
+                "dominant_pollutant",
+            ]
+        )
+    return pd.DataFrame(columns=_AQI_LONG_COLUMNS)
 
 
 def _add_overall_aqi(df: pd.DataFrame) -> pd.DataFrame:

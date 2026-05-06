@@ -141,6 +141,38 @@ AVERAGING_PERIODS = {
     "Pb": "24h",
 }
 
+# Units the breakpoint tables expect. Aeolus's standard schema is µg/m³,
+# so the public API uses these to convert before lookup.
+UNITS = {
+    "PM2.5": "µg/m³",
+    "PM10": "µg/m³",
+    "SO2": "µg/m³",
+    "NO2": "µg/m³",
+    "CO": "mg/m³",
+    "O3": "µg/m³",
+    "NH3": "µg/m³",
+    "Pb": "µg/m³",
+}
+
+# Decimal places to round inputs to before breakpoint lookup. CPCB
+# breakpoint tables have spec gaps (e.g. CO 1.0 → 1.1, Pb 0.5 → 0.51)
+# that assume inputs are reported at the listed precision.
+ROUNDING = {
+    "PM2.5": 0,
+    "PM10": 0,
+    "SO2": 0,
+    "NO2": 0,
+    "CO": 1,
+    "O3": 0,
+    "NH3": 0,
+    "Pb": 2,
+}
+
+
+def get_unit(pollutant: str) -> str:
+    """Return the unit India NAQI breakpoints expect for *pollutant*."""
+    return UNITS.get(pollutant.upper(), "µg/m³")
+
 
 def _make_breakpoint(
     low_conc: float,
@@ -303,26 +335,32 @@ def calculate(
             f"Supported: {list(AVERAGING_PERIODS.keys())}"
         )
 
-    # Handle O3 specially - uses 8-hour for lower AQI, 1-hour for higher
+    # Handle O3 specially - uses 8-hour for lower AQI, 1-hour for higher.
+    # CPCB spec: 8-hour O3 covers categories up to AQI 200 (0-208 µg/m³);
+    # for higher concentrations the 1-hour table takes over (209+ µg/m³).
     if pollutant_upper == "O3":
         if averaging_period == "1h":
             breakpoints = O3_1HR_BREAKPOINTS
         elif averaging_period == "8h":
             breakpoints = O3_8HR_BREAKPOINTS
+        elif concentration >= 209:
+            breakpoints = O3_1HR_BREAKPOINTS
         else:
-            # Try 8-hour first, fall back to 1-hour for high concentrations
-            result = calculate_aqi_from_breakpoints(concentration, O3_8HR_BREAKPOINTS)
-            if result is None and concentration >= 209:
-                breakpoints = O3_1HR_BREAKPOINTS
-            else:
-                breakpoints = O3_8HR_BREAKPOINTS
+            breakpoints = O3_8HR_BREAKPOINTS
     else:
         breakpoints = BREAKPOINTS.get(pollutant_upper, [])
 
     if not breakpoints:
         raise ValueError(f"No breakpoints found for {pollutant_upper}")
 
-    result = calculate_aqi_from_breakpoints(concentration, breakpoints)
+    # CPCB tables have spec gaps (e.g. CO 1.0 → 1.1, Pb 0.5 → 0.51) that
+    # assume inputs are reported at a fixed precision. Round to that
+    # precision before lookup; otherwise borderline values incorrectly fall
+    # through to the AQI-500 cap below.
+    decimals = ROUNDING.get(pollutant_upper, 0)
+    concentration_lookup = round(concentration, decimals)
+
+    result = calculate_aqi_from_breakpoints(concentration_lookup, breakpoints)
 
     if result is None:
         # Concentration out of range - return max
@@ -337,6 +375,7 @@ def calculate(
         )
 
     result.pollutant = pollutant_upper
+    result.concentration = concentration  # report raw input, not rounded
     result.unit = "mg/m³" if pollutant_upper == "CO" else "µg/m³"
     result.message = HEALTH_MESSAGES[result.category]
     return result

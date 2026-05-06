@@ -413,15 +413,17 @@ def calculate(
     decimal_places = TRUNCATION.get(pollutant_upper, 0)
     concentration_truncated = truncate(concentration, decimal_places)
 
-    # Select appropriate breakpoints
+    # Select appropriate breakpoints. Per 40 CFR App. G:
+    #   - When the user specifies the averaging window, honour it.
+    #   - Otherwise, use 8-hour up to 0.200 ppm (the 8-hour table's ceiling
+    #     at AQI 300); the 1-hour table only applies for AQI > 300.
     if pollutant_upper == "O3":
-        # Use 8-hour by default, 1-hour for high concentrations
-        if averaging_period == "1h" or concentration_truncated >= 0.125:
+        if averaging_period == "1h":
             breakpoints = O3_1HR_BREAKPOINTS
-            # For 1-hour O3, only valid if concentration >= 0.125 ppm
-            if concentration_truncated < 0.125:
-                # Fall back to 8-hour
-                breakpoints = O3_8HR_BREAKPOINTS
+        elif averaging_period == "8h":
+            breakpoints = O3_8HR_BREAKPOINTS
+        elif concentration_truncated > 0.200:
+            breakpoints = O3_1HR_BREAKPOINTS
         else:
             breakpoints = O3_8HR_BREAKPOINTS
     elif pollutant_upper == "SO2":

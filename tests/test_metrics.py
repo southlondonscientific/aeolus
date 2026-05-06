@@ -733,6 +733,97 @@ class TestAQISummary:
         with pytest.raises(ValueError, match="missing required columns"):
             metrics.aqi_summary(bad_data, index="UK_DAQI")
 
+    def test_who_index_routes_to_aqi_check_who(self, sample_data):
+        """index='WHO' must redirect; WHO has no AQI breakpoints."""
+        with pytest.raises(ValueError, match="aqi_check_who"):
+            metrics.aqi_summary(sample_data, index="WHO")
+
+    def test_us_epa_unit_conversion(self):
+        """US EPA breakpoints expect ppm/ppb; aqi_summary must convert.
+
+        100 µg/m³ NO2 ≈ 53 ppb at 25°C/1 atm — that's the boundary
+        between "Good" (0-53 ppb) and "Moderate" (54-100 ppb). Without
+        conversion, 100 (treated as ppb) would land squarely in
+        "Moderate" — but the corresponding µg/m³ reading is 100 µg/m³,
+        which is well into "Moderate" (~AQI 70). The bug we're guarding
+        against: handing 100 µg/m³ straight to NO2 ppb breakpoints.
+        """
+        dates = pd.date_range("2024-01-01", periods=24, freq="h")
+        df = pd.DataFrame(
+            {
+                "site_code": "S1",
+                "date_time": dates,
+                "measurand": "NO2",
+                "value": 100.0,  # µg/m³
+                "units": "ug/m3",
+                "source_network": "T",
+            }
+        )
+        result = metrics.aqi_summary(df, index="US_EPA")
+        # 100 µg/m³ NO2 ≈ 53 ppb → "Good" (0-53). Pre-fix, the µg/m³
+        # value 100 would map to "Moderate" (54-100 ppb) by accident.
+        assert result.iloc[0]["aqi_category"] == "Good"
+
+    def test_china_co_unit_conversion(self):
+        """China CO breakpoints are mg/m³; data arrives in µg/m³."""
+        dates = pd.date_range("2024-01-01", periods=24, freq="h")
+        df = pd.DataFrame(
+            {
+                "site_code": "S1",
+                "date_time": dates,
+                "measurand": "CO",
+                "value": 1500.0,  # 1.5 mg/m³ — well within "Excellent"
+                "units": "ug/m3",
+                "source_network": "T",
+            }
+        )
+        result = metrics.aqi_summary(df, index="CHINA")
+        # 1.5 mg/m³ is in the 0-2 mg/m³ "Excellent" band. Pre-fix, 1500
+        # was compared against breakpoints starting at 0-2 (mg/m³),
+        # blowing past every range and capping at AQI 500.
+        assert result.iloc[0]["aqi_category"] == "Excellent"
+
+    def test_aqi_summary_empty_input_returns_schema(self):
+        """Empty input returns DataFrame with documented columns, not bare."""
+        empty = pd.DataFrame(
+            {
+                "site_code": pd.Series([], dtype=str),
+                "date_time": pd.Series([], dtype="datetime64[ns]"),
+                "measurand": pd.Series([], dtype=str),
+                "value": pd.Series([], dtype=float),
+                "units": pd.Series([], dtype=str),
+                "source_network": pd.Series([], dtype=str),
+            }
+        )
+        # No supported pollutants → ValueError. To test empty schema we
+        # need data with the right shape but no rolling-window-eligible
+        # values; instead pass a single PM2.5 row with NaN.
+        df = empty.copy()
+        df = pd.concat(
+            [
+                df,
+                pd.DataFrame(
+                    [
+                        {
+                            "site_code": "S1",
+                            "date_time": pd.Timestamp("2024-01-01"),
+                            "measurand": "PM2.5",
+                            "value": float("nan"),
+                            "units": "ug/m3",
+                            "source_network": "T",
+                        }
+                    ]
+                ),
+            ],
+            ignore_index=True,
+        )
+        result = metrics.aqi_summary(df, index="UK_DAQI")
+        # All-NaN data → no result rows, but the frame must still carry
+        # the documented columns.
+        assert result.empty
+        assert "aqi_value" in result.columns
+        assert "site_code" in result.columns
+
 
 class TestAQICheckWHO:
     """Tests for aqi_check_who function."""
@@ -881,21 +972,33 @@ class TestBoundaryValues:
         assert result_usg.category == "Unhealthy for Sensitive Groups"
 
     def test_us_epa_o3_8hr_to_1hr_switch(self):
-        """Test US EPA O3 uses 8-hour for low values, 1-hour for high."""
+        """Test US EPA O3 routing per 40 CFR App. G.
+
+        The 8-hour table covers AQI 0-300 (up to 0.200 ppm); the 1-hour
+        table only takes over for AQI > 300 (concentrations above 0.200
+        ppm). Explicitly specifying ``averaging_period="1h"`` overrides
+        the default and uses the 1-hour table.
+        """
         from aeolus.metrics.indices import us_epa
 
-        # Low O3: uses 8-hour breakpoints
+        # Low O3: uses 8-hour breakpoints.
         result_low = us_epa.calculate(0.06, "O3")
         assert result_low.category == "Moderate"
 
-        # High O3 (>= 0.125 ppm): should use 1-hour breakpoints
-        result_high = us_epa.calculate(0.15, "O3")
-        assert result_high.value is not None
-        assert result_high.category in ["Unhealthy for Sensitive Groups", "Unhealthy"]
+        # 0.15 ppm is well within the 8-hour table (0.106-0.200 = AQI
+        # 201-300, "Very Unhealthy"). Routing to 1-hour here was the bug.
+        result_default = us_epa.calculate(0.15, "O3")
+        assert result_default.category == "Very Unhealthy"
 
-        # Force 1-hour averaging
+        # Above 0.200 ppm the 1-hour table takes over.
+        result_high = us_epa.calculate(0.25, "O3")
+        assert result_high.value is not None
+        assert result_high.value > 200
+
+        # Explicit 1-hour averaging is honoured even at lower values.
         result_1hr = us_epa.calculate(0.15, "O3", averaging_period="1h")
         assert result_1hr.value is not None
+        assert result_1hr.category == "Unhealthy for Sensitive Groups"
 
     def test_china_o3_averaging_periods(self):
         """Test China AQI O3 with different averaging periods."""

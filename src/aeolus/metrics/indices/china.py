@@ -140,6 +140,34 @@ AVERAGING_PERIODS = {
     "O3": "8h",  # 8-hour (or 1-hour)
 }
 
+# Units the breakpoint tables expect. CO is the only non-µg/m³ pollutant.
+UNITS = {
+    "SO2": "µg/m³",
+    "NO2": "µg/m³",
+    "PM10": "µg/m³",
+    "PM2.5": "µg/m³",
+    "CO": "mg/m³",
+    "O3": "µg/m³",
+}
+
+# HJ 633-2012 assumes inputs are reported to a fixed precision before
+# breakpoint lookup; otherwise gaps like CO 24h (2.0 → 2.1) leave a sliver
+# of values uncovered. Round inputs to this number of decimal places per
+# pollutant before calling calculate_aqi_from_breakpoints.
+ROUNDING = {
+    "SO2": 0,
+    "NO2": 0,
+    "PM10": 0,
+    "PM2.5": 0,
+    "CO": 1,
+    "O3": 0,
+}
+
+
+def get_unit(pollutant: str) -> str:
+    """Return the unit the China AQI breakpoints expect for *pollutant*."""
+    return UNITS.get(pollutant.upper(), "µg/m³")
+
 
 def _make_breakpoint(
     low_conc: float,
@@ -343,7 +371,14 @@ def calculate(
             f"Available: {list(BREAKPOINTS.keys())}"
         )
 
-    result = calculate_aqi_from_breakpoints(concentration, breakpoints)
+    # HJ 633-2012 breakpoint tables have intentional gaps (e.g. CO 2.0 → 2.1)
+    # that assume inputs are rounded to the spec's precision. Without this
+    # round, a 2.05 mg/m³ reading falls in no range and the None branch below
+    # caps it at AQI 500 — wrong by an order of magnitude.
+    decimals = ROUNDING.get(pollutant_upper, 0)
+    concentration_lookup = round(concentration, decimals)
+
+    result = calculate_aqi_from_breakpoints(concentration_lookup, breakpoints)
 
     if result is None:
         # Concentration out of range - return max
@@ -358,6 +393,7 @@ def calculate(
         )
 
     result.pollutant = pollutant_upper
+    result.concentration = concentration  # report raw input, not rounded
     result.unit = "mg/m³" if pollutant_upper == "CO" else "µg/m³"
     result.message = HEALTH_MESSAGES[result.category]
     return result

@@ -471,6 +471,44 @@ def ensure_ugm3_array(
     return result
 
 
+def to_index_unit(
+    concentrations: "np.ndarray | float",
+    pollutant: str,
+    target_unit: str,
+) -> "np.ndarray | float":
+    """Convert µg/m³ values into the unit an index's breakpoints expect.
+
+    The Aeolus standard schema is always µg/m³, but several AQI indices'
+    breakpoint tables are defined in ppm (US EPA O3, US EPA CO),
+    ppb (US EPA SO2/NO2), or mg/m³ (China CO, India NAQI CO).
+    Pass each index's `get_unit(pollutant)` (or its ``UNITS`` dict entry)
+    as ``target_unit`` to convert.
+
+    Args:
+        concentrations: Scalar or array of values in µg/m³.
+        pollutant: Pollutant name (e.g. "O3", "CO", "PM2.5").
+        target_unit: Unit string ("µg/m³", "mg/m³", "ppb", "ppm").
+
+    Returns:
+        Concentration(s) in *target_unit*. Input is returned unchanged
+        when *target_unit* is already µg/m³ or unrecognised.
+    """
+    unit_lower = target_unit.lower().strip()
+    if unit_lower in ("ug/m3", "µg/m³", "ugm3", "µg/m3", "ug/m³"):
+        return concentrations
+    if unit_lower in ("mg/m3", "mg/m³"):
+        return concentrations / 1000.0
+    pollutant_upper = pollutant.upper()
+    if pollutant_upper not in MOLECULAR_WEIGHTS:
+        return concentrations
+    mw = MOLECULAR_WEIGHTS[pollutant_upper]
+    if unit_lower == "ppb":
+        return concentrations * (MOLAR_VOLUME / mw)
+    if unit_lower == "ppm":
+        return concentrations * (MOLAR_VOLUME / mw) / 1000.0
+    return concentrations
+
+
 # =============================================================================
 # Data Validation
 # =============================================================================
