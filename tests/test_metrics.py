@@ -1058,6 +1058,254 @@ class TestBoundaryValues:
 
 
 # =============================================================================
+# Authoritative AQI spec corpus
+# =============================================================================
+#
+# A frozen corpus of (concentration, expected_AQI) cases drawn directly
+# from each agency's published breakpoint table. The intent: any
+# regression in unit handling, breakpoint routing, or interpolation
+# arithmetic flips a numerical value here, not just a category label.
+# Sources: aqihub.info/indices/{us,uk,china,india} (all cite the
+# underlying primary agency document).
+
+
+# US EPA — 40 CFR App. G, May 2024 PM update. Each row is a band
+# boundary or interior point computed by linear interpolation.
+# Concentration is in the breakpoint's native unit (ppm/ppb/µg/m³).
+US_EPA_CASES = [
+    # PM2.5 µg/m³, 24h
+    ("PM2.5", 9.0, 50, "Good"),
+    ("PM2.5", 9.1, 51, "Moderate"),
+    ("PM2.5", 35.4, 100, "Moderate"),
+    ("PM2.5", 35.5, 101, "Unhealthy for Sensitive Groups"),
+    ("PM2.5", 22.0, 75, "Moderate"),  # interior point
+    # PM10 µg/m³, 24h
+    ("PM10", 54, 50, "Good"),
+    ("PM10", 154, 100, "Moderate"),
+    ("PM10", 254, 150, "Unhealthy for Sensitive Groups"),
+    # O3 ppm, 8h
+    ("O3", 0.054, 50, "Good"),
+    ("O3", 0.070, 100, "Moderate"),
+    ("O3", 0.085, 150, "Unhealthy for Sensitive Groups"),
+    # CO ppm, 8h
+    ("CO", 4.4, 50, "Good"),
+    ("CO", 9.4, 100, "Moderate"),
+    # NO2 ppb, 1h
+    ("NO2", 53, 50, "Good"),
+    ("NO2", 100, 100, "Moderate"),
+    # SO2 ppb, 1h
+    ("SO2", 35, 50, "Good"),
+    ("SO2", 75, 100, "Moderate"),
+]
+
+
+@pytest.mark.parametrize("pollutant,conc,expected_aqi,expected_cat", US_EPA_CASES)
+def test_us_epa_spec_corpus(pollutant, conc, expected_aqi, expected_cat):
+    """US EPA AQI matches 40 CFR App. G across pollutants and bands."""
+    from aeolus.metrics.indices import us_epa
+
+    result = us_epa.calculate(conc, pollutant)
+    assert result.value == expected_aqi, (
+        f"{pollutant}={conc}: expected AQI {expected_aqi}, got {result.value}"
+    )
+    assert result.category == expected_cat
+
+
+# UK DAQI — DEFRA bands 1–10 (no interpolation; band boundaries only).
+UK_DAQI_CASES = [
+    # PM2.5 µg/m³, 24h
+    ("PM2.5", 11.0, 1, "Low"),
+    ("PM2.5", 12.0, 2, "Low"),
+    ("PM2.5", 35.0, 3, "Low"),
+    ("PM2.5", 36.0, 4, "Moderate"),
+    ("PM2.5", 71.0, 10, "Very High"),
+    # NO2 µg/m³, 1h
+    ("NO2", 67.0, 1, "Low"),
+    ("NO2", 68.0, 2, "Low"),
+    ("NO2", 200.0, 3, "Low"),
+    ("NO2", 201.0, 4, "Moderate"),
+    # O3 µg/m³, 8h
+    ("O3", 33.0, 1, "Low"),
+    ("O3", 100.0, 3, "Low"),
+    ("O3", 240.0, 9, "High"),
+    ("O3", 241.0, 10, "Very High"),
+]
+
+
+@pytest.mark.parametrize("pollutant,conc,expected_band,expected_cat", UK_DAQI_CASES)
+def test_uk_daqi_spec_corpus(pollutant, conc, expected_band, expected_cat):
+    """UK DAQI matches DEFRA bands across pollutants."""
+    from aeolus.metrics.indices import uk_daqi
+
+    result = uk_daqi.calculate(conc, pollutant)
+    assert result.value == expected_band, (
+        f"{pollutant}={conc}: expected band {expected_band}, got {result.value}"
+    )
+    assert result.category == expected_cat
+
+
+# China AQI — HJ 633-2012. CO uses mg/m³, others µg/m³. Inputs are
+# rounded to the spec's precision before lookup so the deliberate gaps
+# between bands (e.g. CO 2.0 → 2.1) don't leave concentrations uncovered.
+CHINA_CASES = [
+    # PM2.5 µg/m³, 24h
+    ("PM2.5", 35.0, 50, "Excellent"),
+    ("PM2.5", 75.0, 100, "Good"),
+    ("PM2.5", 115.0, 150, "Lightly Polluted"),
+    # PM10 µg/m³, 24h
+    ("PM10", 50.0, 50, "Excellent"),
+    ("PM10", 150.0, 100, "Good"),
+    # CO mg/m³, 24h — gap-fix regression. 2.06 rounds to 2.1, the
+    # bottom of the Good band; pre-fix it fell in no band and capped
+    # at AQI 500.
+    ("CO", 2.0, 50, "Excellent"),
+    ("CO", 4.0, 100, "Good"),
+    ("CO", 2.06, 51, "Good"),
+    # O3 µg/m³ — default averaging is 8h, so the boundaries are
+    # 100 (Excellent→Good) and 160 (Good→Lightly Polluted).
+    ("O3", 100.0, 50, "Excellent"),
+    ("O3", 160.0, 100, "Good"),
+]
+
+
+@pytest.mark.parametrize("pollutant,conc,expected_aqi,expected_cat", CHINA_CASES)
+def test_china_spec_corpus(pollutant, conc, expected_aqi, expected_cat):
+    """China AQI matches HJ 633-2012 across pollutants and band boundaries."""
+    from aeolus.metrics.indices import china
+
+    result = china.calculate(conc, pollutant)
+    assert result.value == expected_aqi, (
+        f"{pollutant}={conc}: expected AQI {expected_aqi}, got {result.value}"
+    )
+    assert result.category == expected_cat
+
+
+# India NAQI — CPCB. CO mg/m³, Pb µg/m³ rounded to 2 decimals, others
+# µg/m³ rounded to integer.
+INDIA_CASES = [
+    # PM2.5 µg/m³, 24h
+    ("PM2.5", 30.0, 50, "Good"),
+    ("PM2.5", 60.0, 100, "Satisfactory"),
+    ("PM2.5", 90.0, 200, "Moderately Polluted"),
+    # PM10 µg/m³, 24h
+    ("PM10", 50.0, 50, "Good"),
+    ("PM10", 100.0, 100, "Satisfactory"),
+    # CO mg/m³, 8h
+    ("CO", 1.0, 50, "Good"),
+    ("CO", 2.0, 100, "Satisfactory"),
+    # Pb µg/m³, 24h — boundaries straddling the 0.5/0.51 spec gap.
+    # Avoid 0.505 (sits on the half-even rounding boundary, fp-dependent);
+    # 0.504 and 0.515 are unambiguous.
+    ("Pb", 0.5, 50, "Good"),
+    ("Pb", 0.51, 51, "Satisfactory"),
+    ("Pb", 0.504, 50, "Good"),  # rounds to 0.50 → top of Good band
+    ("Pb", 0.515, 52, "Satisfactory"),  # rounds to 0.52 → mid Satisfactory
+    # NH3 µg/m³, 24h
+    ("NH3", 200.0, 50, "Good"),
+]
+
+
+@pytest.mark.parametrize("pollutant,conc,expected_aqi,expected_cat", INDIA_CASES)
+def test_india_naqi_spec_corpus(pollutant, conc, expected_aqi, expected_cat):
+    """India NAQI matches CPCB tables across pollutants and band boundaries."""
+    from aeolus.metrics.indices import india_naqi
+
+    result = india_naqi.calculate(conc, pollutant)
+    assert result.value == expected_aqi, (
+        f"{pollutant}={conc}: expected AQI {expected_aqi}, got {result.value}"
+    )
+    assert result.category == expected_cat
+
+
+# aqi_summary end-to-end: feeding µg/m³ Aeolus data must produce the
+# right AQI for indices whose breakpoints are in non-µg/m³ units.
+# These cases were silently wrong before the unit-conversion fix
+# (US EPA O3/CO/SO2/NO2 in ppm/ppb; China & India NAQI CO in mg/m³).
+def _constant_hourly_data(pollutant: str, value: float, hours: int = 48):
+    """Helper: build a DataFrame of constant µg/m³ readings."""
+    dates = pd.date_range("2024-01-01", periods=hours, freq="h")
+    return pd.DataFrame(
+        {
+            "site_code": "S1",
+            "date_time": dates,
+            "measurand": pollutant,
+            "value": value,
+            "units": "ug/m3",
+            "source_network": "T",
+        }
+    )
+
+
+# Each row: index, pollutant, value µg/m³, expected AQI category.
+# Concentrations chosen so the post-conversion native value lands at
+# a category boundary, making the assertion robust to rounding.
+AQI_SUMMARY_UNIT_CONVERSION_CASES = [
+    # 100 µg/m³ NO2 ≈ 53.1 ppb → truncates to 53 → AQI 50, "Good".
+    # Pre-fix, the µg/m³ value 100 was passed straight to ppb breakpoints,
+    # landing in (54-100, AQI 51-100, "Moderate") — silently wrong.
+    ("US_EPA", "NO2", 100.0, "Good"),
+    # 5000 µg/m³ CO ≈ 4.36 ppm → truncates to 4 → AQI 45, "Good".
+    ("US_EPA", "CO", 5000.0, "Good"),
+    # 2000 µg/m³ China CO = 2.0 mg/m³ → AQI 50, "Excellent".
+    # Pre-fix, 2000 was compared against mg/m³ breakpoints (max 60 mg/m³)
+    # — way off the top of the table → AQI 500, "Severely Polluted".
+    ("CHINA", "CO", 2000.0, "Excellent"),
+    # 1000 µg/m³ India CO = 1.0 mg/m³ → AQI 50, "Good".
+    ("INDIA_NAQI", "CO", 1000.0, "Good"),
+    # PM2.5 µg/m³ everywhere — sanity that the index that's *not*
+    # affected by the conversion bug still reports correctly.
+    ("US_EPA", "PM2.5", 9.0, "Good"),
+    ("CHINA", "PM2.5", 35.0, "Excellent"),
+    ("INDIA_NAQI", "PM2.5", 30.0, "Good"),
+]
+
+
+@pytest.mark.parametrize(
+    "index,pollutant,ugm3_value,expected_cat",
+    AQI_SUMMARY_UNIT_CONVERSION_CASES,
+)
+def test_aqi_summary_unit_conversion(index, pollutant, ugm3_value, expected_cat):
+    """aqi_summary converts µg/m³ → index-native unit before lookup."""
+    df = _constant_hourly_data(pollutant, ugm3_value, hours=48)
+    result = metrics.aqi_summary(df, index=index)
+    assert not result.empty
+    actual_cat = result.iloc[0]["aqi_category"]
+    assert actual_cat == expected_cat, (
+        f"{index} {pollutant}={ugm3_value} µg/m³: "
+        f"expected {expected_cat!r}, got {actual_cat!r}"
+    )
+
+
+def test_aqi_summary_uses_max_rolling_not_flat_mean():
+    """aqi_summary period AQI is the worst rolling-window AQI, not the mean.
+
+    Pre-fix, aqi_summary handed a flat mean to calculate(), so a year of
+    mostly-clean air with a 24-hour high-pollution episode reported a
+    benign AQI for the period. Now we apply the index's averaging window
+    and use max(rolling).
+    """
+    # 384 hours: 360 hours of clean (5 µg/m³ NO2) + 24 hours of bad
+    # (200 µg/m³ NO2). Mean ≈ 17 µg/m³; max ≈ 200 µg/m³.
+    dates = pd.date_range("2024-01-01", periods=384, freq="h")
+    values = [5.0] * 360 + [200.0] * 24
+    df = pd.DataFrame(
+        {
+            "site_code": "S1",
+            "date_time": dates,
+            "measurand": "NO2",
+            "value": values,
+            "units": "ug/m3",
+            "source_network": "T",
+        }
+    )
+    result = metrics.aqi_summary(df, index="UK_DAQI")
+    band = result.iloc[0]["aqi_value"]
+    # 200 µg/m³ NO2 lands in DAQI band 3 (135-200). Pre-fix, the flat
+    # 17 µg/m³ mean would have given band 1.
+    assert band == 3, f"expected band 3 (worst hour), got {band}"
+
+
+# =============================================================================
 # aqi_timeseries Tests
 # =============================================================================
 
