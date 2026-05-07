@@ -1,6 +1,6 @@
 [project]
 name = "aeolus_aq"
-version = "0.4.3"
+version = "0.4.4"
 authors = [
   { name="Ruaraidh Dobson", email="ruaraidh.dobson@gmail.com" },
 ]

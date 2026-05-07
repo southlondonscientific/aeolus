@@ -5,6 +5,40 @@ All notable changes to Aeolus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.4] - 2026-05-07
+
+### Fixed (silent wrong numbers — please re-baseline)
+
+- **`aqi_summary` unit conversion** — US EPA O3/CO require ppm and SO2/NO2 require ppb (40 CFR App. G); China and India NAQI CO breakpoints are mg/m³. The Aeolus standard schema is µg/m³, but the public `aqi_summary` path was handing µg/m³ values straight to each index's `calculate(...)` without converting. Real readings produced AQI values that were off by orders of magnitude — typically near 0 for US EPA O3 and "Excellent" for China CO. Now converts via a new `metrics.base.to_index_unit()` helper that consults each index's `UNITS` mapping. **Migration**: any code asserting on specific AQI values for these pollutants from earlier 0.4.x will see different (now correct) results — re-baseline expected outputs.
+- **`aqi_summary` rolling window** — The docstring claimed it "handles the required averaging periods for each index" but the implementation took a flat mean across the whole period. PM2.5 spikes during a 24h window were diluted by clean air; O3 8h peaks weren't captured. Now applies each pollutant's required window (PM 24h, O3 8h, NO2 1h, etc.) with the same 75% min-periods rule as `aqi_timeseries`, and reports the worst rolling-window AQI within the period.
+- **`aqi_summary(index="WHO")`** — WHO is a guideline-compliance check, not an AQI; the `who` module exposes `check_guideline()`, not `calculate()`. Calls used to swallow the `AttributeError` and return `AQIResult(value=None)` for every row. Now raises a clear `ValueError` pointing at `aqi_check_who()`.
+- **`aqi_summary` coverage denominator** — Used the dataset-wide span instead of the per-(site, pollutant) span, mis-attributing coverage in mixed-pollutant inputs and occasionally exceeding 1.0. Now per-group, capped at 1.0.
+- **US EPA O3 8h/1h routing** — A reading of e.g. 0.140 ppm 8-hour was routed to the 1-hour table (which gives ~AQI 131) instead of the 8-hour table (which gives ~AQI 225). The 8-hour table now covers AQI 0-300 (up to 0.200 ppm) per 40 CFR App. G; the 1-hour table is reserved for AQI > 300. Explicitly passing `averaging_period="1h"` still honours the override.
+- **China O3 8-hour above 800 µg/m³** — HJ 633-2012 says "for AQI > 300, use the 1-hour table"; the 8-hour breakpoint list ended at 800 µg/m³ (AQI 300), so values above it returned `None` and were silently capped at AQI 500. Extended the 8-hour table to cover AQI 301-500.
+- **China and India NAQI breakpoint gaps** — Both specs assume inputs are reported at a fixed precision (CO 1 decimal, India NAQI Pb 2 decimals, others integer). Without rounding, a 2.05 mg/m³ China CO reading fell in no breakpoint band and capped at AQI 500. Inputs are now rounded to the spec's precision before lookup; the original concentration is preserved on the result.
+- **`aq_stats` sub-hourly inputs** — 15-minute data produced `data_capture` ≈ 4.0 (35,040 obs / 8,760 expected hours), trivially passing any threshold and double-counting NO2 exceedance hours. Sub-hourly inputs are now resampled to hourly means before the per-year statistics are computed, and `data_capture` is clipped at 1.0.
+- **Breathe London `ListSensors` filtering** — The endpoint silently rejects every documented query parameter (`borough`, `sponsor`, `species`, `latitude`/`longitude`/`radius`) with HTTP 400, but the error was swallowed and `fetch_breathe_london_metadata()` returned an empty frame for every filtered call. The adapter now fetches the full sensor list once and applies all filters client-side. The `species` filter is a no-op with a warning since `ListSensors` does not expose per-site measurands.
+- **Metadata fetcher empty schemas (AirNow, AirQo, PurpleAir)** — All three returned `empty_data_frame()` (8-col data schema) on error/empty paths instead of `empty_metadata_frame()` (6-col metadata schema). Concatenation against valid metadata silently produced mixed-column frames.
+- **Cache bypass via submodules** — `aeolus.networks.download()` and `aeolus.portals.download()` skipped the local Parquet cache entirely; only the top-level `aeolus.download()` cached. Both submodules now route through a new `aeolus.cache.fetch_with_cache()` helper, so direct submodule calls cache the same way.
+
+### Added
+
+- **`bbox_aware`, `sos_backend`, `default_measurands` fields on `SourceSpec`** — Replaces the hardcoded `_BBOX_AWARE_NETWORKS` and `_SOS_BACKENDS` sets in `api.py`. New bbox-aware networks and SOS-backed networks now declare their capabilities at registration time. `default_measurands` declares a fallback list for sources whose metadata feeds don't expose per-site measurands (BREATHE_LONDON: `["NO2", "PM2.5"]`; AIRQO: `["PM2.5", "PM10"]`); `find_sites(measurand=…)` consults it so these sources stop being silently dropped while regulatory networks keep their "old/decommissioned site" semantics.
+- **`last="30d"` shorthand on submodule downloads** — `aeolus.networks.download(...)` and `aeolus.portals.download(...)` now accept `last=` the same way the top-level `aeolus.download` does. Date-range parsing extracted to a new shared `aeolus._dates` module.
+- **`metrics.base.to_index_unit(values_ugm3, pollutant, target_unit)`** — Convert µg/m³ to the unit each index's breakpoints expect (ppm, ppb, mg/m³, or µg/m³). Drives the unit conversion fix above.
+- **`china.UNITS`, `china.get_unit()`, `india_naqi.UNITS`, `india_naqi.get_unit()`** — Public per-index unit mappings, mirroring the existing US EPA exports.
+- **Authoritative AQI spec corpus tests** — ~50 parametrised cases drawn directly from each agency's published breakpoint table (US EPA 40 CFR App. G, DEFRA DAQI, China HJ 633-2012, India CPCB) plus end-to-end `aqi_summary` regressions. Locks in numerical correctness so future unit-conversion or routing regressions can't slip through silent.
+- **Shared "Unknown source" error message** — `registry.unknown_source_message()` is now used by every public entry point, so submodule errors carry the same available-sources list and optional-SDK install hint that the top-level surfaces.
+
+### Changed (potentially breaking for downstream callers)
+
+- **`find_sites(measurand=…)` now returns more sites for BREATHE_LONDON and AIRQO** — Previously these were silently dropped because their metadata feeds don't expose per-site measurands. They now match against the source's declared `default_measurands`. Code that depended on the strict "exclude unknown" behaviour can read the underlying source's `measurands` column directly.
+- **`aqi_summary` numerical AQI values change for non-µg/m³ pollutants** — Per the unit-conversion fix above. UK DAQI and EU CAQI are µg/m³ across all pollutants and are unaffected.
+
+### Notes
+
+- `_BBOX_AWARE_NETWORKS` and `_SOS_BACKENDS` (private symbols on `aeolus.api`) were removed in favour of the new `SourceSpec` fields. No public-API breakage.
+
 ## [0.4.3] - 2026-04-19
 
 ### Fixed

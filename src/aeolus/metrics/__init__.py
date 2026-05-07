@@ -143,9 +143,16 @@ def aqi_summary(
     """
     Calculate AQI summary statistics for air quality data.
 
-    This is the primary function for calculating AQI values from downloaded data.
-    It handles the required averaging periods for each index and provides
-    summary statistics over the requested time periods.
+    For each (site, period, pollutant), applies the index's required
+    rolling-average window (e.g. PM 24h, O3 8h, NO2 1h) and reports
+    the worst-case AQI within the period — the value the regulators
+    would publish for that period — alongside concentration summary
+    statistics computed over the raw hourly readings.
+
+    Aeolus data is always µg/m³; this function converts to each
+    index's native unit (ppm/ppb/mg/m³) before invoking
+    ``index.calculate(...)``, so US EPA gas pollutants and China /
+    India NAQI CO are reported correctly.
 
     Args:
         data: DataFrame from aeolus.download() with columns:
