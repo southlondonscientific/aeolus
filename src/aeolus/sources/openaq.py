@@ -17,8 +17,17 @@
 """
 OpenAQ data source using the official OpenAQ Python SDK.
 
-This module provides data fetchers for OpenAQ, a global air quality data
-platform aggregating data from over 100 countries.
+OpenAQ <https://openaq.org/> is the leading global air quality data platform,
+aggregating measurements from regulatory monitors and low-cost sensors across
+100+ countries. This adapter wraps the official ``openaq`` Python SDK rather
+than calling the REST API directly — this keeps aeolus aligned with upstream
+SDK changes (rate-limit handling, validators, response models) and makes it
+easy for users to drop down to the SDK for advanced queries.
+
+If you use aeolus to access OpenAQ data, please cite OpenAQ and acknowledge
+the original data providers (per location-level licence metadata). For very
+large pulls or production use, consider supporting OpenAQ's open data work
+via <https://openaq.org/donate/>.
 
 SDK Documentation: https://python.openaq.org/
 Data Platform: https://openaq.org/
@@ -100,31 +109,55 @@ def _get_client() -> "OpenAQ":
 # ============================================================================
 
 
+# SDK enforces 1 <= limit <= 1000 per request, so this is the most efficient
+# page size for any auto-pagination loop.
+_OPENAQ_MAX_PAGE_SIZE = 1000
+
+# Safety cap on auto-pagination — hitting this means the user almost certainly
+# wants a narrower filter rather than 50 000+ rows of metadata. We warn rather
+# than silently truncate.
+_OPENAQ_MAX_AUTO_PAGES = 50
+
+
 def fetch_openaq_metadata(**filters) -> pd.DataFrame:
     """
     Search for monitoring locations on OpenAQ.
 
+    By default this auto-paginates through the SDK to return *all* matching
+    locations (not just the first page). Pass ``limit=N`` to cap the total
+    number of results returned.
+
     Args:
-        **filters: Search filters passed to the SDK
-            - country: ISO country code (e.g., "GB", "US")
-            - bbox: Bounding box tuple (min_lon, min_lat, max_lon, max_lat)
-            - coordinates: Tuple of (latitude, longitude) for point search
-            - radius: Search radius in meters (use with coordinates)
-            - limit: Maximum results (default 100, max 1000)
+        **filters: Search filters
+            - country: ISO 3166-alpha-2 country code (e.g., "GB", "US", "KR")
+              — mapped to the SDK's ``iso`` parameter.
+            - bbox: Bounding box tuple ``(min_lon, min_lat, max_lon, max_lat)``.
+            - coordinates: ``(latitude, longitude)`` for radius search.
+            - radius: Search radius in metres (1–25 000); use with coordinates.
+            - monitor: ``True`` for reference-grade regulatory monitors only,
+              ``False`` for low-cost air sensors only. Omit for both.
+            - limit: Optional total cap on results. When omitted, every
+              matching location is returned (auto-paginated, capped at
+              ~50 000 by ``_OPENAQ_MAX_AUTO_PAGES``).
 
     Returns:
         pd.DataFrame: Location metadata with columns:
             - site_code: OpenAQ location ID (use for download)
             - site_name: Human-readable name
-            - latitude: Location latitude
-            - longitude: Location longitude
-            - country: Country code
-            - measurands: List of available pollutants (sorted)
-            - source_network: Always "OpenAQ"
+            - latitude / longitude: Coordinates (None if missing)
+            - country: ISO country code
+            - measurands: Sorted list of available pollutants
+            - source_network: Always "OPENAQ"
 
-    Example:
-        >>> locations = fetch_openaq_metadata(country="GB")
-        >>> locations = fetch_openaq_metadata(bbox=(-0.5, 51.3, 0.3, 51.7))
+    Examples:
+        >>> # All Korean stations (~760, mostly the national reference network)
+        >>> locations = fetch_openaq_metadata(country="KR")
+        >>> # First 50 only
+        >>> locations = fetch_openaq_metadata(country="KR", limit=50)
+        >>> # Reference monitors only in a London bbox
+        >>> locations = fetch_openaq_metadata(
+        ...     bbox=(-0.5, 51.3, 0.3, 51.7), monitor=True,
+        ... )
     """
     if not filters:
         raise ValueError(
@@ -138,8 +171,13 @@ def fetch_openaq_metadata(**filters) -> pd.DataFrame:
     # Map Aeolus filter names to SDK parameter names
     sdk_params = {}
 
-    if "country" in filters:
-        sdk_params["iso"] = filters["country"]
+    # Accept several common spellings for the country filter so callers
+    # going through ``find_sites(countries=...)`` (aeolus convention) and
+    # those who know the OpenAQ SDK's ``iso=`` directly both work.
+    for alias in ("iso", "country", "countries"):
+        if alias in filters and filters[alias] is not None:
+            sdk_params["iso"] = filters[alias]
+            break
 
     if "bbox" in filters:
         # SDK requires tuple, but accept list for convenience
@@ -152,17 +190,47 @@ def fetch_openaq_metadata(**filters) -> pd.DataFrame:
     if "radius" in filters:
         sdk_params["radius"] = filters["radius"]
 
-    sdk_params["limit"] = filters.get("limit", 100)
+    if "monitor" in filters:
+        sdk_params["monitor"] = filters["monitor"]
 
-    # Call SDK
-    response = client.locations.list(**sdk_params)
+    user_limit = filters.get("limit")
+    page_size = (
+        min(_OPENAQ_MAX_PAGE_SIZE, user_limit)
+        if user_limit is not None
+        else _OPENAQ_MAX_PAGE_SIZE
+    )
 
-    # Convert to DataFrame
-    if not response.results:
+    # Auto-paginate. The OpenAQ SDK enforces page<=1000 results so this is
+    # the most efficient walk; ``auto_wait=True`` on the client handles
+    # rate-limit backoff for us.
+    locations: list = []
+    for page in range(1, _OPENAQ_MAX_AUTO_PAGES + 1):
+        response = client.locations.list(
+            **sdk_params, limit=page_size, page=page
+        )
+        page_results = response.results or []
+        if not page_results:
+            break
+        locations.extend(page_results)
+        if user_limit is not None and len(locations) >= user_limit:
+            locations = locations[:user_limit]
+            break
+        if len(page_results) < page_size:
+            break  # last page
+    else:
+        warnings.warn(
+            f"OpenAQ pagination hit the {_OPENAQ_MAX_AUTO_PAGES}-page safety "
+            f"cap ({len(locations)} locations); narrow your filters or pass "
+            "an explicit limit=N to suppress this warning",
+            AeolusDataWarning,
+            stacklevel=2,
+        )
+
+    if not locations:
         return empty_metadata_frame()
 
     records = []
-    for loc in response.results:
+    for loc in locations:
         # Get parameter names from sensors
         measurands = []
         if hasattr(loc, "sensors") and loc.sensors:

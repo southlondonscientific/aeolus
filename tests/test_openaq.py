@@ -194,7 +194,10 @@ class TestFetchOpenaqMetadata:
 
         result = fetch_openaq_metadata(country="GB")
 
-        mock_client.locations.list.assert_called_once_with(iso="GB", limit=100)
+        # Default behaviour now auto-paginates with page_size=1000.
+        mock_client.locations.list.assert_called_once_with(
+            iso="GB", limit=1000, page=1,
+        )
         assert len(result) == 1
         assert result["site_code"].iloc[0] == "2708"
         assert result["site_name"].iloc[0] == "London Marylebone Road"
@@ -213,7 +216,9 @@ class TestFetchOpenaqMetadata:
         bbox = (-0.5, 51.3, 0.3, 51.7)
         fetch_openaq_metadata(bbox=bbox)
 
-        mock_client.locations.list.assert_called_once_with(bbox=bbox, limit=100)
+        mock_client.locations.list.assert_called_once_with(
+            bbox=bbox, limit=1000, page=1,
+        )
 
     @patch("aeolus.sources.openaq._get_client")
     def test_accepts_bbox_as_list(self, mock_get_client, mock_location):
@@ -245,12 +250,16 @@ class TestFetchOpenaqMetadata:
         fetch_openaq_metadata(coordinates=(51.5, -0.1), radius=5000)
 
         mock_client.locations.list.assert_called_once_with(
-            coordinates=(51.5, -0.1), radius=5000, limit=100
+            coordinates=(51.5, -0.1), radius=5000, limit=1000, page=1,
         )
 
     @patch("aeolus.sources.openaq._get_client")
     def test_respects_limit_parameter(self, mock_get_client, mock_location):
-        """Test that limit parameter is passed through."""
+        """Test that limit parameter is passed through.
+
+        When user supplies a limit <= 1000, page_size is clamped to that
+        limit so we never overfetch.
+        """
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
 
@@ -260,7 +269,102 @@ class TestFetchOpenaqMetadata:
 
         fetch_openaq_metadata(country="GB", limit=500)
 
-        mock_client.locations.list.assert_called_once_with(iso="GB", limit=500)
+        mock_client.locations.list.assert_called_once_with(
+            iso="GB", limit=500, page=1,
+        )
+
+    @patch("aeolus.sources.openaq._get_client")
+    def test_passes_monitor_filter_through(self, mock_get_client, mock_location):
+        """The ``monitor`` filter (reference vs sensor) must flow to the SDK."""
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.results = [mock_location]
+        mock_client.locations.list.return_value = mock_response
+
+        fetch_openaq_metadata(country="GB", monitor=True)
+
+        kwargs = mock_client.locations.list.call_args.kwargs
+        assert kwargs["monitor"] is True
+        assert kwargs["iso"] == "GB"
+
+    @patch("aeolus.sources.openaq._get_client")
+    def test_auto_paginates_until_short_page(
+        self, mock_get_client, mock_location,
+    ):
+        """When a country has more than 1000 locations, fetch all pages.
+
+        Simulates Korea (~760 sites — under 1000 so one page) and a synthetic
+        large-country case (>1000) by returning two full pages then a short
+        third page.
+        """
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+
+        # Build three responses: 1000, 1000, 50 (last page is partial).
+        full_page = MagicMock()
+        full_page.results = [mock_location] * 1000
+        last_page = MagicMock()
+        last_page.results = [mock_location] * 50
+
+        mock_client.locations.list.side_effect = [
+            full_page, full_page, last_page,
+        ]
+
+        result = fetch_openaq_metadata(country="US")
+
+        assert len(result) == 2050
+        assert mock_client.locations.list.call_count == 3
+        # Pages should be requested in order with consistent page_size=1000.
+        pages = [
+            c.kwargs["page"]
+            for c in mock_client.locations.list.call_args_list
+        ]
+        assert pages == [1, 2, 3]
+        for c in mock_client.locations.list.call_args_list:
+            assert c.kwargs["limit"] == 1000
+
+    @patch("aeolus.sources.openaq._get_client")
+    def test_auto_pagination_caps_at_user_limit(
+        self, mock_get_client, mock_location,
+    ):
+        """User-supplied limit caps the paginator regardless of available data."""
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+
+        full_page = MagicMock()
+        full_page.results = [mock_location] * 1000
+        mock_client.locations.list.side_effect = [full_page, full_page]
+
+        result = fetch_openaq_metadata(country="US", limit=1500)
+
+        # Stops after page 2 because we have >= 1500 results; truncates to
+        # exactly the requested cap.
+        assert len(result) == 1500
+        assert mock_client.locations.list.call_count == 2
+
+    @patch("aeolus.sources.openaq._get_client")
+    def test_auto_pagination_safety_cap_warns(
+        self, mock_get_client, mock_location,
+    ):
+        """The ``_OPENAQ_MAX_AUTO_PAGES`` cap must surface a warning when
+        hit so users notice they should narrow filters."""
+        from aeolus.sources.openaq import _OPENAQ_MAX_AUTO_PAGES
+
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+
+        full_page = MagicMock()
+        full_page.results = [mock_location] * 1000
+        # Always return a full page → loop exits via max_pages.
+        mock_client.locations.list.return_value = full_page
+
+        with pytest.warns(match="pagination hit"):
+            result = fetch_openaq_metadata(country="US")
+
+        assert mock_client.locations.list.call_count == _OPENAQ_MAX_AUTO_PAGES
+        assert len(result) == _OPENAQ_MAX_AUTO_PAGES * 1000
 
     @patch("aeolus.sources.openaq._get_client")
     def test_returns_empty_dataframe_on_no_results(self, mock_get_client):
