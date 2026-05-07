@@ -8,8 +8,6 @@ import pytest
 
 from aeolus.sources.laqn import (
     API_BASE,
-    SPECIES_MAP,
-    _month_ranges,
     fetch_laqn_data,
     fetch_laqn_metadata,
 )
@@ -22,7 +20,7 @@ from aeolus.sources.laqn import (
 
 @pytest.fixture
 def mock_sites_response():
-    """Mock response from the LAQN sites endpoint."""
+    """Mock response from the LAQN ERG sites endpoint (metadata path)."""
     return {
         "Sites": {
             "Site": [
@@ -74,109 +72,27 @@ def mock_sites_response():
 
 
 @pytest.fixture
-def mock_data_response():
-    """Mock response from the LAQN data endpoint."""
-    return {
-        "AirQualityData": {
-            "@SiteCode": "MY1",
-            "Data": [
-                {
-                    "@SpeciesCode": "NO2",
-                    "@MeasurementDateGMT": "2024-01-01 00:00:00",
-                    "@Value": "45.2",
-                },
-                {
-                    "@SpeciesCode": "NO2",
-                    "@MeasurementDateGMT": "2024-01-01 01:00:00",
-                    "@Value": "38.7",
-                },
-                {
-                    "@SpeciesCode": "PM10",
-                    "@MeasurementDateGMT": "2024-01-01 00:00:00",
-                    "@Value": "22.1",
-                },
-                {
-                    "@SpeciesCode": "FINE",
-                    "@MeasurementDateGMT": "2024-01-01 00:00:00",
-                    "@Value": "12.3",
-                },
-                {
-                    "@SpeciesCode": "CO",
-                    "@MeasurementDateGMT": "2024-01-01 00:00:00",
-                    "@Value": "0.3",
-                },
-                {
-                    "@SpeciesCode": "NO2",
-                    "@MeasurementDateGMT": "2024-01-01 02:00:00",
-                    "@Value": "",
-                },
-            ],
-        }
-    }
+def mock_laqn_rdata_df():
+    """A LAQN openair-style RData frame: lowercase columns, FINE for PM2.5,
+    no separate `code` column (`site` holds the site code)."""
+    # 2024-01-01 00:00:00 UTC = 1704067200 (seconds since epoch)
+    base = 1704067200.0
+    return pd.DataFrame({
+        "date": [base, base + 3600, base + 7200],
+        "nox": [30.1, 28.5, 25.0],
+        "no2": [13.4, 12.8, 11.2],
+        "o3": [19.6, 21.2, 24.5],
+        "pm10": [22.1, 23.0, 20.5],
+        "pm10_raw": [21.0, 22.0, 19.0],  # extra column, should be dropped
+        "FINE": [12.3, 13.0, 11.5],      # PM2.5 in LAQN openair feeds
+        "co": [0.3, 0.25, 0.2],
+        "CO2": [462.0, 470.0, 455.0],    # extra column, should be dropped
+        "site": ["MY1", "MY1", "MY1"],
+    })
 
 
 # ============================================================================
-# Tests for _month_ranges()
-# ============================================================================
-
-
-class TestMonthRanges:
-    """Tests for the month chunking helper."""
-
-    def test_single_month(self):
-        start = datetime(2024, 3, 5)
-        end = datetime(2024, 3, 20)
-        ranges = list(_month_ranges(start, end))
-        assert len(ranges) == 1
-        assert ranges[0] == (start, end)
-
-    def test_spans_two_months(self):
-        start = datetime(2024, 1, 15)
-        end = datetime(2024, 2, 10)
-        ranges = list(_month_ranges(start, end))
-        assert len(ranges) == 2
-        assert ranges[0] == (datetime(2024, 1, 15), datetime(2024, 2, 1))
-        assert ranges[1] == (datetime(2024, 2, 1), datetime(2024, 2, 10))
-
-    def test_spans_year_boundary(self):
-        start = datetime(2023, 12, 15)
-        end = datetime(2024, 1, 10)
-        ranges = list(_month_ranges(start, end))
-        assert len(ranges) == 2
-        assert ranges[0][0] == datetime(2023, 12, 15)
-        assert ranges[1][1] == datetime(2024, 1, 10)
-
-    def test_full_year(self):
-        start = datetime(2024, 1, 1)
-        end = datetime(2024, 12, 31)
-        ranges = list(_month_ranges(start, end))
-        assert len(ranges) == 12
-
-
-# ============================================================================
-# Tests for species mapping
-# ============================================================================
-
-
-class TestSpeciesMap:
-    """Tests for the species code mapping."""
-
-    def test_fine_maps_to_pm25(self):
-        assert SPECIES_MAP["FINE"] == "PM2.5"
-
-    def test_pm25_maps_to_pm25(self):
-        assert SPECIES_MAP["PM25"] == "PM2.5"
-
-    def test_standard_pollutants(self):
-        assert SPECIES_MAP["NO2"] == "NO2"
-        assert SPECIES_MAP["O3"] == "O3"
-        assert SPECIES_MAP["CO"] == "CO"
-        assert SPECIES_MAP["PM10"] == "PM10"
-        assert SPECIES_MAP["SO2"] == "SO2"
-
-
-# ============================================================================
-# Tests for fetch_laqn_metadata()
+# Metadata tests (ERG API path)
 # ============================================================================
 
 
@@ -228,28 +144,30 @@ class TestFetchMetadata:
     @patch("aeolus.sources.laqn._get_json")
     def test_returns_empty_on_none(self, mock_get):
         mock_get.return_value = None
-        result = fetch_laqn_metadata()
+        with pytest.warns(match="Failed to fetch LAQN metadata"):
+            result = fetch_laqn_metadata()
         assert isinstance(result, pd.DataFrame)
         assert result.empty
 
     @patch("aeolus.sources.laqn._get_json")
     def test_returns_empty_on_empty_sites(self, mock_get):
         mock_get.return_value = {"Sites": {"Site": []}}
-        result = fetch_laqn_metadata()
+        with pytest.warns(match="LAQN ERG API returned no sites"):
+            result = fetch_laqn_metadata()
         assert result.empty
 
 
 # ============================================================================
-# Tests for fetch_laqn_data()
+# Data tests (openair RData path)
 # ============================================================================
 
 
 class TestFetchData:
-    """Tests for the data fetcher."""
+    """Tests for the data fetcher (RData feed via regulatory factory)."""
 
-    @patch("aeolus.sources.laqn._get_json")
-    def test_returns_standard_columns(self, mock_get, mock_data_response):
-        mock_get.return_value = mock_data_response
+    @patch("aeolus.sources.regulatory.fetch_rdata")
+    def test_returns_standard_columns(self, mock_rdata, mock_laqn_rdata_df):
+        mock_rdata.return_value = mock_laqn_rdata_df
         start = datetime(2024, 1, 1, tzinfo=timezone.utc)
         end = datetime(2024, 1, 2, tzinfo=timezone.utc)
 
@@ -259,69 +177,66 @@ class TestFetchData:
         for col in DATA_COLUMNS:
             assert col in result.columns
 
-    @patch("aeolus.sources.laqn._get_json")
-    def test_source_network_is_laqn(self, mock_get, mock_data_response):
-        mock_get.return_value = mock_data_response
+    @patch("aeolus.sources.regulatory.fetch_rdata")
+    def test_source_network_is_laqn(self, mock_rdata, mock_laqn_rdata_df):
+        mock_rdata.return_value = mock_laqn_rdata_df
         start = datetime(2024, 1, 1, tzinfo=timezone.utc)
         end = datetime(2024, 1, 2, tzinfo=timezone.utc)
 
         result = fetch_laqn_data(["MY1"], start, end)
         assert all(result["source_network"] == "LAQN")
 
-    @patch("aeolus.sources.laqn._get_json")
-    def test_fine_mapped_to_pm25(self, mock_get, mock_data_response):
-        mock_get.return_value = mock_data_response
+    @patch("aeolus.sources.regulatory.fetch_rdata")
+    def test_fine_mapped_to_pm25(self, mock_rdata, mock_laqn_rdata_df):
+        """LAQN's `FINE` column should appear as `PM2.5` in output."""
+        mock_rdata.return_value = mock_laqn_rdata_df
         start = datetime(2024, 1, 1, tzinfo=timezone.utc)
         end = datetime(2024, 1, 2, tzinfo=timezone.utc)
 
         result = fetch_laqn_data(["MY1"], start, end)
         assert "PM2.5" in result["measurand"].values
+        # FINE shouldn't leak through as itself
+        assert "FINE" not in result["measurand"].values
 
-    @patch("aeolus.sources.laqn._get_json")
-    def test_empty_values_filtered(self, mock_get, mock_data_response):
-        """Rows with empty @Value should be excluded."""
-        mock_get.return_value = mock_data_response
+    @patch("aeolus.sources.regulatory.fetch_rdata")
+    def test_lowercase_columns_renamed_to_standard(self, mock_rdata, mock_laqn_rdata_df):
+        """LAQN's lowercase `nox`, `no2`, `o3`, `pm10`, `co` should map to
+        AURN-style names."""
+        mock_rdata.return_value = mock_laqn_rdata_df
         start = datetime(2024, 1, 1, tzinfo=timezone.utc)
         end = datetime(2024, 1, 2, tzinfo=timezone.utc)
 
         result = fetch_laqn_data(["MY1"], start, end)
-        # The mock has 6 data points but one has empty value
-        assert len(result) == 5
+        present = set(result["measurand"].unique())
+        assert {"NO2", "NOXasNO2", "O3", "PM10", "CO", "PM2.5"}.issubset(present)
 
-    @patch("aeolus.sources.laqn._get_json")
-    def test_values_are_numeric(self, mock_get, mock_data_response):
-        mock_get.return_value = mock_data_response
+    @patch("aeolus.sources.regulatory.fetch_rdata")
+    def test_extra_columns_dropped(self, mock_rdata, mock_laqn_rdata_df):
+        """Non-regulatory columns (`pm10_raw`, `CO2`) should not appear as
+        measurands in the normalised output."""
+        mock_rdata.return_value = mock_laqn_rdata_df
         start = datetime(2024, 1, 1, tzinfo=timezone.utc)
         end = datetime(2024, 1, 2, tzinfo=timezone.utc)
 
         result = fetch_laqn_data(["MY1"], start, end)
-        assert result["value"].dtype == float
+        present = set(result["measurand"].unique())
+        assert "pm10_raw" not in present
+        assert "CO2" not in present
 
-    @patch("aeolus.sources.laqn._get_json")
-    def test_timestamps_are_utc(self, mock_get, mock_data_response):
-        mock_get.return_value = mock_data_response
-        start = datetime(2024, 1, 1, tzinfo=timezone.utc)
-        end = datetime(2024, 1, 2, tzinfo=timezone.utc)
-
-        result = fetch_laqn_data(["MY1"], start, end)
-        assert result["date_time"].dt.tz is not None
-
-    @patch("aeolus.sources.laqn._get_json")
-    def test_co_units_are_mg_m3(self, mock_get, mock_data_response):
-        """CO should be labelled mg/m3, not ug/m3."""
-        mock_get.return_value = mock_data_response
+    @patch("aeolus.sources.regulatory.fetch_rdata")
+    def test_co_units_are_mg_m3(self, mock_rdata, mock_laqn_rdata_df):
+        mock_rdata.return_value = mock_laqn_rdata_df
         start = datetime(2024, 1, 1, tzinfo=timezone.utc)
         end = datetime(2024, 1, 2, tzinfo=timezone.utc)
 
         result = fetch_laqn_data(["MY1"], start, end)
         co = result[result["measurand"] == "CO"]
-        assert len(co) == 1
-        assert co["units"].iloc[0] == "mg/m3"
+        assert not co.empty
+        assert (co["units"] == "mg/m3").all()
 
-    @patch("aeolus.sources.laqn._get_json")
-    def test_non_co_units_are_ug_m3(self, mock_get, mock_data_response):
-        """Non-CO species should be labelled ug/m3."""
-        mock_get.return_value = mock_data_response
+    @patch("aeolus.sources.regulatory.fetch_rdata")
+    def test_non_co_units_are_ug_m3(self, mock_rdata, mock_laqn_rdata_df):
+        mock_rdata.return_value = mock_laqn_rdata_df
         start = datetime(2024, 1, 1, tzinfo=timezone.utc)
         end = datetime(2024, 1, 2, tzinfo=timezone.utc)
 
@@ -329,41 +244,30 @@ class TestFetchData:
         non_co = result[result["measurand"] != "CO"]
         assert (non_co["units"] == "ug/m3").all()
 
-    @patch("aeolus.sources.laqn._get_json")
-    def test_same_day_query_uses_distinct_end_date(self, mock_get, mock_data_response):
-        """LAQN API 400s on StartDate=X/EndDate=X — we must pad end by a day."""
-        mock_get.return_value = mock_data_response
-        same_day = datetime(2024, 6, 15, tzinfo=timezone.utc)
-        fetch_laqn_data(["MY1"], same_day, same_day)
+    @patch("aeolus.sources.regulatory.fetch_rdata")
+    def test_timestamps_are_utc(self, mock_rdata, mock_laqn_rdata_df):
+        mock_rdata.return_value = mock_laqn_rdata_df
+        start = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        end = datetime(2024, 1, 2, tzinfo=timezone.utc)
 
-        # Inspect the URL path passed to _get_json
-        call_args = mock_get.call_args_list
-        assert len(call_args) >= 1
-        path = call_args[0][0][0]
-        # StartDate and EndDate must not be the same day
-        assert "StartDate=2024-06-15" in path
-        assert "EndDate=2024-06-15" not in path
-        assert "EndDate=2024-06-16" in path
+        result = fetch_laqn_data(["MY1"], start, end)
+        assert result["date_time"].dt.tz is not None
 
-    @patch("aeolus.sources.laqn._get_json")
-    def test_site_codes_normalised_to_uppercase(self, mock_get, mock_data_response):
-        """Regression: LAQN API is case-sensitive. aeolus must uppercase
-        user-provided site codes so lowercase/mixed case inputs work
-        transparently (and don't silently return 0 rows)."""
-        mock_get.return_value = mock_data_response
-        start = datetime(2024, 6, 15, tzinfo=timezone.utc)
-        end = datetime(2024, 6, 16, tzinfo=timezone.utc)
+    @patch("aeolus.sources.regulatory.fetch_rdata")
+    def test_url_uses_londonair_rdata(self, mock_rdata, mock_laqn_rdata_df):
+        """LAQN data path must hit londonair.org.uk, not the ERG REST API."""
+        mock_rdata.return_value = mock_laqn_rdata_df
+        start = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        end = datetime(2024, 1, 2, tzinfo=timezone.utc)
 
-        # Call with lowercase — the URL path must still contain uppercase
         fetch_laqn_data(["my1"], start, end)
 
-        path = mock_get.call_args_list[0][0][0]
-        assert "SiteCode=MY1" in path
-        assert "SiteCode=my1" not in path
+        url = mock_rdata.call_args_list[0][0][0]
+        assert url == "https://www.londonair.org.uk/r_data/MY1_2024.RData"
 
-    @patch("aeolus.sources.laqn._get_json")
-    def test_no_data_warns(self, mock_get):
-        mock_get.return_value = {"AirQualityData": {"@SiteCode": "X", "Data": []}}
+    @patch("aeolus.sources.regulatory.fetch_rdata")
+    def test_no_data_warns(self, mock_rdata):
+        mock_rdata.return_value = None
         start = datetime(2024, 1, 1, tzinfo=timezone.utc)
         end = datetime(2024, 1, 2, tzinfo=timezone.utc)
 
@@ -387,3 +291,7 @@ class TestRegistration:
         assert source is not None
         assert source["type"] == "network"
         assert source["requires_api_key"] is False
+
+    def test_api_base_unchanged(self):
+        """Metadata path still uses ERG API."""
+        assert "erg.ic.ac.uk" in API_BASE

@@ -123,7 +123,7 @@ data = aeolus.download(
 
 London's main regulatory monitoring network, managed by the Environmental Research Group (ERG) at Imperial College London. Provides hourly data from ~250 monitoring sites across Greater London, covering all 33 London boroughs.
 
-Data is accessed via the London Air JSON API. No API key is required.
+Data is fetched from the openair RData feed at `londonair.org.uk/r_data/` (one file per site/year, same format as AURN). Site metadata is fetched separately from the ERG JSON API at `api.erg.ic.ac.uk/AirQuality/`. No API key is required.
 
 ### Available Pollutants
 

@@ -32,6 +32,7 @@ from . import (
     breathe_london,  # noqa: F401
     eea,  # noqa: F401
     laqn,  # noqa: F401
+    lmam,  # noqa: F401
     regulatory,  # noqa: F401
     sensor_community,  # noqa: F401
     sonitus,  # noqa: F401
@@ -55,6 +56,7 @@ __all__ = [
     "breathe_london",
     "eea",
     "laqn",
+    "lmam",
     "openaq",
     "purpleair",
     "regulatory",

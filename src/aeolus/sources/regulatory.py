@@ -39,8 +39,11 @@ Primary API endpoints (per-network RData files):
 - NI: https://www.airqualityni.co.uk/openair/R_data/
 - WAQN: https://airquality.gov.wales/sites/default/files/openair/R_data/
 - AQE: https://airqualityengland.co.uk/assets/openair/R_data/
+- LAQN: https://www.londonair.org.uk/r_data/  (data only — metadata via ERG API)
+- LMAM: https://uk-air.defra.gov.uk/openair/LMAM/R_data/  (per-pcode subfolder)
 
-Per-site data URL pattern: ``{base}{SITE}_{YEAR}.RData``
+Per-site data URL pattern: ``{base}{SITE}_{YEAR}.RData`` (LMAM inserts a
+``{pcode}/`` subfolder — see ``lmam.py``).
 
 Known quirks:
 
@@ -58,6 +61,7 @@ import warnings
 from datetime import datetime, timezone
 from logging import warning
 from pathlib import Path
+from typing import Callable
 
 import pandas as pd
 import rdata
@@ -100,6 +104,7 @@ METADATA_URLS = {
     "ni": "https://www.airqualityni.co.uk/openair/R_data/NI_metadata.RData",
     "waqn": "https://airquality.gov.wales/sites/default/files/openair/R_data/WAQ_metadata.RData",
     "aqe": "https://airqualityengland.co.uk/assets/openair/R_data/AQE_metadata.RData",
+    "lmam": "https://uk-air.defra.gov.uk/openair/LMAM/R_data/LMAM_metadata.RData",
 }
 
 DATA_BASE_URLS = {
@@ -109,6 +114,22 @@ DATA_BASE_URLS = {
     "ni": "https://www.airqualityni.co.uk/openair/R_data/",
     "waqn": "https://airquality.gov.wales/sites/default/files/openair/R_data/",
     "aqe": "https://airqualityengland.co.uk/assets/openair/R_data/",
+    "laqn": "https://www.londonair.org.uk/r_data/",
+    "lmam": "https://uk-air.defra.gov.uk/openair/LMAM/R_data/",
+}
+
+# LAQN openair files use lowercase column names and `FINE` for PM2.5; the
+# `site` column contains the site code (no separate `code` column). Rename
+# to AURN-style so the shared melt/normalise pipeline works unchanged.
+LAQN_COLUMN_MAP = {
+    "no": "NO",
+    "no2": "NO2",
+    "nox": "NOXasNO2",
+    "o3": "O3",
+    "so2": "SO2",
+    "co": "CO",
+    "pm10": "PM10",
+    "FINE": "PM2.5",
 }
 
 # Pollutants/measurands available in regulatory network data
@@ -329,12 +350,23 @@ def make_metadata_fetcher(network_name: str) -> MetadataFetcher:
 
 
 # Factory function for creating data fetchers
-def make_data_fetcher(network_name: str) -> DataFetcher:
+def make_data_fetcher(
+    network_name: str,
+    column_map: dict[str, str] | None = None,
+    site_path: Callable[[str], str | None] | None = None,
+) -> DataFetcher:
     """
     Create a data fetcher function for a specific regulatory network.
 
     Args:
         network_name: Name of the network (e.g., "aurn", "saqn")
+        column_map: Optional mapping applied with ``DataFrame.rename`` to bring
+            non-standard column names (e.g. lowercase LAQN columns, ``FINE``)
+            into line with the AURN-style schema before melting.
+        site_path: Optional callable mapping a site code to a URL fragment
+            inserted between ``base_url`` and ``{SITE}_{YEAR}.RData`` (e.g.
+            ``"sussex/"`` for LMAM). Returning ``None`` causes the site to be
+            skipped with a warning. When ``None``, no fragment is inserted.
 
     Returns:
         DataFetcher: Function that fetches and normalises data
@@ -350,15 +382,34 @@ def make_data_fetcher(network_name: str) -> DataFetcher:
 
         results = []
         for site in track(sites, f"Downloading {network_name.upper()}"):
+            site_code = site.upper()
+
+            if site_path is not None:
+                prefix = site_path(site_code)
+                if prefix is None:
+                    warnings.warn(
+                        f"{network_name.upper()}: site {site_code!r} not "
+                        "found in metadata; skipping",
+                        AeolusDataWarning,
+                        stacklevel=2,
+                    )
+                    continue
+            else:
+                prefix = ""
+
             for year in years:
-                url = f"{base_url}{site.upper()}_{year}.RData"
+                url = f"{base_url}{prefix}{site_code}_{year}.RData"
                 df = fetch_rdata(url)
 
-                if df is not None:
-                    # RData file contains data with this key structure
-                    # The fetch_rdata already extracted it, so we can use df directly
-                    if not df.empty:
-                        results.append(df)
+                if df is not None and not df.empty:
+                    if column_map:
+                        df = df.rename(columns=column_map)
+                    # LAQN openair files have no separate `code` column —
+                    # the `site` column contains the site code. Provide a
+                    # `code` column so the shared melt pipeline works.
+                    if "code" not in df.columns and "site" in df.columns:
+                        df = df.assign(code=df["site"])
+                    results.append(df)
 
         if not results:
             warnings.warn(
