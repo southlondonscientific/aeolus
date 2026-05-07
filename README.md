@@ -550,7 +550,18 @@ it4 = metrics.aqi_check_who(data, target="IT-4")  # More strict
 
 ### Unit Conversion
 
-The metrics module automatically converts units where needed (e.g., ppb to µg/m³) and warns you when conversions are applied.
+The metrics module handles unit conversions automatically:
+
+- **Aeolus data → metrics input**: `aqi_check_who` and the per-index
+  averaging functions accept µg/m³ (or ppm/ppb if the source returned
+  it) and convert as needed. CO is treated as mg/m³ throughout.
+- **µg/m³ → index breakpoints**: `aqi_summary` and `aqi_timeseries`
+  convert the standard µg/m³ schema into each index's native unit
+  before lookup — US EPA O3 and CO use ppm, SO2 and NO2 use ppb,
+  China and India NAQI CO use mg/m³. PM2.5/PM10 stay in µg/m³.
+
+You don't need to convert anything manually; pass downloaded data
+straight into the metrics functions.
 
 ## Acknowledgements
 

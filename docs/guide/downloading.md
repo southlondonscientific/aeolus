@@ -59,6 +59,10 @@ data = aeolus.download("AURN", ["MY1"], last="30d")
 data = aeolus.download("AURN", ["MY1"], last="6m")
 
 # Also supports weeks ("2w") and years ("1y")
+
+# Same shorthand works on the submodule downloads
+data = aeolus.networks.download("AURN", ["MY1"], last="30d")
+data = aeolus.portals.download("OPENAQ", ["2178"], last="7d")
 ```
 
 ## Data Overview

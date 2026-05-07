@@ -108,7 +108,17 @@ fig = viz.plot_trend(data, result)
 
 ## AQI Summary
 
-Calculate AQI statistics over a time period:
+Calculate AQI statistics over a time period.
+
+For each `(site, period, pollutant)`, `aqi_summary` applies the index's
+required rolling-average window (e.g. PM 24h, O3 8h, NO2 1h) and reports
+the **worst-case AQI** within the period — matching how regulators
+publish daily/period AQI values. Concentration summary statistics
+(mean, median, percentiles) are computed over the raw hourly readings.
+
+Aeolus data is always µg/m³; `aqi_summary` converts to each index's
+native unit (US EPA O3/CO use ppm; SO2/NO2 use ppb; China and India
+NAQI CO use mg/m³) before invoking the index's `calculate(...)`.
 
 ```python
 import aeolus
