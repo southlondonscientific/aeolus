@@ -13,8 +13,8 @@ The two libraries serve different primary purposes. openair assumes you already 
 **openair:**
 ```r
 library(openair)
-data <- importAURN(site = "my1", year = 2024)
-# Also: importSAQN(), importWAQN(), importKCL(), etc.
+data <- importUKAQ(site = "my1", year = 2024)
+# or can specify the source with soruce = "aurn", source = "saqn", etc.
 ```
 
 **Aeolus:**
@@ -28,16 +28,17 @@ data = aeolus.download("AURN", ["MY1"],
 # Also: "SAQN", "WAQN", "NI", "AQE", "LAQN"
 ```
 
-**Differences:** openair has one function per network. Aeolus uses a single `download()` with the source as a parameter, which also handles non-UK sources (OpenAQ, PurpleAir, AirQo, Sensor.Community, AirNow, Breathe London). openair returns wide-format data (one column per pollutant); Aeolus returns long format (one row per measurement).
+**Differences:** Both openair and Aeolus use a single function (`importUKAQ()` and `download()`, respectively) with the source as a parameter. As it is limited to the UK, openair automatically attempts to detect the monitoring network to which a site belongs, making `source` optional. Aeolus additionally handles non-UK sources (OpenAQ, PurpleAir, AirQo, Sensor.Community, AirNow, Breathe London). By default openair returns wide-format data (one column per pollutant); Aeolus returns long format (one row per measurement).
 
 ### Importing multiple sources
 
 **openair:**
 ```r
-# Requires separate calls per network, then manual binding
-aurn <- importAURN(site = "my1", year = 2024)
-saqn <- importSAQN(site = "gla4", year = 2024)
-combined <- rbind(aurn, saqn)
+data <- importUKAQ(
+    site = c("my1", "gla4"), 
+    year = 2024, 
+    source = c("aurn", "saqn")
+)
 ```
 
 **Aeolus:**
@@ -51,7 +52,18 @@ data = aeolus.download(
 
 ### Finding sites near a location
 
-**openair:** No built-in function. Users typically look up site codes manually.
+**openair:**
+```r
+# All English sites within 10 km of central London
+openairmaps::searchNetwork(
+    source = c("aurn", "aqe", "lmam"),
+    lat = 51.5074, 
+    lng = -0.1278, 
+    max_dist = 10, 
+    map = FALSE
+)
+# Returns metadata, optionally returns map
+```
 
 **Aeolus:**
 ```python
@@ -94,7 +106,13 @@ monthly = time_average(data, freq="ME")
 
 ## Annual Statistics
 
-**openair:** Does not have a single dedicated function for this. Users typically combine `timeAverage` with manual calculations for exceedances.
+**openair:** 
+```r
+stats = aqStats(data)
+# Returns annual mean hourly, max hourly, min hourly, median hourly, p95, p99,
+# max daily mean, max 8h rolling mean, max 24h rolling mean, and certain
+# UK-specific statistics
+```
 
 **Aeolus:**
 ```python
@@ -149,8 +167,9 @@ fig = plot_time_variation(data, pollutant="NO2")
 
 **openair:**
 ```r
-# openair bundles these into timeVariation(); individual panels
-# are not separately callable
+fig = variationPlot(data, "no2", x = "hour")
+fig = variationPlot(data, "no2", x = "weekday")
+fig = variationPlot(data, "no2", x = "month")
 ```
 
 **Aeolus:**
@@ -192,7 +211,7 @@ fig = plot_calendar(data, measurand="NO2", year=2024)
 
 ## Air Quality Index
 
-**openair:** No AQI calculation functions.
+**openair:** No AQI calculation functions; pre-calculated UK DAQI available through `importUKAQ()`.
 
 **Aeolus:**
 ```python
