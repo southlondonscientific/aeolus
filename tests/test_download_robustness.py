@@ -250,3 +250,43 @@ class TestParseLastRobustness:
         start, end = _parse_last(f"{n}y")
         assert start < end
         assert start.tzinfo is not None
+
+    def test_years_leap_day_does_not_crash(self, monkeypatch) -> None:
+        """Deterministic leap-day regression: pin the clock to Feb 29 and
+        run "1y" through three odd-year targets. The naive implementation
+        called ``end.replace(year=2023)`` which raised ``day out of range``.
+        """
+        import aeolus._dates as dates_mod
+        from datetime import datetime, timezone
+
+        class FrozenDatetime(datetime):
+            @classmethod
+            def now(cls, tz=None):  # type: ignore[override]
+                return datetime(2024, 2, 29, 12, 0, 0, tzinfo=timezone.utc)
+
+        monkeypatch.setattr(dates_mod, "datetime", FrozenDatetime)
+
+        for n in (1, 3, 5):
+            start, end = _parse_last(f"{n}y")
+            assert end == datetime(2024, 2, 29, 12, 0, 0, tzinfo=timezone.utc)
+            # Non-leap target years (2023, 2021, 2019) clamp Feb 29 -> Feb 28.
+            assert start.month == 2
+            assert start.day == 28
+            assert start.year == 2024 - n
+
+    def test_years_leap_day_target_is_leap_keeps_29(self, monkeypatch) -> None:
+        """"4y" from Feb 29 2024 -> Feb 29 2020 (also a leap year) stays Feb 29."""
+        import aeolus._dates as dates_mod
+        from datetime import datetime, timezone
+
+        class FrozenDatetime(datetime):
+            @classmethod
+            def now(cls, tz=None):  # type: ignore[override]
+                return datetime(2024, 2, 29, 12, 0, 0, tzinfo=timezone.utc)
+
+        monkeypatch.setattr(dates_mod, "datetime", FrozenDatetime)
+
+        start, _ = _parse_last("4y")
+        assert start.year == 2020
+        assert start.month == 2
+        assert start.day == 29

@@ -84,9 +84,19 @@ def parse_last(last: str) -> tuple[datetime, datetime]:
             raise ValueError(f"Date range goes before year 1: last='{n}m'")
         start = end.replace(year=y, month=m, day=day)
     elif unit == "years":
-        if end.year - n < 1:
+        target_year = end.year - n
+        if target_year < 1:
             raise ValueError(f"Date range goes before year 1: last='{n}y'")
-        start = end.replace(year=end.year - n)
+        # Clamp Feb 29 → Feb 28 when the target year isn't a leap year so
+        # parse_last("1y") on a leap day doesn't raise.
+        if end.month == 2 and end.day == 29:
+            is_leap = target_year % 4 == 0 and (
+                target_year % 100 != 0 or target_year % 400 == 0
+            )
+            day = 29 if is_leap else 28
+            start = end.replace(year=target_year, day=day)
+        else:
+            start = end.replace(year=target_year)
     else:
         raise ValueError(f"Unsupported unit: {unit}")
 
