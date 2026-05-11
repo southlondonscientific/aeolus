@@ -799,22 +799,33 @@ class TestBreatheLondonNormalizer:
         assert pd.api.types.is_datetime64_any_dtype(result["date_time"])
 
     def test_standardises_species_names(self):
-        """Test that species names are standardised."""
+        """Test that species names are standardised.
+
+        Uses the REAL Breathe London API spelling: ``PM25`` without the dot
+        (and ``NO2Index`` / ``PM25Index`` DAQI-rating rows alongside the
+        concentration rows). Verified against live API on 2026-05-11 across
+        30 active sites.
+        """
         normaliser = create_breathe_london_normaliser()
 
         df = pd.DataFrame(
             {
-                "SiteCode": ["BL0001", "BL0001"],
-                "DateTime": ["2024-01-01T00:00:00Z", "2024-01-01T01:00:00Z"],
-                "Species": ["NO2", "PM2.5"],
-                "ScaledValue": [45.2, 18.5],
-                "Units": ["ug.m-3", "ug.m-3"],
+                "SiteCode": ["BL0001"] * 4,
+                "DateTime": ["2024-01-01T00:00:00Z"] * 4,
+                "Species": ["NO2", "NO2Index", "PM25", "PM25Index"],
+                "ScaledValue": [45.2, 4.0, 18.5, 3.0],
+                "Units": ["ug.m-3", "DAQI", "ug.m-3", "DAQI"],
             }
         )
 
         result = normaliser(df)
 
+        # PM25 must map to the standard "PM2.5" spelling; the DAQI Index
+        # rows must be dropped (1-10 categorical values, different scale).
         assert set(result["measurand"].unique()) == {"NO2", "PM2.5"}
+        assert "NO2Index" not in result["measurand"].values
+        assert "PM25Index" not in result["measurand"].values
+        assert "PM25" not in result["measurand"].values  # spelling fix
 
     def test_standardises_units(self):
         """Test that units are standardised."""

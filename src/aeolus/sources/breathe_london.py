@@ -44,10 +44,26 @@ from ..types import AeolusDataWarning, empty_data_frame, empty_metadata_frame
 # Configuration
 BREATHE_LONDON_API_BASE = "https://breathe-london-7x54d7qf.ew.gateway.dev"
 
-# Species/parameter name standardization
-# Maps Breathe London species names to Aeolus standard names
+# Species/parameter name standardization.
+#
+# Breathe London's SensorData endpoint emits PM2.5 as "PM25" (no dot), plus
+# DAQI-style 1-10 index ratings as "NO2Index" / "PM25Index" with units "DAQI"
+# alongside the µg/m³ concentration rows. We must:
+#
+#   - Map "PM25" -> "PM2.5" so the standard schema's PM2.5 measurand is what
+#     downstream code actually sees (was a silent silent-wrong-numbers bug:
+#     "PM25" leaked through the .fillna fallback unchanged, dropping every
+#     PM2.5 row for any consumer mapping on the documented standard name).
+#   - Drop the *Index rows entirely. Their values are on a 1-10 categorical
+#     scale, not µg/m³ — mixing them into the standard `value` column
+#     corrupts any downstream mean/percentile/AQI computation.
+#
+# The PM2.5 / PM10 / NO / O3 / CO identity entries are kept defensively in
+# case the API ever standardises spelling (currently only NO2 and PM25
+# concentration rows are observed live, plus the two Index variants).
 SPECIES_MAP = {
     "NO2": "NO2",
+    "PM25": "PM2.5",
     "PM2.5": "PM2.5",
     "PM10": "PM10",
     "NO": "NO",
@@ -365,11 +381,15 @@ def create_breathe_london_normaliser():
         return df
 
     def standardise_species(df: pd.DataFrame) -> pd.DataFrame:
-        """Standardize species names to Aeolus conventions."""
+        """Standardise species names to Aeolus conventions and drop rows
+        whose species isn't in ``SPECIES_MAP`` (notably ``NO2Index`` and
+        ``PM25Index``, which are DAQI 1-10 ratings on a different value
+        scale and would otherwise corrupt mean/percentile/AQI calculations
+        against the standard µg/m³ value column).
+        """
         if "measurand" in df.columns:
-            # Map known species
-            df["measurand"] = df["measurand"].map(SPECIES_MAP).fillna(df["measurand"])
-
+            df = df[df["measurand"].isin(SPECIES_MAP)].copy()
+            df["measurand"] = df["measurand"].map(SPECIES_MAP)
         return df
 
     def parse_timestamps(df: pd.DataFrame) -> pd.DataFrame:

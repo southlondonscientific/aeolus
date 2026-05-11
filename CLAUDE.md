@@ -2,7 +2,7 @@
 
 Air quality data downloading and standardisation library for UK and international monitoring networks.
 
-**Current Version:** 0.4.5
+**Current Version:** 0.4.5.1
 
 ## Quick Start
 

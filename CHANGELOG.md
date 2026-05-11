@@ -5,6 +5,13 @@ All notable changes to Aeolus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.5.1] - 2026-05-11
+
+### Fixed (silent wrong numbers — please re-baseline)
+
+- **Breathe London PM2.5 data was dropped by downstream consumers** — the live BL `SensorData` endpoint emits PM2.5 concentration rows as `Species="PM25"` (no dot), but `SPECIES_MAP` only contained the no-op `"PM2.5": "PM2.5"` entry. The `.fillna(df["measurand"])` fallback in `standardise_species` then let `"PM25"` pass through unchanged, so `aeolus.download("BREATHE_LONDON", ...)` returned `measurand="PM25"` rather than the documented `"PM2.5"`. Any consumer filtering by the standard name (per the docs / `default_measurands=["NO2", "PM2.5"]`) silently dropped every PM2.5 row. Surfaced by Argus, which had zero BL PM2.5 rows since BL polling began ~2026-05-01. Now maps `PM25 → PM2.5` explicitly. **Migration**: re-fetch BL PM2.5 data; previous output had `measurand="PM25"` not `"PM2.5"`.
+- **Breathe London DAQI Index rows leaked into the `value` column** — the same BL API also emits `Species="NO2Index"` and `Species="PM25Index"` alongside concentration rows. These are DAQI-style 1-10 categorical ratings with units `"DAQI"`, not µg/m³ concentrations. The previous `standardise_species` let them fall through with their raw names, so `aeolus.download("BREATHE_LONDON", ...)` returned a dataframe whose `value` column mixed µg/m³ concentrations with DAQI 1-10 ratings, with `units=""` on the Index rows. Any mean / percentile / AQI computation that didn't explicitly filter by measurand would corrupt. The standardiser now drops rows whose species isn't in `SPECIES_MAP`, an explicit allow-list — Index variants and any future unmapped species are dropped at the adapter rather than polluting the output.
+
 ## [0.4.5] - 2026-05-11
 
 ### Fixed (silent wrong numbers — please re-baseline)
