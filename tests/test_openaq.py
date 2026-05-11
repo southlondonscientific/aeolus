@@ -290,6 +290,40 @@ class TestFetchOpenaqMetadata:
         assert kwargs["iso"] == "GB"
 
     @patch("aeolus.sources.openaq._get_client")
+    def test_accepts_iso_alias_directly(self, mock_get_client, mock_location):
+        """Callers who know the OpenAQ SDK can pass ``iso=`` directly."""
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.results = [mock_location]
+        mock_client.locations.list.return_value = mock_response
+
+        fetch_openaq_metadata(iso="KR")
+
+        assert mock_client.locations.list.call_args.kwargs["iso"] == "KR"
+
+    @patch("aeolus.sources.openaq._get_client")
+    def test_conflicting_country_aliases_raises(self, mock_get_client):
+        """Passing more than one of iso/country/countries should raise so
+        typos surface rather than silently picking one."""
+        mock_get_client.return_value = MagicMock()
+
+        with pytest.raises(ValueError, match="pass only one of"):
+            fetch_openaq_metadata(country="GB", iso="US")
+
+    @patch("aeolus.sources.openaq._get_client")
+    def test_zero_or_negative_limit_raises(self, mock_get_client):
+        """``limit`` must be >= 1 — the SDK enforces this anyway, but a
+        clear aeolus-level error beats the SDK validation traceback."""
+        mock_get_client.return_value = MagicMock()
+
+        with pytest.raises(ValueError, match="limit must be a positive integer"):
+            fetch_openaq_metadata(country="GB", limit=0)
+        with pytest.raises(ValueError, match="limit must be a positive integer"):
+            fetch_openaq_metadata(country="GB", limit=-5)
+
+    @patch("aeolus.sources.openaq._get_client")
     def test_auto_paginates_until_short_page(
         self, mock_get_client, mock_location,
     ):

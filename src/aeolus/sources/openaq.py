@@ -40,6 +40,7 @@ from datetime import datetime, timezone
 
 import pandas as pd
 
+from ..progress import track
 from ..registry import register_source
 from ..transforms import add_column, compose, select_columns
 from ..types import AeolusDataWarning, empty_data_frame, empty_metadata_frame
@@ -130,15 +131,18 @@ def fetch_openaq_metadata(**filters) -> pd.DataFrame:
     Args:
         **filters: Search filters
             - country: ISO 3166-alpha-2 country code (e.g., "GB", "US", "KR")
-              — mapped to the SDK's ``iso`` parameter.
+              — mapped to the SDK's ``iso`` parameter. Aliases ``iso=`` and
+              ``countries=`` are also accepted; passing more than one of the
+              three raises ``ValueError`` rather than silently picking one.
             - bbox: Bounding box tuple ``(min_lon, min_lat, max_lon, max_lat)``.
             - coordinates: ``(latitude, longitude)`` for radius search.
             - radius: Search radius in metres (1–25 000); use with coordinates.
             - monitor: ``True`` for reference-grade regulatory monitors only,
               ``False`` for low-cost air sensors only. Omit for both.
-            - limit: Optional total cap on results. When omitted, every
-              matching location is returned (auto-paginated, capped at
-              ~50 000 by ``_OPENAQ_MAX_AUTO_PAGES``).
+            - limit: Optional positive total cap on results. When omitted,
+              every matching location is returned (auto-paginated, capped at
+              ~50 000 by ``_OPENAQ_MAX_AUTO_PAGES``). Must be ``>= 1`` —
+              the SDK enforces ``1 <= limit <= 1000`` per request.
 
     Returns:
         pd.DataFrame: Location metadata with columns:
@@ -173,11 +177,20 @@ def fetch_openaq_metadata(**filters) -> pd.DataFrame:
 
     # Accept several common spellings for the country filter so callers
     # going through ``find_sites(countries=...)`` (aeolus convention) and
-    # those who know the OpenAQ SDK's ``iso=`` directly both work.
-    for alias in ("iso", "country", "countries"):
-        if alias in filters and filters[alias] is not None:
-            sdk_params["iso"] = filters[alias]
-            break
+    # those who know the OpenAQ SDK's ``iso=`` directly both work. If more
+    # than one is supplied we'd have to guess which one the caller meant —
+    # raise instead so typos surface.
+    country_aliases = [
+        alias for alias in ("iso", "country", "countries")
+        if filters.get(alias) is not None
+    ]
+    if len(country_aliases) > 1:
+        raise ValueError(
+            f"OpenAQ: pass only one of iso=, country=, countries= "
+            f"(got {', '.join(country_aliases)})"
+        )
+    if country_aliases:
+        sdk_params["iso"] = filters[country_aliases[0]]
 
     if "bbox" in filters:
         # SDK requires tuple, but accept list for convenience
@@ -194,6 +207,10 @@ def fetch_openaq_metadata(**filters) -> pd.DataFrame:
         sdk_params["monitor"] = filters["monitor"]
 
     user_limit = filters.get("limit")
+    if user_limit is not None and user_limit < 1:
+        raise ValueError(
+            f"OpenAQ: limit must be a positive integer (got {user_limit!r})"
+        )
     page_size = (
         min(_OPENAQ_MAX_PAGE_SIZE, user_limit)
         if user_limit is not None
@@ -202,9 +219,14 @@ def fetch_openaq_metadata(**filters) -> pd.DataFrame:
 
     # Auto-paginate. The OpenAQ SDK enforces page<=1000 results so this is
     # the most efficient walk; ``auto_wait=True`` on the client handles
-    # rate-limit backoff for us.
+    # rate-limit backoff for us. ``track`` shows a progress bar past the
+    # first page when tqdm is installed (silent fallback otherwise) so big
+    # country pulls don't look like a hang.
     locations: list = []
-    for page in range(1, _OPENAQ_MAX_AUTO_PAGES + 1):
+    for page in track(
+        range(1, _OPENAQ_MAX_AUTO_PAGES + 1),
+        "Fetching OpenAQ locations",
+    ):
         response = client.locations.list(
             **sdk_params, limit=page_size, page=page
         )
