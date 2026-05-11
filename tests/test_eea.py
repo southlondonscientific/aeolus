@@ -326,6 +326,44 @@ class TestFetchEeaData:
             assert col in df.columns
 
 
+class TestSpoMappingCache:
+    """The ``_spo_to_eoi`` module global must NOT latch to ``{}`` on a
+    transient fetch failure — otherwise every subsequent EEA data fetch in
+    the process silently returns empty with no path to recovery short of a
+    restart.
+    """
+
+    def test_cache_not_latched_after_failed_fetch(self, monkeypatch):
+        """After a failed _fetch_metadata_csv, the cache stays None so the
+        next call retries instead of returning the empty fallback forever.
+        """
+        from aeolus.sources import eea
+
+        # Reset the module-global cache.
+        monkeypatch.setattr(eea, "_spo_to_eoi", None)
+
+        call_count = {"n": 0}
+
+        def fake_fetch():
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                return None  # Transient failure on first call.
+            return "Sampling Point Id,Air Quality Station EoI Code\nSPO.IE.A,IE0001\n"
+
+        monkeypatch.setattr(eea, "_fetch_metadata_csv", fake_fetch)
+
+        result1 = eea._get_spo_mapping()
+        assert result1 == {}, "first call returns empty fallback"
+        assert eea._spo_to_eoi is None, (
+            "cache must remain None after failure so next call retries"
+        )
+
+        # Second call retries — fake_fetch now returns a valid CSV.
+        result2 = eea._get_spo_mapping()
+        assert "SPO.IE.A" in result2
+        assert eea._spo_to_eoi is not None, "cache populated on success"
+
+
 class TestSourceRegistration:
     def test_eea_registered(self):
         from aeolus.registry import get_source

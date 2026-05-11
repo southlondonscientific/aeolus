@@ -89,7 +89,14 @@ from ..transforms import (
     rename_columns,
     reset_index,
 )
-from ..types import AeolusDataWarning, DataFetcher, MetadataFetcher, Normaliser, empty_data_frame
+from ..types import (
+    AeolusDataWarning,
+    DataFetcher,
+    MetadataFetcher,
+    Normaliser,
+    empty_data_frame,
+    empty_metadata_frame,
+)
 
 
 # ============================================================================
@@ -219,16 +226,23 @@ _SOS_MAPPING_PATH = Path(__file__).parent / "_sos_mapping.json"
 
 
 def _load_sos_mapping() -> dict:
-    """Load the SOS station mapping, caching for reuse."""
+    """Load the SOS station mapping, caching for reuse.
+
+    On read errors (corrupt JSON, mid-rebuild file replacement) we return an
+    empty dict locally but do NOT assign to ``_sos_mapping`` — the next call
+    retries the load rather than latching to an empty cache for the process
+    lifetime.
+    """
     global _sos_mapping
-    if _sos_mapping is None:
-        try:
-            with open(_SOS_MAPPING_PATH) as f:
-                _sos_mapping = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            warning("Could not load SOS mapping; measurands will be unavailable")
-            _sos_mapping = {}
-    return _sos_mapping
+    if _sos_mapping is not None:
+        return _sos_mapping
+    try:
+        with open(_SOS_MAPPING_PATH) as f:
+            _sos_mapping = json.load(f)
+            return _sos_mapping
+    except (FileNotFoundError, json.JSONDecodeError):
+        warning("Could not load SOS mapping; measurands will be unavailable")
+        return {}
 
 
 # ============================================================================
@@ -341,7 +355,7 @@ def make_metadata_fetcher(network_name: str) -> MetadataFetcher:
                 AeolusDataWarning,
                 stacklevel=2,
             )
-            return empty_data_frame()
+            return empty_metadata_frame()
 
         normaliser = normalise_regulatory_metadata(network_name)
         return normaliser(df)

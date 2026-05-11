@@ -364,7 +364,13 @@ class TestMakeMetadataFetcher:
 
     @patch("aeolus.sources.regulatory.fetch_rdata")
     def test_metadata_fetcher_handles_none(self, mock_fetch):
-        """Should return empty DataFrame if fetch returns None."""
+        """Should return empty METADATA-schema DataFrame if fetch returns None.
+
+        Must be the metadata schema (6 cols) not the data schema (8 cols) —
+        otherwise multi-source find_sites() concat produces a mixed frame.
+        """
+        from aeolus.types import METADATA_COLUMNS
+
         mock_fetch.return_value = None
 
         fetcher = make_metadata_fetcher("aurn")
@@ -372,6 +378,7 @@ class TestMakeMetadataFetcher:
 
         assert isinstance(result, pd.DataFrame)
         assert result.empty
+        assert list(result.columns) == METADATA_COLUMNS
 
 
 # ============================================================================
@@ -550,6 +557,52 @@ class TestSourceRegistration:
         assert source is not None
         assert source["type"] == "network"
 
+
+
+# ============================================================================
+# Tests for SOS-mapping cache invalidation
+# ============================================================================
+
+
+class TestLoadSosMappingCache:
+    """The ``_sos_mapping`` module global must NOT latch to ``{}`` on a
+    transient read error. Otherwise once the file is briefly unreadable
+    (e.g. mid-rebuild) the process serves empty measurand lookups for the
+    rest of its lifetime.
+    """
+
+    def test_cache_not_latched_on_missing_file(self, tmp_path, monkeypatch):
+        from aeolus.sources import regulatory
+
+        monkeypatch.setattr(regulatory, "_sos_mapping", None)
+        missing = tmp_path / "nonexistent.json"
+        monkeypatch.setattr(regulatory, "_SOS_MAPPING_PATH", missing)
+
+        result1 = regulatory._load_sos_mapping()
+        assert result1 == {}
+        assert regulatory._sos_mapping is None, (
+            "cache must remain None so next call retries the load"
+        )
+
+        # Simulate the file appearing (e.g. rebuild_sos_mapping completed).
+        import json
+        missing.write_text(json.dumps({"aurn": {"MY1": [{"ts_id": "100"}]}}))
+
+        result2 = regulatory._load_sos_mapping()
+        assert "aurn" in result2
+        assert regulatory._sos_mapping is not None
+
+    def test_cache_not_latched_on_corrupt_json(self, tmp_path, monkeypatch):
+        from aeolus.sources import regulatory
+
+        monkeypatch.setattr(regulatory, "_sos_mapping", None)
+        bad = tmp_path / "_sos_mapping.json"
+        bad.write_text("not valid json {{{")
+        monkeypatch.setattr(regulatory, "_SOS_MAPPING_PATH", bad)
+
+        result = regulatory._load_sos_mapping()
+        assert result == {}
+        assert regulatory._sos_mapping is None
 
 
 # ============================================================================

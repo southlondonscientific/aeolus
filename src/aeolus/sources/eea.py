@@ -198,9 +198,10 @@ def _get_spo_mapping() -> dict[str, str]:
 
     csv_text = _fetch_metadata_csv()
     if csv_text is None:
+        # Don't latch the cache on transient errors — leave it None so the
+        # next call retries. Returning a local empty dict for this call only.
         logger.warning("Failed to download EEA metadata CSV; site code mapping unavailable")
-        _spo_to_eoi = {}
-        return _spo_to_eoi
+        return {}
 
     spo_col = "Sampling Point Id"
     eoi_col = "Air Quality Station EoI Code"
