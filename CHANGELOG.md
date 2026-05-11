@@ -5,6 +5,32 @@ All notable changes to Aeolus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.5] - 2026-05-11
+
+### Fixed (silent wrong numbers — please re-baseline)
+
+- **OpenAQ `find_sites(country=...)` was silently capped at 100 results** — `fetch_openaq_metadata` made a single SDK call with `limit=100`, so country-level queries returned only the first 100 stations for every country. Korea returned 100 of ~765; India 100 of ~723; Ghana 100 of 98 (full coverage by coincidence). Anyone who's done a country-wide OpenAQ site discovery since the SDK migration has been working from a 100-station sample, not the full network. `fetch_openaq_metadata` now auto-paginates with the SDK's maximum page size (1000) until exhausted, with a 50-page (~50 000-site) safety cap that warns rather than truncating. User-supplied `limit=N` still works as a total cap. **Migration**: re-run any cached country-level `find_sites("OPENAQ", country=...)` results — the previous output was a non-deterministic 100-site sample, not a representative one.
+
+### Fixed
+
+- **LMAM metadata-cache latch on transient errors** — `_populate_pcode_cache` set the module-global cache to `{}` on any unexpected-shape path (missing `pcode` column, empty normalised frame). Once latched, `_site_path` never re-fetched, so every subsequent LMAM data request in the process silently returned empty with "site not found in metadata" warnings. The cache now stays `None` on error paths so the next call retries the fetch. Only reachable from long-running processes (notebooks, services) since tests reset the cache via an autouse fixture.
+
+### Added
+
+- **LMAM source — Locally-Managed Automatic Monitoring** — DEFRA's umbrella feed for 196 active automatic monitoring sites operated by local authorities and regional networks outside the national strategy (AURN, SAQN, WAQN, NI, AQE). Six provider networks: Sussex (53 sites), Kent (44), AQ Data Manager (59), North Lincs (28), Leicester (7), Hampshire (6). Free to use, no API key. URL pattern uses a `{pcode}/` subfolder under `LMAM/R_data/`, looked up lazily from the metadata feed.
+- **OpenAQ `monitor=True/False` filter** — flow through to the SDK to restrict results to reference-grade regulatory monitors (`True`) or low-cost sensors (`False`). Omit to return both.
+- **OpenAQ country-filter aliases** — `find_sites("OPENAQ", ...)` now accepts `country=`, `countries=`, and `iso=` interchangeably. Passing more than one raises `ValueError` so typos surface.
+- **OpenAQ pagination progress** — `fetch_openaq_metadata` shows a progress bar via `tqdm` (when installed) for multi-page country pulls; falls back to logging messages otherwise.
+- **`column_map=` and `site_path=` parameters on `regulatory.make_data_fetcher`** — extend the shared regulatory data-fetcher factory to support networks with non-standard column names (lowercase, `FINE` for PM2.5) and per-site URL fragments (LMAM's `{pcode}/`).
+
+### Changed (performance)
+
+- **LAQN data fetch migrated from ERG REST API to openair RData feed** — `~60–160 s/site/year` → `~0.5 s/site/year` (>100× faster). The previous ERG path is gone; LAQN data now flows through `regulatory.make_data_fetcher` like AURN/SAQN/etc. Metadata still comes from the ERG JSON API since LAQN has no openair `LAQN_metadata.RData` file (and `sites.RData` is the broader Imperial superset). Public API unchanged — `aeolus.download("LAQN", ...)` and `aeolus.find_sites("LAQN", ...)` continue to work the same way.
+
+### Notes
+
+- `aeolus.sources.laqn.SPECIES_MAP`, `UNITS_MAP`, and `_month_ranges` are removed (no longer needed — handled by the shared regulatory pipeline). If you imported these privately, switch to standard `aeolus.download("LAQN", ...)`.
+
 ## [0.4.4] - 2026-05-07
 
 ### Fixed (silent wrong numbers — please re-baseline)
