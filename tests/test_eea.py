@@ -333,14 +333,31 @@ class TestSpoMappingCache:
     restart.
     """
 
+    @pytest.fixture(autouse=True)
+    def _reset_module_state(self):
+        """Save and restore the module-global cache around each test.
+
+        ``monkeypatch.setattr`` would normally handle this, but live
+        integration tests in TestLiveIntegration (and other test files)
+        populate ``_spo_to_eoi`` with real data before this test runs in
+        the full suite. We bypass monkeypatch's restore order entirely and
+        do the save/restore explicitly so this test class is independent
+        of test ordering.
+        """
+        from aeolus.sources import eea
+
+        saved = eea._spo_to_eoi
+        eea._spo_to_eoi = None
+        try:
+            yield
+        finally:
+            eea._spo_to_eoi = saved
+
     def test_cache_not_latched_after_failed_fetch(self, monkeypatch):
         """After a failed _fetch_metadata_csv, the cache stays None so the
         next call retries instead of returning the empty fallback forever.
         """
         from aeolus.sources import eea
-
-        # Reset the module-global cache.
-        monkeypatch.setattr(eea, "_spo_to_eoi", None)
 
         call_count = {"n": 0}
 
@@ -351,6 +368,8 @@ class TestSpoMappingCache:
             return "Sampling Point Id,Air Quality Station EoI Code\nSPO.IE.A,IE0001\n"
 
         monkeypatch.setattr(eea, "_fetch_metadata_csv", fake_fetch)
+
+        assert eea._spo_to_eoi is None, "fixture set cache to None"
 
         result1 = eea._get_spo_mapping()
         assert result1 == {}, "first call returns empty fallback"
