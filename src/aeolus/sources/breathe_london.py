@@ -428,7 +428,8 @@ def create_breathe_london_normaliser():
         add_quality_flag,
         filter_invalid_rows,
         add_column("source_network", "BREATHE_LONDON"),
-        add_column("created_at", datetime.now(timezone.utc)),
+        # Lazy callable — evaluated per fetch, not frozen at module-import time.
+        add_column("created_at", lambda df: datetime.now(timezone.utc)),
         select_columns(
             "site_code",
             "date_time",

@@ -910,6 +910,32 @@ class TestBreatheLondonNormalizer:
 
         assert "created_at" in result.columns
 
+    def test_created_at_evaluated_per_call_not_at_import(self):
+        """created_at must be lazy. Earlier code passed a static
+        ``datetime.now(...)`` to add_column at normaliser-construction time
+        (and the normaliser is built once at module import via
+        ``register_source(..., normalise=create_breathe_london_normaliser())``),
+        so every fetched row carried the module-import timestamp.
+        """
+        import time
+        from datetime import datetime, timezone
+
+        normaliser = create_breathe_london_normaliser()
+        df = pd.DataFrame(
+            {
+                "SiteCode": ["BL0001"],
+                "DateTime": ["2024-01-01T00:00:00Z"],
+                "Species": ["NO2"],
+                "ScaledValue": [45.2],
+                "Units": ["ug.m-3"],
+            }
+        )
+
+        marker = datetime.now(timezone.utc)
+        time.sleep(0.01)
+        result = normaliser(df)
+        assert (result["created_at"] >= marker).all()
+
     def test_filters_null_values(self):
         """Test that rows with null essential values are filtered."""
         normaliser = create_breathe_london_normaliser()
