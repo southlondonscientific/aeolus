@@ -43,7 +43,7 @@ import requests
 
 from ..decorators import retry_on_network_error
 from ..registry import register_source
-from ..types import AeolusDataWarning, empty_data_frame
+from ..types import AeolusDataWarning, empty_data_frame, empty_metadata_frame
 
 logger = getLogger(__name__)
 
@@ -375,7 +375,7 @@ def fetch_sensor_community_metadata(
             AeolusDataWarning,
             stacklevel=2,
         )
-        return empty_data_frame()
+        return empty_metadata_frame()
 
     try:
         data = response.json()
@@ -386,10 +386,10 @@ def fetch_sensor_community_metadata(
             AeolusDataWarning,
             stacklevel=2,
         )
-        return empty_data_frame()
+        return empty_metadata_frame()
 
     if not data:
-        return empty_data_frame()
+        return empty_metadata_frame()
 
     # Extract unique sensors from the response
     sensors = {}
@@ -419,7 +419,7 @@ def fetch_sensor_community_metadata(
         }
 
     if not sensors:
-        return empty_data_frame()
+        return empty_metadata_frame()
 
     df = pd.DataFrame(list(sensors.values()))
 

@@ -39,7 +39,7 @@ import requests
 from ..decorators import retry_on_network_error
 from ..registry import register_source
 from ..transforms import add_column, compose, rename_columns, select_columns
-from ..types import AeolusDataWarning, empty_data_frame
+from ..types import AeolusDataWarning, empty_data_frame, empty_metadata_frame
 
 # Configuration
 BREATHE_LONDON_API_BASE = "https://breathe-london-7x54d7qf.ew.gateway.dev"
@@ -153,14 +153,14 @@ def fetch_breathe_london_metadata(**filters) -> pd.DataFrame:
             AeolusDataWarning,
             stacklevel=2,
         )
-        return empty_data_frame()
+        return empty_metadata_frame()
 
     if not data:
-        return empty_data_frame()
+        return empty_metadata_frame()
 
     df = pd.DataFrame(data)
     if df.empty:
-        return df
+        return empty_metadata_frame()
 
     df = _create_metadata_normaliser()(df)
     return _apply_metadata_filters(df, filters)

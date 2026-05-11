@@ -466,7 +466,9 @@ class TestFetchBreatheLondonMetadata:
     def test_returns_empty_dataframe_on_no_results(
         self, mock_empty_response, monkeypatch
     ):
-        """Test that empty response returns empty DataFrame."""
+        """Test that empty response returns empty METADATA-schema DataFrame."""
+        from aeolus.types import METADATA_COLUMNS
+
         monkeypatch.setenv("BL_API_KEY", "test_key_123")
 
         responses.add(
@@ -480,10 +482,17 @@ class TestFetchBreatheLondonMetadata:
 
         assert isinstance(result, pd.DataFrame)
         assert result.empty
+        assert list(result.columns) == METADATA_COLUMNS
 
     @responses.activate
     def test_returns_empty_dataframe_on_api_error(self, monkeypatch):
-        """Test that API errors return empty DataFrame with warning."""
+        """Test that API errors return empty METADATA-schema DataFrame.
+
+        Must be the metadata schema (not data schema) so concatenation
+        against valid metadata from other sources stays coherent.
+        """
+        from aeolus.types import METADATA_COLUMNS
+
         monkeypatch.setenv("BL_API_KEY", "test_key_123")
 
         responses.add(
@@ -496,6 +505,7 @@ class TestFetchBreatheLondonMetadata:
 
         assert isinstance(result, pd.DataFrame)
         assert result.empty
+        assert list(result.columns) == METADATA_COLUMNS
 
     @responses.activate
     def test_ignores_none_filter_values(self, mock_sensors_response, monkeypatch):

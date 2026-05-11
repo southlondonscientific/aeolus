@@ -469,6 +469,8 @@ class TestFetchMetadata:
     @patch("aeolus.sources.sensor_community._make_request")
     def test_fetch_metadata_empty_response(self, mock_request):
         """Test handling of empty response."""
+        from aeolus.types import METADATA_COLUMNS
+
         mock_response = MagicMock()
         mock_response.json.return_value = []
         mock_request.return_value = mock_response
@@ -476,15 +478,35 @@ class TestFetchMetadata:
         df = fetch_sensor_community_metadata(country="XX")
 
         assert df.empty
+        # Must return METADATA schema (6 cols) — not DATA schema (8 cols).
+        # Concatenation against valid metadata from other sources depends on this.
+        assert list(df.columns) == METADATA_COLUMNS
 
     @patch("aeolus.sources.sensor_community._make_request")
     def test_fetch_metadata_request_failure(self, mock_request):
         """Test handling of request failure."""
+        from aeolus.types import METADATA_COLUMNS
+
         mock_request.return_value = None
 
         df = fetch_sensor_community_metadata(country="GB")
 
         assert df.empty
+        assert list(df.columns) == METADATA_COLUMNS
+
+    @patch("aeolus.sources.sensor_community._make_request")
+    def test_fetch_metadata_json_parse_failure(self, mock_request):
+        """If response.json() raises, return METADATA schema."""
+        from aeolus.types import METADATA_COLUMNS
+
+        mock_response = MagicMock()
+        mock_response.json.side_effect = ValueError("not json")
+        mock_request.return_value = mock_response
+
+        df = fetch_sensor_community_metadata(country="GB")
+
+        assert df.empty
+        assert list(df.columns) == METADATA_COLUMNS
 
 
 # ============================================================================
