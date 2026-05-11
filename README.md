@@ -15,6 +15,7 @@ Aeolus distinguishes between two types of data source:
 |------|--------|----------|---------|
 | Network | [AURN](https://uk-air.defra.gov.uk/), [SAQN](https://www.scottishairquality.scot/), [WAQN](https://airquality.gov.wales/), [NI](https://www.airqualityni.co.uk/), [AQE](https://www.airqualityengland.co.uk/) | UK regulatory networks | No |
 | Network | [LAQN](https://www.londonair.org.uk/) | London Air Quality Network (~250 sites) | No |
+| Network | [LMAM](https://uk-air.defra.gov.uk/networks/network-info?view=nondefraaqmon) | UK Locally-Managed Automatic Monitoring (~196 sites across 6 council/regional networks) | No |
 | Network | [EEA](https://www.eea.europa.eu/) | European Environment Agency (40+ countries, 7,000+ stations) | No |
 | Network | [Breathe London](https://www.breathelondon.org/) | London low-cost sensors | Yes |
 | Network | [AirQo](https://airqo.net/) | African cities (200+ sensors) | Yes |
@@ -73,6 +74,7 @@ These networks provide quality-assured data from reference-grade monitors operat
 | **NI** | Northern Ireland Network | Northern Ireland |
 | **AQE** | Air Quality England | England (local authorities) |
 | **LAQN** | London Air Quality Network | Greater London (~250 sites) |
+| **LMAM** | Locally-Managed Automatic Monitoring | UK council/regional networks (~196 sites) |
 
 ```python
 # Get metadata for all AURN sites
