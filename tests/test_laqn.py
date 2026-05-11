@@ -79,6 +79,7 @@ def mock_laqn_rdata_df():
     base = 1704067200.0
     return pd.DataFrame({
         "date": [base, base + 3600, base + 7200],
+        "no": [17.2, 15.9, 14.0],
         "nox": [30.1, 28.5, 25.0],
         "no2": [13.4, 12.8, 11.2],
         "o3": [19.6, 21.2, 24.5],
@@ -200,15 +201,15 @@ class TestFetchData:
 
     @patch("aeolus.sources.regulatory.fetch_rdata")
     def test_lowercase_columns_renamed_to_standard(self, mock_rdata, mock_laqn_rdata_df):
-        """LAQN's lowercase `nox`, `no2`, `o3`, `pm10`, `co` should map to
-        AURN-style names."""
+        """LAQN's lowercase `no`, `nox`, `no2`, `o3`, `pm10`, `co` should map
+        to AURN-style names."""
         mock_rdata.return_value = mock_laqn_rdata_df
         start = datetime(2024, 1, 1, tzinfo=timezone.utc)
         end = datetime(2024, 1, 2, tzinfo=timezone.utc)
 
         result = fetch_laqn_data(["MY1"], start, end)
         present = set(result["measurand"].unique())
-        assert {"NO2", "NOXasNO2", "O3", "PM10", "CO", "PM2.5"}.issubset(present)
+        assert {"NO", "NO2", "NOXasNO2", "O3", "PM10", "CO", "PM2.5"}.issubset(present)
 
     @patch("aeolus.sources.regulatory.fetch_rdata")
     def test_extra_columns_dropped(self, mock_rdata, mock_laqn_rdata_df):

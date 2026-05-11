@@ -46,7 +46,6 @@ from ..registry import register_source
 from ..transforms import (
     add_column,
     compose,
-    rename_columns,
     reset_index,
     select_columns,
 )
@@ -90,10 +89,6 @@ def _get_json(path: str) -> dict | None:
 def normalise_laqn_metadata():
     """Return a compose() pipeline that normalises LAQN site metadata."""
     return compose(
-        rename_columns({
-            "site_code": "site_code",
-            "site_name": "site_name",
-        }),
         add_column("source_network", "LAQN"),
         add_column("measurands", None),
         add_column(

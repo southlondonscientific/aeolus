@@ -405,8 +405,13 @@ def make_data_fetcher(
                     if column_map:
                         df = df.rename(columns=column_map)
                     # LAQN openair files have no separate `code` column —
-                    # the `site` column contains the site code. Provide a
-                    # `code` column so the shared melt pipeline works.
+                    # the `site` column contains the site code (not a
+                    # human-readable name). Provide a `code` column so the
+                    # shared melt pipeline works. Downstream `site` is
+                    # renamed to `site_name` and dropped before output —
+                    # LAQN data therefore has no `site_name` carrying a
+                    # real name; consumers wanting a name must join on
+                    # `site_code` against `find_sites("LAQN")` metadata.
                     if "code" not in df.columns and "site" in df.columns:
                         df = df.assign(code=df["site"])
                     results.append(df)

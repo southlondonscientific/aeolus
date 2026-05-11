@@ -99,10 +99,6 @@ def _normalise_lmam_metadata(raw: pd.DataFrame) -> pd.DataFrame:
 
     # The metadata file has one row per (site, parameter, instrument-period).
     # Collapse to one row per site, deduplicating parameters across rows.
-    keep_cols = [
-        "site_id", "site_name", "location_type",
-        "latitude", "longitude", "provider", "pcode",
-    ]
     # Some early rows have NaN coords — keep them out so find_sites works.
     raw = raw.dropna(subset=["latitude", "longitude"])
 
@@ -143,17 +139,21 @@ _pcode_cache: dict[str, str] | None = None
 
 def _populate_pcode_cache(meta_df: pd.DataFrame) -> None:
     """Build the site_code → pcode lookup from a raw or normalised metadata
-    frame. Subsequent calls reuse the cache."""
+    frame. Subsequent calls reuse the cache.
+
+    On any unexpected shape (missing ``pcode`` column, missing site-code
+    column) leave the cache as ``None`` so the next call retries the
+    metadata fetch rather than latching to an empty dict that would
+    silently break every subsequent data fetch.
+    """
     global _pcode_cache
     if "pcode" not in meta_df.columns:
-        _pcode_cache = {}
         return
     if "site_id" in meta_df.columns:
         codes = meta_df["site_id"]
     elif "site_code" in meta_df.columns:
         codes = meta_df["site_code"]
     else:
-        _pcode_cache = {}
         return
     pcodes = meta_df["pcode"]
     _pcode_cache = {
