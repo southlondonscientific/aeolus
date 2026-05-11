@@ -1097,6 +1097,33 @@ class TestAirQoNormalizer:
 
         assert "created_at" in result.columns
 
+    def test_created_at_evaluated_per_call_not_at_import(self):
+        """created_at must be lazy — evaluated at each fetch, not frozen at
+        module-import time. The earlier version passed
+        ``datetime.now(timezone.utc)`` as a static value to add_column, which
+        captured the import-time stamp once and reused it on every fetch.
+        """
+        import time
+        from datetime import datetime, timezone
+
+        normaliser = create_airqo_normaliser()
+        df = pd.DataFrame(
+            [
+                {
+                    "time": "2024-01-01T00:00:00.000Z",
+                    "pm2_5": {"value": 35.5},
+                    "siteDetails": {"_id": "site_001", "name": "Test"},
+                }
+            ]
+        )
+
+        marker = datetime.now(timezone.utc)
+        time.sleep(0.01)
+        result = normaliser(df)
+        # If the bug regresses, every row will carry the module-import
+        # timestamp — which is strictly BEFORE ``marker``.
+        assert (result["created_at"] >= marker).all()
+
     def test_filters_invalid_values(self):
         """Test that zero/negative values are filtered out."""
         normaliser = create_airqo_normaliser()
