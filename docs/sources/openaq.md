@@ -22,24 +22,34 @@ export OPENAQ_API_KEY=your_key_here
 
 ## Finding Sites
 
-OpenAQ aggregates data from many sources, so site discovery is important:
+OpenAQ aggregates data from many sources, so site discovery is important.
+
+`find_sites("OPENAQ", country=…)` **auto-paginates** through the SDK to return *all* matching locations (up to a 50-page / ~50 000-site safety cap, which fires a warning rather than truncating). Korea, India, etc. return 700+ sites in a single call without truncation. Pass `limit=N` to cap the total when you only want a sample.
 
 ```python
 import aeolus
 
-# Search for sites in a country
-uk_sites = aeolus.portals.find_sites("OPENAQ", country="GB")
+# All Korean stations (~765 — auto-paginated)
+kr_sites = aeolus.portals.find_sites("OPENAQ", country="KR")
+
+# Limit to the first 50 if you just want a sample
+sample = aeolus.portals.find_sites("OPENAQ", country="GB", limit=50)
+
+# Reference monitors only (regulatory-grade), excluding low-cost sensors
+monitors = aeolus.portals.find_sites("OPENAQ", country="GB", monitor=True)
+
+# Or low-cost sensors only
+sensors = aeolus.portals.find_sites("OPENAQ", country="GB", monitor=False)
 
 # Search within a bounding box
-# bbox format: (min_lon, min_lat, max_lon, max_lat) - same as GeoJSON/shapely
+# bbox format: (min_lon, min_lat, max_lon, max_lat) — same as GeoJSON/shapely
 london_sites = aeolus.portals.find_sites(
     "OPENAQ",
-    bbox=(-0.51, 51.28, 0.34, 51.69)
+    bbox=(-0.51, 51.28, 0.34, 51.69),
 )
-
-# Search by city
-city_sites = aeolus.portals.find_sites("OPENAQ", city="London")
 ```
+
+The `country=` parameter accepts ISO 3166 alpha-2 codes. `iso=` and `countries=` are also accepted as aliases (the latter matches the multi-source `find_sites(countries=...)` convention); passing more than one of the three raises `ValueError` so typos surface.
 
 ## Downloading Data
 

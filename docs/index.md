@@ -27,6 +27,7 @@ Aeolus provides a unified Python interface for accessing air quality data from m
 | NI | Northern Ireland network | No |
 | AQE | Air Quality England (local authorities) | No |
 | LAQN | London Air Quality Network (~250 sites) | No |
+| LMAM | UK Locally-Managed Automatic Monitoring (~196 sites across 6 council/regional networks) | No |
 | EEA | European Environment Agency (40+ countries, 7,000+ stations) | No |
 | OpenAQ | Global (100+ countries) | Yes |
 | Breathe London | London low-cost sensors | Yes |

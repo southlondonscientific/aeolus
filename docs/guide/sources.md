@@ -67,6 +67,14 @@ London's main regulatory monitoring network, managed by ERG at Imperial College 
 - **Data quality**: Ratified
 - **API key**: Not required
 
+### LMAM (Locally-Managed Automatic Monitoring)
+
+DEFRA's umbrella feed for automatic stations operated by local authorities and regional networks outside the national strategy (AURN, SAQN, WAQN, NI, AQE). 196 active sites across six provider networks: Sussex, Kent, AQ Data Manager, North Lincolnshire, Leicester, Hampshire.
+
+- **Coverage**: UK (non-AURN/AQE local authority networks)
+- **Data quality**: Ratified (where provider supplies it)
+- **API key**: Not required
+
 ## Global Portals
 
 Portals aggregate data from multiple sources worldwide. Due to their scale (hundreds of thousands of sites), you search for sites first, then download.
@@ -156,6 +164,7 @@ Air quality and noise monitoring network in Dublin, Ireland. Measures NO2, SO2, 
 | NI | Network | N. Ireland | Reference | Yes | 2000s+ |
 | AQE | Network | England | Reference | Yes | 2000s+ |
 | LAQN | Network | London | Reference | Yes | 1990s+ |
+| LMAM | Network | UK (council/regional) | Ratified | Yes | 2000s+ |
 | EEA | Network | Europe | Reference | No | 2013+ |
 | OpenAQ | Portal | Global | Mixed | Yes | 2015+ |
 | PurpleAir | Portal | Global | Indicative | Yes | 2017+ |

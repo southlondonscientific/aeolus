@@ -60,6 +60,8 @@ data = aeolus.download(
 )
 ```
 
+The PurpleAir historic-data endpoint caps each response by averaging window — for the 60-minute average aeolus uses, that's 14 days per call. Aeolus auto-chunks multi-week requests into 14-day blocks transparently, so you don't need to split long date ranges yourself. Per-chunk errors are surfaced as warnings and break that sensor's fetch (no silent partial data).
+
 ## QA/QC Methodology
 
 PurpleAir sensors have two laser particle counters (Channel A and Channel B) for redundancy. Aeolus applies literature-based QA/QC thresholds:
