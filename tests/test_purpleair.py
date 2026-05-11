@@ -541,6 +541,39 @@ class TestFetchPurpleairData:
         assert not result.empty
 
     @patch("aeolus.sources.purpleair._get_purpleair_client")
+    def test_chunks_long_date_range_into_api_windows(
+        self, mock_get_client, mock_historic_response
+    ):
+        """PurpleAir's 60-minute average is capped at 14 days per response.
+
+        A 60-day pull must therefore split into multiple calls (was: silently
+        returning only the most recent 14 days).
+        """
+        mock_client = MagicMock()
+        mock_client.request_sensor_historic_data.return_value = mock_historic_response
+        mock_get_client.return_value = mock_client
+
+        # 60 days / 14-day chunks = 5 chunks (≤14, ≤14, ≤14, ≤14, ≤4)
+        fetch_purpleair_data(
+            sites=["131075"],
+            start_date=datetime(2024, 1, 1),
+            end_date=datetime(2024, 3, 1),
+        )
+
+        assert mock_client.request_sensor_historic_data.call_count == 5
+
+        # Each chunk must request <= 14 days
+        for call in mock_client.request_sensor_historic_data.call_args_list:
+            span = call.kwargs["end_timestamp"] - call.kwargs["start_timestamp"]
+            assert span <= 14 * 24 * 3600
+
+        # First chunk starts at requested start, last chunk ends at requested end
+        first = mock_client.request_sensor_historic_data.call_args_list[0]
+        last = mock_client.request_sensor_historic_data.call_args_list[-1]
+        assert first.kwargs["start_timestamp"] == int(datetime(2024, 1, 1).timestamp())
+        assert last.kwargs["end_timestamp"] == int(datetime(2024, 3, 1).timestamp())
+
+    @patch("aeolus.sources.purpleair._get_purpleair_client")
     def test_continues_on_single_site_failure(
         self, mock_get_client, mock_historic_response
     ):
@@ -1176,6 +1209,24 @@ class TestPurpleairNormalizer:
         result = normaliser(df)
 
         assert "created_at" in result.columns
+
+    def test_created_at_evaluated_per_call_not_at_import(
+        self, mock_historic_response
+    ):
+        """created_at must be lazy. Earlier code passed a static
+        ``datetime.now(...)`` to add_column at normaliser-construction time,
+        so every fetch carried the module-import timestamp.
+        """
+        import time
+        from datetime import datetime, timezone
+
+        normaliser = create_purpleair_normaliser()
+        df = _parse_historic_response(mock_historic_response, "131075")
+
+        marker = datetime.now(timezone.utc)
+        time.sleep(0.01)
+        result = normaliser(df)
+        assert (result["created_at"] >= marker).all()
 
     def test_selects_correct_columns(self, mock_historic_response):
         """Test that only standard columns are in output."""

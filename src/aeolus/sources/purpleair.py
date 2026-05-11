@@ -32,7 +32,7 @@ QA/QC Methodology: See REFERENCES.md for sources.
 
 import os
 import warnings
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from logging import getLogger, warning
 
 import pandas as pd
@@ -78,6 +78,12 @@ METADATA_FIELDS = (
     "name,latitude,longitude,altitude,location_type,"
     "last_seen,date_created,private,model,hardware"
 )
+
+# PurpleAir's historical-data endpoint caps each response by the chosen
+# averaging window — see the "Looping API Calls" community article. With our
+# fixed 60-minute average this is 14 days per call, so multi-week pulls must
+# be chunked.
+PURPLEAIR_HOURLY_MAX_DAYS = 14
 
 # ============================================================================
 # QA/QC THRESHOLDS
@@ -390,36 +396,59 @@ def fetch_purpleair_data(
 
     all_data = []
 
+    chunk_window = timedelta(days=PURPLEAIR_HOURLY_MAX_DAYS)
     for sensor_index in sites:
         logger.info(f"Fetching PurpleAir data for sensor {sensor_index}...")
 
+        # Convert to int for API
         try:
-            # Convert to int for API
             sensor_idx = int(sensor_index)
-
-            # Request historical data
-            # Using 60-minute average for hourly data
-            response = client.request_sensor_historic_data(
-                sensor_index=sensor_idx,
-                fields=DEFAULT_HISTORY_FIELDS,
-                start_timestamp=int(start_date.timestamp()),
-                end_timestamp=int(end_date.timestamp()),
-                average=60,  # Hourly averages
+        except (TypeError, ValueError):
+            warning(
+                f"Failed to fetch PurpleAir data for sensor {sensor_index}: "
+                f"not an integer sensor index"
             )
+            continue
+
+        # PurpleAir caps each call at PURPLEAIR_HOURLY_MAX_DAYS days for the
+        # 60-minute average. Chunk the request so multi-week date ranges don't
+        # silently return only the most recent fortnight's data.
+        sensor_chunks: list[pd.DataFrame] = []
+        chunk_start = start_date
+        while chunk_start < end_date:
+            chunk_end = min(chunk_start + chunk_window, end_date)
+
+            try:
+                response = client.request_sensor_historic_data(
+                    sensor_index=sensor_idx,
+                    fields=DEFAULT_HISTORY_FIELDS,
+                    start_timestamp=int(chunk_start.timestamp()),
+                    end_timestamp=int(chunk_end.timestamp()),
+                    average=60,  # Hourly averages
+                )
+            except (PurpleAirAPIError, requests.RequestException, ValueError, KeyError) as e:
+                warning(
+                    f"Failed to fetch PurpleAir data for sensor {sensor_index} "
+                    f"({chunk_start.date()}..{chunk_end.date()}): {e}"
+                )
+                break
 
             if response and "data" in response:
                 df = _parse_historic_response(response, sensor_index)
                 if not df.empty:
-                    all_data.append(df)
-                    logger.debug(
-                        f"Sensor {sensor_index}: fetched {len(df)} measurements"
-                    )
-            else:
-                logger.warning(f"No data returned for sensor {sensor_index}")
+                    sensor_chunks.append(df)
 
-        except (PurpleAirAPIError, requests.RequestException, ValueError, KeyError) as e:
-            warning(f"Failed to fetch PurpleAir data for sensor {sensor_index}: {e}")
-            continue
+            chunk_start = chunk_end
+
+        if sensor_chunks:
+            sensor_df = pd.concat(sensor_chunks, ignore_index=True)
+            all_data.append(sensor_df)
+            logger.debug(
+                f"Sensor {sensor_index}: fetched {len(sensor_df)} measurements "
+                f"across {len(sensor_chunks)} chunk(s)"
+            )
+        else:
+            logger.warning(f"No data returned for sensor {sensor_index}")
 
     if not all_data:
         return _empty_raw_dataframe() if raw else empty_data_frame()
@@ -601,7 +630,8 @@ def create_purpleair_normaliser():
         rename_columns,
         convert_temperature,
         add_column("source_network", "PURPLEAIR"),
-        add_column("created_at", datetime.now(timezone.utc)),
+        # Lazy callable — evaluated per fetch, not frozen at module-import time.
+        add_column("created_at", lambda df: datetime.now(timezone.utc)),
         select_columns(
             "site_code",
             "date_time",
