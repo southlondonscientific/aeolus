@@ -31,7 +31,9 @@ RData metadata sites by geographic proximity (<200m).
 import functools
 import json
 import logging
+import os
 import re
+import threading
 import warnings
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -68,17 +70,125 @@ _SOS_NETWORKS = ["aurn", "saqn", "waqn", "ni", "aqe"]
 
 
 # ============================================================================
+# Circuit-breaker for the SOS endpoint
+# ============================================================================
+#
+# Defra's UK-AIR SOS service is run by a third party and goes down
+# unannounced for hours at a time. When it does, ``getData`` returns 502
+# and ``response.raise_for_status()`` makes the retry decorator wait
+# 1+2+4 seconds per timeseries before giving up. A single
+# ``get_current("AURN", [site])`` call has ~8 timeseries per site, so one
+# call to a single AURN site can sit in retry-backoff for upwards of six
+# minutes — and the per-timeseries 502 is caught and logged inside
+# ``make_sos_data_fetcher``, so the call ultimately returns an empty
+# DataFrame rather than raising. Downstream consumers that watch for
+# *exceptions* to short-circuit (e.g. their own service-level
+# circuit-breakers) never see the failure signal at all.
+#
+# The fix is a process-level circuit-breaker on the SOS host itself.
+# After ``AEOLUS_SOS_BREAKER_FAILURES`` consecutive failures across any
+# SOS endpoint, subsequent calls fail-fast with ``RequestException`` for
+# ``AEOLUS_SOS_BREAKER_COOLDOWN_S`` seconds. The first call after the
+# cooldown probes the upstream again; if it succeeds the breaker closes.
+
+_BREAKER_FAILURES_THRESHOLD = int(
+    os.environ.get("AEOLUS_SOS_BREAKER_FAILURES", "5")
+)
+_BREAKER_COOLDOWN_S = int(os.environ.get("AEOLUS_SOS_BREAKER_COOLDOWN_S", "60"))
+
+_breaker_lock = threading.Lock()
+_breaker_failure_count = 0
+_breaker_opened_until: datetime | None = None
+
+
+def _check_sos_breaker() -> None:
+    """Raise immediately if the breaker is open; otherwise return.
+
+    Transitions a stale ``open`` state back to closed once cooldown has
+    elapsed, so the next call probes upstream rather than skipping again.
+    """
+    global _breaker_opened_until, _breaker_failure_count
+    with _breaker_lock:
+        if _breaker_opened_until is None:
+            return
+        now = datetime.now(tz=timezone.utc)
+        if now >= _breaker_opened_until:
+            _breaker_opened_until = None
+            _breaker_failure_count = 0
+            return
+        remaining = (_breaker_opened_until - now).total_seconds()
+    raise requests.exceptions.RequestException(
+        f"SOS circuit-breaker open ({_BREAKER_FAILURES_THRESHOLD}+ consecutive "
+        f"failures); next probe in {remaining:.0f}s"
+    )
+
+
+def _record_sos_success() -> None:
+    global _breaker_failure_count, _breaker_opened_until
+    with _breaker_lock:
+        _breaker_failure_count = 0
+        _breaker_opened_until = None
+
+
+def _record_sos_failure(error: Exception) -> None:
+    global _breaker_failure_count, _breaker_opened_until
+    with _breaker_lock:
+        _breaker_failure_count += 1
+        already_open = _breaker_opened_until is not None
+        if (
+            not already_open
+            and _breaker_failure_count >= _BREAKER_FAILURES_THRESHOLD
+        ):
+            _breaker_opened_until = datetime.now(tz=timezone.utc) + timedelta(
+                seconds=_BREAKER_COOLDOWN_S
+            )
+            logger.warning(
+                "SOS circuit-breaker opened after %d consecutive failures "
+                "(cooldown %ds): %s",
+                _breaker_failure_count,
+                _BREAKER_COOLDOWN_S,
+                error,
+            )
+
+
+def reset_sos_circuit() -> None:
+    """Clear circuit-breaker state. Intended for tests and ops use."""
+    global _breaker_failure_count, _breaker_opened_until
+    with _breaker_lock:
+        _breaker_failure_count = 0
+        _breaker_opened_until = None
+
+
+# ============================================================================
 # Low-level API helpers
 # ============================================================================
 
 
 @retry_on_network_error
-def _fetch_sos_json(endpoint: str, **params) -> dict | list:
-    """GET a JSON response from the SOS API."""
+def _fetch_sos_json_raw(endpoint: str, **params) -> dict | list:
+    """GET a JSON response from the SOS API (no breaker, retries only)."""
     url = f"{SOS_BASE_URL}/{endpoint}"
     response = requests.get(url, params=params, timeout=30)
     response.raise_for_status()
     return response.json()
+
+
+def _fetch_sos_json(endpoint: str, **params) -> dict | list:
+    """GET a JSON response from the SOS API, with breaker + retry.
+
+    Public entry point used by every other function in this module. The
+    breaker check happens *before* the retry-decorated inner call, so an
+    open breaker fails fast in microseconds rather than burning a 7-second
+    retry budget per call.
+    """
+    _check_sos_breaker()
+    try:
+        result = _fetch_sos_json_raw(endpoint, **params)
+    except Exception as exc:
+        _record_sos_failure(exc)
+        raise
+    _record_sos_success()
+    return result
 
 
 def _parse_eionet_id(label_or_uri: str) -> int | None:

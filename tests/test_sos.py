@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 import pytest
+import requests
 import responses
 
 from aeolus import api
@@ -481,6 +482,127 @@ class TestDataFetching:
 # ============================================================================
 # Latest fetcher
 # ============================================================================
+
+
+class TestCircuitBreaker:
+    """The SOS circuit-breaker fails fast when the upstream is unhealthy.
+
+    Defra's SOS endpoint goes down for hours unannounced; without the
+    breaker, every ``getData`` call burns a 7-second retry budget before
+    raising, and the per-timeseries 502 is caught and logged so the
+    overall call returns an empty frame rather than raising. The breaker
+    short-circuits subsequent calls so a single outage doesn't cost
+    minutes of wall-clock time per consumer call.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _clean_breaker(self, monkeypatch):
+        # Neutralise tenacity's exponential backoff between retries so the
+        # tests don't wait the full 1+2+4s budget per failing call.
+        monkeypatch.setattr("time.sleep", lambda *_a, **_kw: None)
+        # Lower threshold for cheap test runs; matches the env-overridable
+        # behaviour we ship.
+        monkeypatch.setattr(sos, "_BREAKER_FAILURES_THRESHOLD", 2)
+        sos.reset_sos_circuit()
+        yield
+        sos.reset_sos_circuit()
+
+    @responses.activate
+    def test_below_threshold_does_not_open_breaker(self):
+        """Failures below the threshold should not open the breaker."""
+        responses.add(
+            responses.GET,
+            f"{sos.SOS_BASE_URL}/services",
+            status=502,
+        )
+
+        for _ in range(sos._BREAKER_FAILURES_THRESHOLD - 1):
+            with pytest.raises(requests.exceptions.RequestException):
+                sos._fetch_sos_json("services")
+
+        # Breaker still closed: counter is below threshold.
+        assert sos._breaker_opened_until is None
+
+    @responses.activate
+    def test_threshold_failures_open_breaker(self):
+        """Once threshold failures hit, subsequent calls fail fast."""
+        responses.add(
+            responses.GET,
+            f"{sos.SOS_BASE_URL}/services",
+            status=502,
+        )
+
+        for _ in range(sos._BREAKER_FAILURES_THRESHOLD):
+            with pytest.raises(requests.exceptions.RequestException):
+                sos._fetch_sos_json("services")
+
+        assert sos._breaker_opened_until is not None
+        responses.reset()
+        # Next call must raise without hitting the network at all.
+        with pytest.raises(
+            requests.exceptions.RequestException, match="circuit-breaker open"
+        ):
+            sos._fetch_sos_json("services")
+        assert len(responses.calls) == 0
+
+    @responses.activate
+    def test_success_resets_failure_counter(self):
+        """A successful call clears the consecutive-failure counter."""
+        responses.add(
+            responses.GET,
+            f"{sos.SOS_BASE_URL}/services",
+            status=502,
+        )
+        with pytest.raises(requests.exceptions.RequestException):
+            sos._fetch_sos_json("services")
+        assert sos._breaker_failure_count == 1
+
+        # Swap to a healthy response for the recovery probe.
+        responses.reset()
+        responses.add(
+            responses.GET,
+            f"{sos.SOS_BASE_URL}/services",
+            json={"ok": True},
+            status=200,
+        )
+        sos._fetch_sos_json("services")
+        assert sos._breaker_failure_count == 0
+
+    def test_open_breaker_recovers_after_cooldown(self):
+        """An open breaker re-probes once the cooldown elapses."""
+        # Force the breaker open by hand, with the cooldown already in the past.
+        sos._breaker_failure_count = sos._BREAKER_FAILURES_THRESHOLD
+        sos._breaker_opened_until = datetime.now(tz=timezone.utc) - timedelta(
+            seconds=1
+        )
+
+        # _check_sos_breaker should transition back to closed and not raise.
+        sos._check_sos_breaker()
+        assert sos._breaker_opened_until is None
+        assert sos._breaker_failure_count == 0
+
+    @responses.activate
+    def test_open_breaker_blocks_make_sos_data_fetcher(self):
+        """Once open, the data fetcher returns empty without hitting SOS again."""
+        # Trip the breaker manually.
+        sos._breaker_failure_count = sos._BREAKER_FAILURES_THRESHOLD
+        sos._breaker_opened_until = datetime.now(tz=timezone.utc) + timedelta(
+            seconds=60
+        )
+        sos._network_mappings["aurn"] = {
+            "CLL2": [{"ts_id": "3", "measurand": "NO2", "uom": "ug/m3"}],
+        }
+
+        fetcher = sos.make_sos_data_fetcher("aurn")
+        df = fetcher(
+            ["CLL2"],
+            datetime(2026, 3, 18, tzinfo=timezone.utc),
+            datetime(2026, 3, 19, tzinfo=timezone.utc),
+        )
+
+        # Empty frame returned; not a single HTTP call was made.
+        assert df.empty
+        assert len(responses.calls) == 0
 
 
 class TestLatestFetcher:

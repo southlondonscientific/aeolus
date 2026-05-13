@@ -5,6 +5,12 @@ All notable changes to Aeolus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.5.2] - 2026-05-13
+
+### Added
+
+- **Process-level circuit-breaker on the Defra SOS endpoint** (`sources/sos.py`). When `uk-air.defra.gov.uk/sos-ukair/*` goes down — which it does, unannounced, for hours at a time — every `getData` call previously sat in `tenacity` retry-backoff for ~7 seconds before raising, and the per-timeseries `RequestException` was caught and logged inside `make_sos_data_fetcher` so the overall call returned an *empty DataFrame* rather than raising. A single `get_current("AURN", [site])` fans out to ~8 pollutants per site; observed wall-clock cost during the 2026-05-13 outage was 410 s for one AURN site and 154 s for one SAQN site, with the consumer seeing zero rows and no exception — making exception-based downstream circuit-breakers blind to the failure. After `AEOLUS_SOS_BREAKER_FAILURES` (default 5) consecutive failures, `_fetch_sos_json` now fails fast with `RequestException` for `AEOLUS_SOS_BREAKER_COOLDOWN_S` (default 60) seconds; the first call after the cooldown probes upstream again and a success closes the breaker. Both thresholds are env-overridable. New public hook `aeolus.sources.sos.reset_sos_circuit()` for tests and ops. **Migration**: no behaviour change when SOS is healthy; during SOS outages, calls now raise (or return empty after the documented retries) within seconds rather than minutes, and consumers who watch for `RequestException` to short-circuit will start seeing the signal.
+
 ## [0.4.5.1] - 2026-05-11
 
 ### Fixed (silent wrong numbers — please re-baseline)
