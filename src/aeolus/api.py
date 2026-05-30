@@ -669,9 +669,16 @@ def get_current(
     if df.empty:
         return df
 
-    # Keep only the most recent reading per site + measurand
-    idx = df.groupby(["site_code", "measurand"])["date_time"].idxmax()
-    return df.loc[idx].reset_index(drop=True)
+    # Keep only the most recent *valid* reading per site + measurand. Drop
+    # NaN-value rows first: near-real-time feeds often publish the newest hour
+    # with a timestamp but a NaN (unratified) value, which would otherwise mask
+    # an older genuine measurement. A group whose values are all NaN yields no
+    # row. (Also sidesteps idxmax on an all-NaT group for the dropped rows.)
+    valid = df[df["value"].notna()]
+    if valid.empty:
+        return valid.reset_index(drop=True)
+    idx = valid.groupby(["site_code", "measurand"])["date_time"].idxmax()
+    return valid.loc[idx].reset_index(drop=True)
 
 
 # ============================================================================

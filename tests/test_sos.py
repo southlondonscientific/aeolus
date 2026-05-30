@@ -791,6 +791,64 @@ class TestGetCurrent:
         df = api.get_current("AURN", sites=["CLL2"])
         assert list(df.columns) == DATA_COLUMNS
 
+    def test_fallback_skips_nan_value_latest_row(self):
+        """The fetch_data fallback must return the latest VALID reading, not a
+        freshly-published NaN-value hour that masks an older measurement."""
+        now = datetime.now(tz=timezone.utc)
+
+        def fake_fetch_data(sites, start, end):
+            return pd.DataFrame({
+                "site_code": ["S1", "S1"],
+                "date_time": [now - timedelta(hours=2), now - timedelta(hours=1)],
+                "measurand": ["NO2", "NO2"],
+                "value": [42.0, float("nan")],  # latest hour is NaN
+                "units": ["ug/m3", "ug/m3"],
+                "source_network": ["FAKE", "FAKE"],
+                "ratification": ["Unvalidated", "Unvalidated"],
+                "created_at": [now, now],
+            })
+
+        register_source("FAKE", {
+            "name": "FAKE",
+            "fetch_metadata": lambda *a, **k: pd.DataFrame(),
+            "fetch_data": fake_fetch_data,
+            "normalise": lambda df: df,
+            "requires_api_key": False,
+        })
+
+        df = api.get_current("FAKE", sites=["S1"])
+        assert len(df) == 1
+        assert df.iloc[0]["value"] == 42.0
+        assert df.iloc[0]["date_time"] == now - timedelta(hours=2)
+
+    def test_fallback_all_nan_group_yields_no_row(self):
+        """A group whose values are all NaN produces no current reading."""
+        now = datetime.now(tz=timezone.utc)
+
+        def fake_fetch_data(sites, start, end):
+            return pd.DataFrame({
+                "site_code": ["S1", "S1"],
+                "date_time": [now - timedelta(hours=2), now - timedelta(hours=1)],
+                "measurand": ["NO2", "NO2"],
+                "value": [float("nan"), float("nan")],
+                "units": ["ug/m3", "ug/m3"],
+                "source_network": ["FAKE", "FAKE"],
+                "ratification": ["Unvalidated", "Unvalidated"],
+                "created_at": [now, now],
+            })
+
+        register_source("FAKE", {
+            "name": "FAKE",
+            "fetch_metadata": lambda *a, **k: pd.DataFrame(),
+            "fetch_data": fake_fetch_data,
+            "normalise": lambda df: df,
+            "requires_api_key": False,
+        })
+
+        df = api.get_current("FAKE", sites=["S1"])
+        assert df.empty
+        assert list(df.columns) == DATA_COLUMNS
+
 
 # ============================================================================
 # Static mapping
