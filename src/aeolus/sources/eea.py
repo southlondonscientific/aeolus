@@ -497,6 +497,10 @@ def normalise_eea_data():
         map_pollutants,
         rename_columns({"Start": "date_time", "Value": "value", "Unit": "units"}),
         convert_value,
+        # convert_value coerces unparseable values to NaN; drop them (the
+        # Validity>=1 filter is a QA flag, not a value-presence check). Matches
+        # every other source, which drop NaN measurements.
+        filter_rows(lambda df: df["value"].notna()),
         normalise_units,
         add_column("source_network", "EEA"),
         map_verification,

@@ -263,6 +263,22 @@ class TestNormaliseEeaData:
         assert set(df["units"]) == {"mg/m3", "ug/m3"}
 
     @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
+    def test_drops_unparseable_values(self, _mock_mapping):
+        """convert_value coerces unparseable Values to NaN; those rows must be
+        dropped. Validity>=1 is a QA flag, not a value-presence check, so a
+        valid-but-null reading would otherwise reach the user as NaN."""
+        from aeolus.sources.eea import normalise_eea_data
+
+        records = [
+            {**MOCK_PARQUET_RECORDS[0], "Value": "25.0"},
+            {**MOCK_PARQUET_RECORDS[1], "Value": "n/a"},  # coerces to NaN
+        ]
+        df = normalise_eea_data()(self._raw_df(records))
+        assert df["value"].notna().all()
+        assert len(df) == 1
+        assert df.iloc[0]["value"] == 25.0
+
+    @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
     def test_verification_to_ratification(self, _mock_mapping):
         from aeolus.sources.eea import normalise_eea_data
 

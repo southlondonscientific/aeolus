@@ -405,6 +405,43 @@ class TestFetchData:
         assert "created_at" in df.columns
 
     @patch("aeolus.sources.airnow._call_airnow_api")
+    def test_fetch_data_drops_sentinel_values(self, mock_api):
+        """AirNow's -999 missing-data sentinel must be dropped, not emitted as
+        a real concentration that skews means/percentiles/exceedances."""
+        mock_api.return_value = [
+            {"Latitude": 34.0522, "Longitude": -118.2437, "Parameter": "PM2.5",
+             "Value": 42.0, "Unit": "UG/M3", "UTC": "2024-01-15T10:00"},
+            {"Latitude": 34.0522, "Longitude": -118.2437, "Parameter": "PM2.5",
+             "Value": -999.0, "Unit": "UG/M3", "UTC": "2024-01-15T11:00"},
+        ]
+        df = fetch_airnow_data(
+            sites=["34d0522_m118d2437"],
+            start_date=datetime(2024, 1, 15),
+            end_date=datetime(2024, 1, 15),
+        )
+        assert not (df["value"] <= -900).any()
+        assert (df["value"] == 42.0).all()
+        assert len(df) == 1
+
+    @patch("aeolus.sources.airnow._call_airnow_api")
+    def test_fetch_data_skips_nonnumeric_value(self, mock_api):
+        """A non-numeric Value must skip that one row, not raise and abort the
+        whole site fetch (losing every other observation)."""
+        mock_api.return_value = [
+            {"Latitude": 34.0522, "Longitude": -118.2437, "Parameter": "PM2.5",
+             "Value": "N/A", "Unit": "UG/M3", "UTC": "2024-01-15T10:00"},
+            {"Latitude": 34.0522, "Longitude": -118.2437, "Parameter": "PM2.5",
+             "Value": 45.0, "Unit": "UG/M3", "UTC": "2024-01-15T11:00"},
+        ]
+        df = fetch_airnow_data(  # must not raise
+            sites=["34d0522_m118d2437"],
+            start_date=datetime(2024, 1, 15),
+            end_date=datetime(2024, 1, 15),
+        )
+        assert len(df) == 1
+        assert df["value"].iloc[0] == 45.0
+
+    @patch("aeolus.sources.airnow._call_airnow_api")
     def test_fetch_data_ratification_provisional(
         self, mock_api, mock_historical_response
     ):

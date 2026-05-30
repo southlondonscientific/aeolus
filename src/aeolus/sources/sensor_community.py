@@ -710,6 +710,11 @@ def _normalise_sensor_data(
             timestamp = pd.to_datetime(timestamp_str, utc=True)
         except (ValueError, TypeError):
             continue
+        # pd.to_datetime(None/NaN/'', ...) returns NaT WITHOUT raising, so the
+        # except above misses it; guard explicitly or NaT date_time rows leak
+        # into the output and corrupt downstream time-binning.
+        if pd.isna(timestamp):
+            continue
 
         for col, measurand in archive_value_map.items():
             if col not in df.columns:

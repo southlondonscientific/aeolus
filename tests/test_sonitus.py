@@ -165,6 +165,20 @@ class TestNormaliseSonitusData:
         df = normaliser(pd.DataFrame(MOCK_GAS_DATA))
         assert all(df["source_network"] == "SONITUS")
 
+    def test_normalise_drops_nan_values(self):
+        """Monitors report different column sets per row (gas vs PM); missing
+        cells melt to value=NaN and must be dropped, not emitted as readings."""
+        from aeolus.sources.sonitus import normalise_sonitus_data
+        raw = pd.DataFrame({
+            "datetime": ["2024-01-01 00:00:00", "2024-01-01 00:15:00"],
+            "no2": [20.0, None],     # second NO2 missing
+            "pm2_5": [None, 8.0],    # first PM2.5 missing
+        })
+        df = normalise_sonitus_data("DCC-AQ1")(raw)
+        assert df["value"].notna().all()
+        assert len(df) == 2
+        assert set(zip(df["measurand"], df["value"])) == {("NO2", 20.0), ("PM2.5", 8.0)}
+
     def test_negative_values_passed_through(self):
         from aeolus.sources.sonitus import normalise_sonitus_data
         normaliser = normalise_sonitus_data("DCC-AQ1")

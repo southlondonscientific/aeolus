@@ -502,7 +502,10 @@ def make_sos_data_fetcher(network: str):
 
                 for v in values:
                     val = v.get("value")
-                    if val == _MISSING_SENTINEL:
+                    # A JSON null value yields None; the sentinel check alone
+                    # misses it, so float(None) would raise and abort the whole
+                    # timeseries fetch. Drop null / sentinel / NaN values.
+                    if val is None or val == _MISSING_SENTINEL or pd.isna(val):
                         continue
                     results.append(
                         {

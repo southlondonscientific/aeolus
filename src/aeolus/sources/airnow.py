@@ -396,6 +396,17 @@ def _fetch_site_historical(
                 if value is None:
                     continue
 
+                # Coerce here so a non-numeric Value (e.g. '' / 'N/A') skips
+                # this one observation rather than raising and aborting the
+                # whole site fetch; and drop AirNow's -999 missing-data sentinel
+                # (and other <= -900 markers) instead of emitting it as a reading.
+                try:
+                    value = float(value)
+                except (TypeError, ValueError):
+                    continue
+                if value <= -900:
+                    continue
+
                 # Parse the datetime
                 date_str = obs.get("UTC")
                 if not date_str:
@@ -430,7 +441,7 @@ def _fetch_site_historical(
                         "site_code": site_code,
                         "date_time": dt,
                         "measurand": measurand,
-                        "value": float(value),
+                        "value": value,
                         "units": unit,
                         "source_network": "AIRNOW",
                         "ratification": "Provisional",

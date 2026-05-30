@@ -421,6 +421,36 @@ class TestDataFetching:
         assert all(df["units"] == "mg/m3")
 
     @responses.activate
+    def test_null_value_dropped_not_crash(self):
+        """A JSON null value must be dropped, not crash the whole timeseries
+        fetch — float(None) previously raised TypeError and aborted everything."""
+        responses.add(
+            responses.GET,
+            f"{sos.SOS_BASE_URL}/timeseries/3/getData",
+            json={
+                "values": [
+                    {"timestamp": 1773792000000, "value": 59.096},
+                    {"timestamp": 1773795600000, "value": None},  # JSON null
+                    {"timestamp": 1773799200000, "value": 50.299},
+                ]
+            },
+            status=200,
+        )
+        sos._network_mappings["aurn"] = {
+            "CLL2": [{"ts_id": "3", "measurand": "NO2", "uom": "ug/m3"}],
+        }
+
+        fetcher = sos.make_sos_data_fetcher("aurn")
+        df = fetcher(
+            ["CLL2"],
+            datetime(2026, 3, 18, tzinfo=timezone.utc),
+            datetime(2026, 3, 19, tzinfo=timezone.utc),
+        )
+
+        assert len(df) == 2
+        assert sorted(df["value"].tolist()) == [50.299, 59.096]
+
+    @responses.activate
     def test_missing_sentinel_filtered(self):
         """Values of -99.0 are filtered out."""
         responses.add(

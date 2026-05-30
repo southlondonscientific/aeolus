@@ -85,6 +85,7 @@ from ..transforms import (
     compose,
     convert_timestamps,
     drop_columns,
+    filter_rows,
     melt_measurands,
     rename_columns,
     reset_index,
@@ -310,6 +311,10 @@ def normalise_regulatory_data(network_name: str) -> Normaliser:
                 id_vars=["site", "code", "date"],
                 measurands=measurands_present,
             ),
+            # RData feeds are dense wide tables: hours with no reading melt to
+            # value=NaN. Drop them (every other source drops NaN values) so they
+            # don't dominate the output and skew downstream means/data-capture.
+            filter_rows(lambda d: d["value"].notna()),
             rename_columns(
                 {
                     "site": "site_name",

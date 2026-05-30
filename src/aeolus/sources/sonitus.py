@@ -56,6 +56,7 @@ from ..transforms import (
     add_column,
     compose,
     convert_timestamps,
+    filter_rows,
     rename_columns,
     reset_index,
     select_columns,
@@ -230,6 +231,11 @@ def normalise_sonitus_data(site_code: str) -> callable:
                     lambda m: "mg/m3" if m == "CO" else "ug/m3"
                 ),
             ),
+            # Monitors report different column sets per 15-min row (gas vs PM),
+            # so missing cells melt to value=NaN. Drop them (matches every other
+            # source) rather than emit empty readings. Negative values are kept
+            # (genuine for some species near zero).
+            filter_rows(lambda d: d["value"].notna()),
             add_column("source_network", "SONITUS"),
             add_column("ratification", "Unvalidated"),
             add_column("created_at", lambda df: datetime.now(timezone.utc)),
