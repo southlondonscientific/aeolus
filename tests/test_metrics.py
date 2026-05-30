@@ -102,6 +102,31 @@ class TestUnitConversion:
         result = ensure_ugm3(1.0, "PM2.5", "mg/m3", warn=False)
         assert result == 1000.0
 
+    def test_ensure_ugm3_array_warns_on_unknown_unit(self):
+        """The vectorised path must warn on an unrecognised unit (parity with
+        the scalar ensure_ugm3), not silently assume µg/m³."""
+        import numpy as np
+
+        from aeolus.metrics.base import ensure_ugm3_array
+
+        conc = np.array([10.0, 20.0])
+        units = pd.Series(["bananas/m3", "bananas/m3"])
+        with pytest.warns(UserWarning, match="Unknown unit"):
+            out = ensure_ugm3_array(conc, "NO2", units)
+        assert list(out) == [10.0, 20.0]  # left unconverted, assumed µg/m³
+
+    def test_ensure_ugm3_array_warns_on_unconvertible_ppb(self):
+        """ppb/ppm with no molecular weight for the pollutant must warn rather
+        than silently leave a ppb value as if it were µg/m³."""
+        import numpy as np
+
+        from aeolus.metrics.base import ensure_ugm3_array
+
+        units = pd.Series(["ppb"])
+        with pytest.warns(UserWarning, match="[Cc]annot convert"):
+            out = ensure_ugm3_array(np.array([5.0]), "PM2.5", units)
+        assert list(out) == [5.0]
+
 
 # =============================================================================
 # Pollutant Standardisation Tests

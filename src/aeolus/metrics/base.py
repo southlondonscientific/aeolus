@@ -480,21 +480,33 @@ def ensure_ugm3_array(
             result[mask] = concentrations[mask] * 1000
             continue
 
-        # ppb -> µg/m³
-        if unit_lower == "ppb":
+        # ppb / ppm -> µg/m³ (ppm = 1000 ppb)
+        if unit_lower in ("ppb", "ppm"):
             pollutant_upper = pollutant.upper()
             if pollutant_upper in MOLECULAR_WEIGHTS:
                 mw = MOLECULAR_WEIGHTS[pollutant_upper]
-                result[mask] = concentrations[mask] * (mw / MOLAR_VOLUME)
+                factor = mw / MOLAR_VOLUME
+                if unit_lower == "ppm":
+                    factor *= 1000
+                result[mask] = concentrations[mask] * factor
+            else:
+                # No molecular weight: cannot convert. Warn rather than leave a
+                # ppb/ppm value silently masquerading as µg/m³ (parity with the
+                # scalar ensure_ugm3, which never silently passes these through).
+                warnings.warn(
+                    f"Cannot convert {pollutant} from {unit_lower} to µg/m³ "
+                    f"(no molecular weight); leaving values unconverted.",
+                    UserWarning,
+                    stacklevel=2,
+                )
             continue
 
-        # ppm -> µg/m³ (ppm = 1000 ppb)
-        if unit_lower == "ppm":
-            pollutant_upper = pollutant.upper()
-            if pollutant_upper in MOLECULAR_WEIGHTS:
-                mw = MOLECULAR_WEIGHTS[pollutant_upper]
-                result[mask] = concentrations[mask] * 1000 * (mw / MOLAR_VOLUME)
-            continue
+        # Unknown unit - warn and assume µg/m³ (parity with scalar ensure_ugm3).
+        warnings.warn(
+            f"Unknown unit '{unit}' for {pollutant}. Assuming µg/m³.",
+            UserWarning,
+            stacklevel=2,
+        )
 
     return result
 
