@@ -5,11 +5,16 @@ All notable changes to Aeolus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.5.2] - 2026-05-13
+## [0.4.5.2] - 2026-05-30
+
+### Fixed (silent wrong numbers — please re-baseline)
+
+- **AQI indices reported the WORST category for below-range and in-gap concentrations** — `calculate_aqi_from_breakpoints` (`metrics/base.py`) returned `None` for *any* concentration outside the breakpoint table, and every index (UK DAQI, US EPA, China, India NAQI, EU CAQI) substituted the *maximum* band when it got `None`. Two consequences reached users through `aqi_summary()` and `aqi_timeseries()`: (1) a slightly-negative reading — routine for low-cost sensors hovering near zero, which this library keeps as `ratification='Unvalidated'` — was reported as the most hazardous category (PM2.5 = −1 µg/m³ → US EPA **"Hazardous" / 500**, UK DAQI **"Very High" / 10**, China/India **500**, EU CAQI **"Extremely Poor" / 6**); and (2) the EU CAQI tables leave 0.1 µg/m³ gaps between bands, so a clean real-valued rolling mean landing in a gap (NO₂ = 40.05 µg/m³, genuinely band 2 "Fair") was reported as **"Extremely Poor"**. Because the overall index is the max across pollutants, one such value corrupted the overall AQI for the whole site/period. Below-scale values now map to the lowest band, in-gap values snap up to the correct band, and only genuinely *above-scale* values map to the worst band. **Migration**: re-run any AQI computation on data that can contain negative/near-zero readings (low-cost sensors), and any EU CAQI results.
 
 ### Fixed
 
 - **`aqi_summary(..., format="wide")` crashed when a site/period's AQI values were all NaN** — `_get_dominant_pollutant` called `idxmax()` on the group's `aqi_value` column, which raises `ValueError: Encountered all NA values` when no pollutant in the group has an AQI value (e.g. a site reporting only pollutants with no breakpoint for the chosen index, or a sparse period). This propagated out of the public `aqi_summary` wide-format path as an unhandled exception. It now returns `"unknown"` as the dominant pollutant for such groups, matching the existing empty-group behaviour.
+- **`downsample_timeseries()` (default LTTB method) corrupted timestamps to 1970 and dropped the timezone** — the LTTB path converted the datetime column to `int64` then rebuilt it with `pd.to_datetime()` without specifying the unit or timezone. For aeolus's standard `datetime64[us, UTC]` data, pandas defaulted to nanosecond interpretation, collapsing every timestamp to ~1970-01-20 and producing a tz-naive result, so any series built through this utility had a meaningless x-axis. It now reconstructs with the source resolution and timezone, matching the already-correct `prepare_timeseries`.
 
 ### Added
 

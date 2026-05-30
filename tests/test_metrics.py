@@ -941,6 +941,82 @@ class TestBreakpointInterpolation:
         result = calculate_aqi_from_breakpoints(100, breakpoints)
         assert result is None
 
+    def test_below_range_returns_lowest_band_not_none(self):
+        """Regression: a concentration below the bottom of the scale (e.g. a
+        slightly-negative low-cost-sensor reading) must map to the lowest/best
+        band, NOT return None. Returning None made callers substitute the WORST
+        band, so a near-zero reading was reported as the most hazardous."""
+        breakpoints = [
+            Breakpoint(low_conc=0, high_conc=50, low_aqi=0, high_aqi=50,
+                       category="Good", color="#00FF00"),
+            Breakpoint(low_conc=51, high_conc=100, low_aqi=51, high_aqi=100,
+                       category="Moderate", color="#FFFF00"),
+        ]
+        result = calculate_aqi_from_breakpoints(-5.0, breakpoints)
+        assert result is not None
+        assert result.category == "Good"
+        assert result.value == 0
+
+    def test_gap_between_bands_snaps_up_not_none(self):
+        """Regression: a value in a sub-unit gap between bands (band 1 ends at
+        50, band 2 starts at 51) must snap UP to the next band, not return None
+        (which callers treated as the worst band)."""
+        breakpoints = [
+            Breakpoint(low_conc=0, high_conc=50, low_aqi=0, high_aqi=50,
+                       category="Good", color="#00FF00"),
+            Breakpoint(low_conc=51, high_conc=100, low_aqi=51, high_aqi=100,
+                       category="Moderate", color="#FFFF00"),
+        ]
+        result = calculate_aqi_from_breakpoints(50.5, breakpoints)
+        assert result is not None
+        assert result.category == "Moderate"
+
+
+class TestOutOfRangeIndexBehaviour:
+    """End-to-end regression for the below-range / gap AQI Criticals: a negative
+    reading or a value in a breakpoint gap must NOT be reported as the worst
+    category across every index, while genuinely off-the-top values still do."""
+
+    def test_negative_concentration_is_best_not_worst(self):
+        from aeolus.metrics.indices import china, eu_caqi, uk_daqi, us_epa
+
+        assert us_epa.calculate(-1.0, "PM2.5").category == "Good"
+        assert china.calculate(-1.0, "PM2.5").value < 500
+        assert uk_daqi.calculate(-1.0, "O3").value == 1
+        # EU CAQI best band is 1 ("Good"), not 6 ("Extremely Poor")
+        assert eu_caqi.calculate(-1.0, "NO2").value == 1
+
+    def test_eu_caqi_gap_value_is_fair_not_extremely_poor(self):
+        from aeolus.metrics.indices import eu_caqi
+
+        # NO2 band 1 is (0, 40], band 2 is (40.1, 90]; 40.05 falls in the gap.
+        assert eu_caqi.calculate(40.0, "NO2").category == "Good"
+        assert eu_caqi.calculate(40.05, "NO2").category == "Fair"
+
+    def test_above_scale_still_worst(self):
+        """The legitimate off-the-top case must be unchanged."""
+        from aeolus.metrics.indices import eu_caqi, us_epa
+
+        assert us_epa.calculate(100000.0, "PM2.5").category == "Hazardous"
+        assert eu_caqi.calculate(100000.0, "NO2").value == 6
+
+    def test_aqi_summary_negative_reading_not_very_high(self):
+        """Through the public aqi_summary path, a dataset of negative PM2.5 must
+        not be flagged UK DAQI 'Very High'."""
+        dates = pd.date_range("2024-01-01", periods=24, freq="h", tz="UTC")
+        df = pd.DataFrame({
+            "site_code": "S1",
+            "date_time": dates,
+            "measurand": "PM2.5",
+            "value": -2.0,
+            "units": "ug/m3",
+            "source_network": "TEST",
+        })
+        result = metrics.aqi_summary(df, index="UK_DAQI")
+        pm = result[result["pollutant"] == "PM2.5"]
+        assert not pm.empty
+        assert (pm["aqi_category"] != "Very High").all()
+
 
 # =============================================================================
 # Boundary Value Tests (Critical for AQI accuracy)

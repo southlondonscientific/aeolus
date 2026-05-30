@@ -334,18 +334,32 @@ def calculate_aqi_from_breakpoints(
         AQIResult with interpolated value, or None if concentration is out of range
     """
     for bp in breakpoints:
-        if bp["low_conc"] <= concentration <= bp["high_conc"]:
-            # Linear interpolation
-            aqi_range = bp["high_aqi"] - bp["low_aqi"]
-            conc_range = bp["high_conc"] - bp["low_conc"]
+        if concentration <= bp["high_conc"]:
+            # First band whose upper bound reaches this concentration.
+            if concentration >= bp["low_conc"]:
+                # Within the band: linear interpolation.
+                aqi_range = bp["high_aqi"] - bp["low_aqi"]
+                conc_range = bp["high_conc"] - bp["low_conc"]
 
-            if conc_range == 0:
-                # Edge case: single-point breakpoint
-                aqi_value = bp["low_aqi"]
+                if conc_range == 0:
+                    # Edge case: single-point breakpoint
+                    aqi_value = bp["low_aqi"]
+                else:
+                    aqi_value = (aqi_range / conc_range) * (
+                        concentration - bp["low_conc"]
+                    ) + bp["low_aqi"]
             else:
-                aqi_value = (aqi_range / conc_range) * (
-                    concentration - bp["low_conc"]
-                ) + bp["low_aqi"]
+                # Below this band's lower bound: either below the bottom of the
+                # whole scale (e.g. a slightly-negative low-cost-sensor reading,
+                # which this library keeps as ratification='Unvalidated') or
+                # inside one of the 0.1-µg/m³ gaps some tables leave between
+                # bands (e.g. EU CAQI NO2 band 1 ends at 40 and band 2 starts at
+                # 40.1). Either way the value belongs in *this* band — snap to
+                # its lower AQI. Falling through to the out-of-range path would
+                # be wrong: callers treat that as "off the top of the scale" and
+                # substitute the worst band, so a clean or near-zero reading
+                # would be reported as the most hazardous category.
+                aqi_value = bp["low_aqi"]
 
             return AQIResult(
                 value=round(aqi_value),
@@ -356,7 +370,8 @@ def calculate_aqi_from_breakpoints(
                 unit="µg/m³",
             )
 
-    # Concentration out of range
+    # Above the top of the scale — genuinely off the chart. Callers map this to
+    # the maximum AQI band.
     return None
 
 
@@ -383,6 +398,7 @@ def calculate_aqi_from_breakpoints_array(
     n = len(concentrations)
     aqi_values = np.full(n, np.nan)
     category_indices = np.full(n, -1, dtype=np.int32)
+    assigned = np.zeros(n, dtype=bool)
 
     # Extract breakpoint arrays for vectorized operations
     low_concs = np.array([bp["low_conc"] for bp in breakpoints])
@@ -390,27 +406,39 @@ def calculate_aqi_from_breakpoints_array(
     low_aqis = np.array([bp["low_aqi"] for bp in breakpoints])
     high_aqis = np.array([bp["high_aqi"] for bp in breakpoints])
 
-    # For each breakpoint range, find matching concentrations
+    # Walk bands low -> high. Each concentration is assigned to the FIRST band
+    # whose upper bound reaches it, mirroring the scalar
+    # calculate_aqi_from_breakpoints: within the band -> interpolate; below the
+    # band's lower bound (below the whole scale, e.g. a negative low-cost-sensor
+    # reading, or inside a sub-µg/m³ gap between bands) -> snap to that band's
+    # low AQI. Concentrations above the top band, and NaNs, are never assigned
+    # and stay NaN / -1, which callers treat as the worst/out-of-range band.
     for i, (low_c, high_c, low_a, high_a) in enumerate(
         zip(low_concs, high_concs, low_aqis, high_aqis)
     ):
-        # Find concentrations in this range
-        mask = (concentrations >= low_c) & (concentrations <= high_c)
+        # NaN comparisons evaluate False, so NaNs never match and stay -1.
+        mask = (~assigned) & (concentrations <= high_c)
 
         if not np.any(mask):
             continue
 
-        # Linear interpolation
+        in_band = mask & (concentrations >= low_c)
+        below = mask & (concentrations < low_c)
+
+        # Linear interpolation within the band
         conc_range = high_c - low_c
         if conc_range == 0:
-            aqi_values[mask] = low_a
+            aqi_values[in_band] = low_a
         else:
             aqi_range = high_a - low_a
-            aqi_values[mask] = (aqi_range / conc_range) * (
-                concentrations[mask] - low_c
+            aqi_values[in_band] = (aqi_range / conc_range) * (
+                concentrations[in_band] - low_c
             ) + low_a
+        # Below-band / gap values snap to this band's low AQI
+        aqi_values[below] = low_a
 
         category_indices[mask] = i
+        assigned |= mask
 
     return np.round(aqi_values), category_indices
 

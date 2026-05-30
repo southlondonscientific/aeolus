@@ -346,6 +346,29 @@ class TestDownsampleTimeseries:
         assert len(result) <= 100
         assert not result["value"].isna().any()
 
+    def test_downsample_lttb_preserves_utc_microsecond_timestamps(self):
+        """Regression: the LTTB path read datetime64[us, UTC] as int64 and
+        rebuilt with pd.to_datetime() (default unit=ns, no tz), collapsing every
+        timestamp to ~1970 and dropping UTC-awareness. It must preserve the real
+        dates and the timezone, which is the standard aeolus data dtype."""
+        from aeolus.viz.prepare import downsample_timeseries
+
+        idx = pd.date_range("2024-01-01", periods=5000, freq="h", tz="UTC")
+        df = pd.DataFrame(
+            {
+                "date_time": idx.astype("datetime64[us, UTC]"),
+                "value": np.sin(np.arange(5000) / 50.0),
+            }
+        )
+        result = downsample_timeseries(df, "date_time", "value", target_points=200)
+
+        # Timezone preserved (UTC-aware), not silently dropped to naive
+        assert result["date_time"].dt.tz is not None
+        # Dates land in 2024, not 1970 — and within the input span
+        assert (result["date_time"] >= df["date_time"].min()).all()
+        assert (result["date_time"] <= df["date_time"].max()).all()
+        assert result["date_time"].min().year == 2024
+
 
 # =============================================================================
 # Data Preparation Tests

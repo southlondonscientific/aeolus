@@ -214,16 +214,30 @@ def downsample_timeseries(
         return df
 
     if method == "lttb":
-        # Convert datetime to numeric for LTTB
+        # Convert datetime to numeric for LTTB. astype(int64) yields integers in
+        # the column's *native* resolution (microseconds for aeolus's standard
+        # datetime64[us, UTC]), but pd.to_datetime on raw ints defaults to
+        # nanoseconds and re-applies no timezone — so a naive round-trip
+        # collapses every timestamp to ~1970 and drops UTC-awareness. Capture
+        # the source unit/tz and reconstruct with them (mirrors prepare_timeseries).
+        src_dtype = df_valid[datetime_col].dtype
         x = df_valid[datetime_col].astype(np.int64).values
         y = df_valid[value_col].values
 
         x_down, y_down = lttb_downsample(x, y, target_points)
 
+        # Parse the unit from "datetime64[us]" or "datetime64[us, UTC]" (split
+        # before the comma to drop the tz suffix, then strip the trailing ']').
+        dt_unit = str(src_dtype).split("[")[1].split(",")[0].rstrip("]").strip()
+        source_tz = getattr(src_dtype, "tz", None)
+        restored = pd.to_datetime(x_down, unit=dt_unit, utc=source_tz is not None)
+        if source_tz is not None and str(source_tz) != "UTC":
+            restored = restored.tz_convert(source_tz)
+
         # Reconstruct DataFrame
         result = pd.DataFrame(
             {
-                datetime_col: pd.to_datetime(x_down),
+                datetime_col: restored,
                 value_col: y_down,
             }
         )
