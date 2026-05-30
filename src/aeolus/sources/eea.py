@@ -473,7 +473,17 @@ def normalise_eea_data():
 
     def normalise_units(df: pd.DataFrame) -> pd.DataFrame:
         df = df.copy()
-        df["units"] = df["units"].str.replace("ug.m-3", "ug/m3", regex=False)
+        # Canonicalise ALL EEA unit notations, not just 'ug.m-3': map the micro
+        # sign (both U+00B5 and the Greek mu U+03BC) to 'u', and the '.m-3'
+        # suffix to '/m3'. This turns 'mg.m-3' -> 'mg/m3' (e.g. CO), 'ng.m-3' ->
+        # 'ng/m3', and 'µg/m3' -> 'ug/m3', so units are consistent across all
+        # species from the source rather than CO being left as 'mg.m-3'.
+        df["units"] = (
+            df["units"]
+            .str.replace("µ", "u", regex=False)
+            .str.replace("μ", "u", regex=False)
+            .str.replace(".m-3", "/m3", regex=False)
+        )
         return df
 
     def map_verification(df: pd.DataFrame) -> pd.DataFrame:

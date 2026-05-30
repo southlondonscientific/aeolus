@@ -512,7 +512,10 @@ def make_sos_data_fetcher(network: str):
                             ),
                             "measurand": ts_info["measurand"],
                             "value": float(val),
-                            "units": "ug/m3",
+                            # Use the per-timeseries unit of measure derived in
+                            # _build_station_mapping (e.g. CO -> mg/m3), not a
+                            # flat 'ug/m3' that mislabelled CO ~1000x.
+                            "units": ts_info.get("uom", "ug/m3"),
                             "source_network": network.upper(),
                             "ratification": "None",
                             "created_at": pd.Timestamp.now(tz="UTC"),

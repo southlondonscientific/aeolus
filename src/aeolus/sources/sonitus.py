@@ -221,7 +221,15 @@ def normalise_sonitus_data(site_code: str) -> callable:
                 "measurand",
                 lambda df: df["measurand_raw"].map(COLUMN_TO_MEASURAND),
             ),
-            add_column("units", "ug/m3"),
+            add_column(
+                "units",
+                # CO is conventionally reported in mg/m3; gases and PM in ug/m3.
+                # Label per-measurand (mirrors regulatory.normalise_regulatory_data)
+                # rather than a flat 'ug/m3' that mis-stated CO by ~1000x.
+                lambda df: df["measurand"].map(
+                    lambda m: "mg/m3" if m == "CO" else "ug/m3"
+                ),
+            ),
             add_column("source_network", "SONITUS"),
             add_column("ratification", "Unvalidated"),
             add_column("created_at", lambda df: datetime.now(timezone.utc)),

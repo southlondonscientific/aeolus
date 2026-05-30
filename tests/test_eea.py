@@ -248,6 +248,21 @@ class TestNormaliseEeaData:
         assert all(df["units"] == "ug/m3")
 
     @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
+    def test_unit_notation_canonicalised(self, _mock_mapping):
+        """All EEA unit notations must canonicalise, not just 'ug.m-3':
+        'mg.m-3' -> 'mg/m3' (e.g. CO) and the micro sign 'µg/m3' -> 'ug/m3'.
+        Previously only 'ug.m-3' was rewritten, leaving CO as 'mg.m-3' and
+        µ-variants verbatim — inconsistent units across species from one source."""
+        from aeolus.sources.eea import normalise_eea_data
+
+        records = [
+            {**MOCK_PARQUET_RECORDS[0], "Unit": "mg.m-3", "Value": "0.3"},
+            {**MOCK_PARQUET_RECORDS[1], "Unit": "µg/m3"},
+        ]
+        df = normalise_eea_data()(self._raw_df(records))
+        assert set(df["units"]) == {"mg/m3", "ug/m3"}
+
+    @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
     def test_verification_to_ratification(self, _mock_mapping):
         from aeolus.sources.eea import normalise_eea_data
 

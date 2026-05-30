@@ -390,6 +390,35 @@ class TestDataFetching:
         assert all(df["site_code"] == "CLL2")
         assert all(df["measurand"] == "NO2")
         assert all(df["source_network"] == "AURN")
+        # NO2 is reported in ug/m3 — the units must reflect the timeseries uom.
+        assert all(df["units"] == "ug/m3")
+
+    @responses.activate
+    def test_units_use_timeseries_uom_not_hardcoded(self):
+        """SOS must emit the per-timeseries uom (e.g. CO in mg/m3), not a flat
+        hardcoded 'ug/m3'. _build_station_mapping already derives ts_info['uom'];
+        the data fetcher previously ignored it and mislabelled CO ~1000x."""
+        responses.add(
+            responses.GET,
+            f"{sos.SOS_BASE_URL}/timeseries/3/getData",
+            json=MOCK_GETDATA_RESPONSE,
+            status=200,
+        )
+        _register_mock_aurn_and_sos()
+        sos._network_mappings["aurn"] = {
+            "CLL2": [{"ts_id": "3", "measurand": "CO", "uom": "mg/m3"}],
+        }
+
+        fetcher = sos.make_sos_data_fetcher("aurn")
+        df = fetcher(
+            ["CLL2"],
+            datetime(2026, 3, 18, tzinfo=timezone.utc),
+            datetime(2026, 3, 19, tzinfo=timezone.utc),
+        )
+
+        assert not df.empty
+        assert all(df["measurand"] == "CO")
+        assert all(df["units"] == "mg/m3")
 
     @responses.activate
     def test_missing_sentinel_filtered(self):
