@@ -709,6 +709,21 @@ class TestAQISummary:
         assert "pm25_mean" in result.columns or "no2_mean" in result.columns
         assert "overall_aqi" in result.columns
 
+    def test_dominant_pollutant_all_nan_aqi(self):
+        """_get_dominant_pollutant must not crash when a group's AQI values
+        are all NaN (e.g. only pollutants with no breakpoint for this index,
+        or a sparse period). Regression: idxmax of an all-NA Series raised
+        ValueError, propagating out of aqi_summary(format='wide')."""
+        df = pd.DataFrame(
+            {
+                "site_code": ["A", "A"],
+                "period": ["2024", "2024"],
+                "pollutant": ["NO2", "PM2.5"],
+                "aqi_value": [float("nan"), float("nan")],
+            }
+        )
+        assert metrics._get_dominant_pollutant(df, "A", "2024") == "unknown"
+
     def test_overall_only(self, sample_data):
         """Test overall_only mode."""
         result = metrics.aqi_summary(sample_data, index="UK_DAQI", overall_only=True)

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.4.5.2] - 2026-05-13
 
+### Fixed
+
+- **`aqi_summary(..., format="wide")` crashed when a site/period's AQI values were all NaN** — `_get_dominant_pollutant` called `idxmax()` on the group's `aqi_value` column, which raises `ValueError: Encountered all NA values` when no pollutant in the group has an AQI value (e.g. a site reporting only pollutants with no breakpoint for the chosen index, or a sparse period). This propagated out of the public `aqi_summary` wide-format path as an unhandled exception. It now returns `"unknown"` as the dominant pollutant for such groups, matching the existing empty-group behaviour.
+
 ### Added
 
 - **Process-level circuit-breaker on the Defra SOS endpoint** (`sources/sos.py`). When `uk-air.defra.gov.uk/sos-ukair/*` goes down — which it does, unannounced, for hours at a time — every `getData` call previously sat in `tenacity` retry-backoff for ~7 seconds before raising, and the per-timeseries `RequestException` was caught and logged inside `make_sos_data_fetcher` so the overall call returned an *empty DataFrame* rather than raising. A single `get_current("AURN", [site])` fans out to ~8 pollutants per site; observed wall-clock cost during the 2026-05-13 outage was 410 s for one AURN site and 154 s for one SAQN site, with the consumer seeing zero rows and no exception — making exception-based downstream circuit-breakers blind to the failure. After `AEOLUS_SOS_BREAKER_FAILURES` (default 5) consecutive failures, `_fetch_sos_json` now fails fast with `RequestException` for `AEOLUS_SOS_BREAKER_COOLDOWN_S` (default 60) seconds; the first call after the cooldown probes upstream again and a success closes the breaker. Both thresholds are env-overridable. New public hook `aeolus.sources.sos.reset_sos_circuit()` for tests and ops. **Migration**: no behaviour change when SOS is healthy; during SOS outages, calls now raise (or return empty after the documented retries) within seconds rather than minutes, and consumers who watch for `RequestException` to short-circuit will start seeing the signal.

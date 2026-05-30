@@ -789,8 +789,15 @@ def _get_dominant_pollutant(df: pd.DataFrame, site: str, period: str) -> str:
     if subset.empty:
         return "unknown"
 
-    max_idx = subset["aqi_value"].idxmax()
-    return subset.loc[max_idx, "pollutant"]
+    # Drop NaN AQI values before idxmax: a group whose pollutants all lack an
+    # AQI value (e.g. only pollutants with no breakpoint for this index, or a
+    # sparse period) would otherwise raise ValueError on idxmax of all-NA.
+    valid = subset[subset["aqi_value"].notna()]
+    if valid.empty:
+        return "unknown"
+
+    max_idx = valid["aqi_value"].idxmax()
+    return valid.loc[max_idx, "pollutant"]
 
 
 def _to_wide_format(df: pd.DataFrame) -> pd.DataFrame:
