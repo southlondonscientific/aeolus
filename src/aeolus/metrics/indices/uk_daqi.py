@@ -285,6 +285,19 @@ def calculate(
             f"Supported: {list(BREAKPOINTS.keys())}"
         )
 
+    # A missing (NaN) reading is "unknown" — not a crash. round(nan) -> int
+    # raises ValueError, so guard before it.
+    # (x != x is True only for NaN; avoids importing math here.)
+    if concentration != concentration:
+        return AQIResult(
+            value=None,
+            category=None,
+            color=None,
+            pollutant=pollutant,
+            concentration=concentration,
+            unit="µg/m³",
+        )
+
     # Round concentration to nearest integer as per DAQI specification
     concentration_rounded = round(concentration)
 

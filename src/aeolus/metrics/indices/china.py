@@ -356,6 +356,18 @@ def calculate(
             f"Supported: {list(AVERAGING_PERIODS.keys())}"
         )
 
+    # A missing (NaN) reading is "unknown" — not the worst band.
+    # (x != x is True only for NaN; avoids importing math here.)
+    if concentration != concentration:
+        return AQIResult(
+            value=None,
+            category=None,
+            color=None,
+            pollutant=pollutant_upper,
+            concentration=concentration,
+            unit="µg/m³",
+        )
+
     # Determine averaging period
     if averaging_period is None:
         averaging_period = AVERAGING_PERIODS[pollutant_upper]

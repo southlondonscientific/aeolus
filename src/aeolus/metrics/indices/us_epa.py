@@ -409,6 +409,19 @@ def calculate(
             f"Supported: {list(UNITS.keys())}"
         )
 
+    # A missing (NaN) reading is "unknown" — not a crash. truncate() does
+    # int(value) which raises on NaN, so guard before it.
+    # (x != x is True only for NaN; avoids importing math here.)
+    if concentration != concentration:
+        return AQIResult(
+            value=None,
+            category=None,
+            color=None,
+            pollutant=pollutant_upper,
+            concentration=concentration,
+            unit="µg/m³",
+        )
+
     # Truncate concentration
     decimal_places = TRUNCATION.get(pollutant_upper, 0)
     concentration_truncated = truncate(concentration, decimal_places)

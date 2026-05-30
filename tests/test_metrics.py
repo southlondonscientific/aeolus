@@ -169,6 +169,15 @@ class TestPollutantStandardisation:
 class TestUKDAQI:
     """Tests for UK Daily Air Quality Index calculations."""
 
+    def test_nan_returns_unknown_not_crash(self):
+        """A NaN reading must return unknown (value/category None), not raise
+        (round(nan)->int previously raised ValueError)."""
+        from aeolus.metrics.indices import uk_daqi
+
+        result = uk_daqi.calculate(float("nan"), "PM2.5")
+        assert result.value is None
+        assert result.category is None
+
     def test_pm25_band_1(self):
         """Test PM2.5 in band 1 (Low)."""
         from aeolus.metrics.indices import uk_daqi
@@ -252,6 +261,15 @@ class TestUKDAQI:
 class TestUSEPA:
     """Tests for US EPA Air Quality Index calculations."""
 
+    def test_nan_returns_unknown_not_crash(self):
+        """A NaN reading must return unknown, not raise (truncate's int(nan)
+        previously raised ValueError)."""
+        from aeolus.metrics.indices import us_epa
+
+        result = us_epa.calculate(float("nan"), "PM2.5")
+        assert result.value is None
+        assert result.category is None
+
     def test_pm25_good(self):
         """Test PM2.5 in Good range (0-50)."""
         from aeolus.metrics.indices import us_epa
@@ -320,6 +338,14 @@ class TestUSEPA:
 class TestChinaAQI:
     """Tests for China Air Quality Index calculations."""
 
+    def test_nan_returns_unknown_not_worst(self):
+        """A NaN reading must return unknown, not the worst band (was 500)."""
+        from aeolus.metrics.indices import china
+
+        result = china.calculate(float("nan"), "PM2.5")
+        assert result.value is None
+        assert result.category is None
+
     def test_pm25_excellent(self):
         """Test PM2.5 in Excellent range (0-50)."""
         from aeolus.metrics.indices import china
@@ -367,6 +393,15 @@ class TestChinaAQI:
 
 class TestEUCAQI:
     """Tests for European Air Quality Index calculations."""
+
+    def test_nan_returns_unknown_not_worst(self):
+        """A NaN reading must return unknown, not 'Extremely Poor' (was value=6)."""
+        from aeolus.metrics.indices import eu_caqi
+
+        result = eu_caqi.calculate(float("nan"), "PM2.5")
+        assert result.value is None
+        assert result.category is None
+        assert result.category != "Extremely Poor"
 
     def test_no2_good(self):
         """Test NO2 in Good range (1)."""
@@ -434,6 +469,14 @@ class TestEUCAQI:
 
 class TestIndiaNAQI:
     """Tests for India National Air Quality Index calculations."""
+
+    def test_nan_returns_unknown_not_worst(self):
+        """A NaN reading must return unknown, not the worst band (was 500)."""
+        from aeolus.metrics.indices import india_naqi
+
+        result = india_naqi.calculate(float("nan"), "PM2.5")
+        assert result.value is None
+        assert result.category is None
 
     def test_pm25_good(self):
         """Test PM2.5 in Good range (0-50)."""
