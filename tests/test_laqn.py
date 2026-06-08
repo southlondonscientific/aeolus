@@ -1,6 +1,7 @@
 # Tests for the LAQN (London Air Quality Network) data source.
 
-from datetime import datetime, timezone
+import re
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pandas as pd
@@ -438,6 +439,43 @@ class TestFetchERGData:
         with pytest.warns(match="No data retrieved for LAQN"):
             result = fetch_laqn_erg_data(["X"], start, end)
         assert result.empty
+
+    @patch("aeolus.sources.laqn._get_json")
+    def test_includes_end_day_for_window_spanning_midnight(self, mock_get):
+        """ERG's EndDate is date-granular AND exclusive: a request for
+        EndDate=D returns rows strictly before date D. A live poll asks for
+        ``<yesterday> -> now`` (a window crossing midnight), so the fetcher
+        must request an EndDate past the end day or it silently drops the
+        current day's data and parks ~a day stale. Regression for the
+        0.4.5.3 LAQN-ERG live source."""
+
+        def fake_erg(path):
+            m = re.search(
+                r"StartDate=(\d{4}-\d{2}-\d{2})/EndDate=(\d{4}-\d{2}-\d{2})", path
+            )
+            start = datetime.strptime(m.group(1), "%Y-%m-%d").date()
+            end = datetime.strptime(m.group(2), "%Y-%m-%d").date()  # exclusive
+            data = []
+            day = start
+            while day < end:  # ERG returns rows for [StartDate, EndDate)
+                data.append({
+                    "@SpeciesCode": "NO2",
+                    "@MeasurementDateGMT": f"{day} 12:00:00",
+                    "@Value": "20.0",
+                })
+                day += timedelta(days=1)
+            return {"AirQualityData": {"Data": data}}
+
+        mock_get.side_effect = fake_erg
+
+        # Window from yesterday afternoon to this afternoon (spans midnight).
+        result = fetch_laqn_erg_data(
+            ["MY1"],
+            datetime(2026, 6, 7, 16, 0, tzinfo=timezone.utc),
+            datetime(2026, 6, 8, 16, 0, tzinfo=timezone.utc),
+        )
+        days = set(result["date_time"].dt.strftime("%Y-%m-%d"))
+        assert "2026-06-08" in days, f"end day dropped; got {sorted(days)}"
 
 
 class TestERGRegistration:

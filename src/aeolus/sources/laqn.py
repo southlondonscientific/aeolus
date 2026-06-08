@@ -205,9 +205,12 @@ def fetch_laqn_metadata(**filters) -> pd.DataFrame:
 def _month_ranges(start: datetime, end: datetime):
     """Yield (start, end) pairs chunked by calendar month.
 
-    The ERG API rejects same-day queries (StartDate=X/EndDate=X → HTTP 400),
-    so callers should ensure ``end`` is at least one day after ``start``.
-    See ``_fetch_erg_site_data`` which pads ``end`` accordingly.
+    Chunk boundaries land on the first of the month, which is safe because
+    ERG's EndDate is exclusive (the next chunk's StartDate picks the boundary
+    day back up, so no gaps and no double-counting). ``_fetch_erg_site_data``
+    advances the overall ``end`` by a day before chunking so the requested
+    end day survives that exclusivity, and also handles the StartDate==EndDate
+    → HTTP 400 case on the trailing partial chunk.
     """
     cursor = start.replace(day=1)
     while cursor <= end:
@@ -223,10 +226,13 @@ def _month_ranges(start: datetime, end: datetime):
 
 def _fetch_erg_site_data(site_code: str, start: datetime, end: datetime) -> list[dict]:
     """Fetch ERG hourly data for one site, chunking by month to avoid timeouts."""
-    # The ERG API rejects same-day queries with HTTP 400. Ensure at least one
-    # day of range so current/recent windows don't break.
-    if end.date() <= start.date():
-        end = start + timedelta(days=1)
+    # ERG's EndDate is date-granular AND exclusive: a request for EndDate=D
+    # returns rows strictly *before* date D (and StartDate==EndDate → HTTP 400).
+    # Advance end by a day so the requested end day's data is actually returned.
+    # Without this a live "<yesterday> -> now" poll (a window crossing midnight)
+    # silently drops the current day and parks ~a day stale — defeating the
+    # whole point of the live source.
+    end = end + timedelta(days=1)
 
     all_points = []
     for chunk_start, chunk_end in _month_ranges(start, end):
