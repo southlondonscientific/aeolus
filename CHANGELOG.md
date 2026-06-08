@@ -5,6 +5,12 @@ All notable changes to Aeolus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.5.4] - 2026-06-08
+
+### Fixed (silent wrong numbers — please re-baseline)
+
+- **`LAQN-ERG` live source dropped the current day, parking ~a day stale** — ERG's `Data/Site` `EndDate` is date-granular *and exclusive*: a request for `EndDate=D` returns rows strictly before date `D`. `_fetch_erg_site_data` formatted `EndDate` from `end.date()` with no `+1 day`, and the same-day guard only padded windows *within one calendar day*. A live poll asks for `<yesterday> → now` (a window crossing midnight), so it sent `EndDate=<today>` and got back only through yesterday 23:00 — and since the next poll's window also crossed midnight, it never advanced into the current day. Net effect: `aeolus.download("LAQN-ERG", …, last=<short window>)` returned data ~24h stale, defeating the entire purpose of the live source (the regression that 0.4.5.3 was meant to fix for downstream live dashboards like Argus). `_fetch_erg_site_data` now advances `end` by a day before chunking so the requested end day survives the exclusive boundary; verified against the live ERG API (e.g. MY1 returns the current hour to within ~1h). **Migration**: re-poll recent `LAQN-ERG` windows; data fetched with 0.4.5.3 was capped at the previous day.
+
 ## [0.4.5.3] - 2026-06-08
 
 ### Added
