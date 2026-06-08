@@ -156,6 +156,31 @@ class TestLAQN:
             "Expected most LAQN sites to have a location_type"
         )
 
+    def test_erg_live_source_is_current(self):
+        """LAQN-ERG is the *live* source — it must return near-real-time data.
+
+        Regression guard for the 0.4.5.3 exclusive-EndDate bug (#10): ERG's
+        EndDate is date-granular and exclusive, so a window crossing midnight
+        used to drop the current day and leave the source ~a day stale. This
+        guards the *promise* of the source (recency), which mock-based unit
+        tests can't see. Uses a >24h window so it crosses midnight (the bug's
+        trigger) and asserts the freshest reading is within a few hours of now.
+        MY1 (Marylebone Road) is the anchor — a flagship kerbside site that
+        reports continuously; the others add resilience if one is briefly down.
+        """
+        end = datetime.now(tz=timezone.utc)
+        start = end - timedelta(hours=26)  # >24h: guaranteed to cross midnight
+        data = aeolus.download(
+            "LAQN-ERG", ["MY1", "KC1", "BX1"], start_date=start, end_date=end
+        )
+        assert not data.empty, "LAQN-ERG returned no data for busy central sites"
+        latest = data["date_time"].max().to_pydatetime()
+        age = end - latest
+        assert age <= timedelta(hours=3), (
+            f"LAQN-ERG is stale: newest reading {latest} is {age} old "
+            f"(expected within ~3h — exclusive-EndDate regression?)"
+        )
+
 
 # ============================================================================
 # International free (no API key)
