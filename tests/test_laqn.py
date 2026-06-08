@@ -9,6 +9,7 @@ import pytest
 from aeolus.sources.laqn import (
     API_BASE,
     fetch_laqn_data,
+    fetch_laqn_erg_data,
     fetch_laqn_metadata,
 )
 
@@ -296,3 +297,164 @@ class TestRegistration:
     def test_api_base_unchanged(self):
         """Metadata path still uses ERG API."""
         assert "erg.ic.ac.uk" in API_BASE
+
+
+# ============================================================================
+# Data tests (live ERG REST path — LAQN-ERG source)
+# ============================================================================
+
+
+@pytest.fixture
+def mock_erg_data_response():
+    """Mock response from the ERG `Data/Site/.../Json` hourly-data endpoint.
+
+    Mirrors the real shape: a flat list under AirQualityData.Data, each row
+    carrying @SpeciesCode / @MeasurementDateGMT / @Value. Empty-value rows
+    and unmapped species are present so the fetcher's filtering is exercised.
+    """
+    return {
+        "AirQualityData": {
+            "Data": [
+                {"@SpeciesCode": "NO2", "@MeasurementDateGMT": "2026-05-25 03:00:00", "@Value": "23.5"},
+                {"@SpeciesCode": "NO2", "@MeasurementDateGMT": "2026-05-25 04:00:00", "@Value": "25.1"},
+                {"@SpeciesCode": "FINE", "@MeasurementDateGMT": "2026-05-25 04:00:00", "@Value": "12.3"},
+                {"@SpeciesCode": "CO", "@MeasurementDateGMT": "2026-05-25 04:00:00", "@Value": "0.3"},
+                {"@SpeciesCode": "NO2", "@MeasurementDateGMT": "2026-05-25 05:00:00", "@Value": ""},
+                {"@SpeciesCode": "XYZ", "@MeasurementDateGMT": "2026-05-25 04:00:00", "@Value": "9.9"},
+            ]
+        }
+    }
+
+
+class TestFetchERGData:
+    """Tests for the live ERG REST data fetcher (LAQN-ERG source).
+
+    The RData feed (the default `LAQN` source) lags real time by a day or
+    more, which makes it unusable for live polling. The ERG REST endpoint
+    returns hourly data within a few hours of real time. This fetcher is the
+    live counterpart, mirroring the AURN-SOS-live / AURN-RData-backfill split.
+    """
+
+    @patch("aeolus.sources.laqn._get_json")
+    def test_returns_standard_columns(self, mock_get, mock_erg_data_response):
+        mock_get.return_value = mock_erg_data_response
+        start = datetime(2026, 5, 25, tzinfo=timezone.utc)
+        end = datetime(2026, 5, 26, tzinfo=timezone.utc)
+
+        result = fetch_laqn_erg_data(["MY1"], start, end)
+
+        from aeolus.types import DATA_COLUMNS
+        for col in DATA_COLUMNS:
+            assert col in result.columns
+
+    @patch("aeolus.sources.laqn._get_json")
+    def test_source_network_is_laqn(self, mock_get, mock_erg_data_response):
+        mock_get.return_value = mock_erg_data_response
+        start = datetime(2026, 5, 25, tzinfo=timezone.utc)
+        end = datetime(2026, 5, 26, tzinfo=timezone.utc)
+        result = fetch_laqn_erg_data(["MY1"], start, end)
+        assert all(result["source_network"] == "LAQN")
+
+    @patch("aeolus.sources.laqn._get_json")
+    def test_fine_mapped_to_pm25(self, mock_get, mock_erg_data_response):
+        mock_get.return_value = mock_erg_data_response
+        start = datetime(2026, 5, 25, tzinfo=timezone.utc)
+        end = datetime(2026, 5, 26, tzinfo=timezone.utc)
+        result = fetch_laqn_erg_data(["MY1"], start, end)
+        assert "PM2.5" in result["measurand"].values
+        assert "FINE" not in result["measurand"].values
+
+    @patch("aeolus.sources.laqn._get_json")
+    def test_co_units_are_mg_m3(self, mock_get, mock_erg_data_response):
+        mock_get.return_value = mock_erg_data_response
+        start = datetime(2026, 5, 25, tzinfo=timezone.utc)
+        end = datetime(2026, 5, 26, tzinfo=timezone.utc)
+        result = fetch_laqn_erg_data(["MY1"], start, end)
+        co = result[result["measurand"] == "CO"]
+        assert not co.empty
+        assert (co["units"] == "mg/m3").all()
+
+    @patch("aeolus.sources.laqn._get_json")
+    def test_non_co_units_are_ug_m3(self, mock_get, mock_erg_data_response):
+        mock_get.return_value = mock_erg_data_response
+        start = datetime(2026, 5, 25, tzinfo=timezone.utc)
+        end = datetime(2026, 5, 26, tzinfo=timezone.utc)
+        result = fetch_laqn_erg_data(["MY1"], start, end)
+        non_co = result[result["measurand"] != "CO"]
+        assert (non_co["units"] == "ug/m3").all()
+
+    @patch("aeolus.sources.laqn._get_json")
+    def test_timestamps_are_utc(self, mock_get, mock_erg_data_response):
+        mock_get.return_value = mock_erg_data_response
+        start = datetime(2026, 5, 25, tzinfo=timezone.utc)
+        end = datetime(2026, 5, 26, tzinfo=timezone.utc)
+        result = fetch_laqn_erg_data(["MY1"], start, end)
+        assert result["date_time"].dt.tz is not None
+
+    @patch("aeolus.sources.laqn._get_json")
+    def test_empty_values_dropped(self, mock_get, mock_erg_data_response):
+        """The NO2 05:00 row has an empty @Value and must not survive."""
+        mock_get.return_value = mock_erg_data_response
+        start = datetime(2026, 5, 25, tzinfo=timezone.utc)
+        end = datetime(2026, 5, 26, tzinfo=timezone.utc)
+        result = fetch_laqn_erg_data(["MY1"], start, end)
+        # 4 valid rows: NO2 03:00, NO2 04:00, FINE 04:00, CO 04:00
+        # (empty NO2 05:00 dropped; XYZ unmapped dropped)
+        assert len(result) == 4
+        assert result["value"].notna().all()
+
+    @patch("aeolus.sources.laqn._get_json")
+    def test_unmapped_species_dropped(self, mock_get, mock_erg_data_response):
+        mock_get.return_value = mock_erg_data_response
+        start = datetime(2026, 5, 25, tzinfo=timezone.utc)
+        end = datetime(2026, 5, 26, tzinfo=timezone.utc)
+        result = fetch_laqn_erg_data(["MY1"], start, end)
+        assert "XYZ" not in result["measurand"].values
+
+    @patch("aeolus.sources.laqn._get_json")
+    def test_uses_erg_data_endpoint(self, mock_get, mock_erg_data_response):
+        """Live path must hit the ERG REST Data/Site endpoint, not RData."""
+        mock_get.return_value = mock_erg_data_response
+        start = datetime(2026, 5, 25, tzinfo=timezone.utc)
+        end = datetime(2026, 5, 26, tzinfo=timezone.utc)
+        fetch_laqn_erg_data(["MY1"], start, end)
+        called_path = mock_get.call_args_list[0][0][0]
+        assert "Data/Site/SiteCode=MY1" in called_path
+
+    @patch("aeolus.sources.laqn._get_json")
+    def test_site_codes_uppercased(self, mock_get, mock_erg_data_response):
+        mock_get.return_value = mock_erg_data_response
+        start = datetime(2026, 5, 25, tzinfo=timezone.utc)
+        end = datetime(2026, 5, 26, tzinfo=timezone.utc)
+        fetch_laqn_erg_data(["my1"], start, end)
+        called_path = mock_get.call_args_list[0][0][0]
+        assert "SiteCode=MY1" in called_path
+
+    @patch("aeolus.sources.laqn._get_json")
+    def test_no_data_warns(self, mock_get):
+        mock_get.return_value = {"AirQualityData": {"Data": []}}
+        start = datetime(2026, 5, 25, tzinfo=timezone.utc)
+        end = datetime(2026, 5, 26, tzinfo=timezone.utc)
+        with pytest.warns(match="No data retrieved for LAQN"):
+            result = fetch_laqn_erg_data(["X"], start, end)
+        assert result.empty
+
+
+class TestERGRegistration:
+    """The live ERG source is registered as a non-primary LAQN-ERG source,
+    leaving the default LAQN (RData) source untouched."""
+
+    def test_laqn_erg_registered(self):
+        from aeolus.registry import get_source
+        source = get_source("LAQN-ERG")
+        assert source is not None
+        assert source["type"] == "network"
+        assert source["requires_api_key"] is False
+        # Non-primary so it never displaces the fast RData feed as the
+        # default backend for bulk/backfill use.
+        assert source.get("primary") is False
+
+    def test_laqn_default_still_registered(self):
+        """Adding the ERG source must not disturb the default LAQN source."""
+        from aeolus.registry import get_source
+        assert get_source("LAQN") is not None
