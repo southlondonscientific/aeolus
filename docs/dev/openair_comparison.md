@@ -55,14 +55,12 @@ data = aeolus.download(
 **openair:**
 ```r
 # All English sites within 10 km of central London
-openairmaps::searchNetwork(
+importMeta(
     source = c("aurn", "aqe", "lmam"),
     lat = 51.5074, 
     lng = -0.1278, 
-    max_dist = 10, 
-    map = FALSE
+    max_dist = 10
 )
-# Returns metadata, optionally returns map
 ```
 
 **Aeolus:**
