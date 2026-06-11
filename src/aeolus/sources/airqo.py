@@ -46,6 +46,15 @@ logger = getLogger(__name__)
 # Configuration
 AIRQO_API_BASE = "https://api.airqo.net/api/v2"
 
+# Site listing endpoint. AirQo slimmed `devices/metadata/sites` to a names-only
+# projection with no coordinates; `devices/sites` still carries
+# `approximate_latitude`/`approximate_longitude`, so we source metadata there.
+AIRQO_SITES_ENDPOINT = "devices/sites"
+
+# AirQo paginates site listings (default 30, hard max 80 per page). Request the
+# max to minimise round-trips.
+AIRQO_SITES_PAGE_SIZE = 80
+
 # Parameter name standardization
 # Maps AirQo parameter names to Aeolus standard names
 PARAMETER_MAP = {
@@ -131,6 +140,55 @@ def _call_airqo_api(endpoint: str, params: dict | None = None) -> dict:
 # ============================================================================
 
 
+def _fetch_sites_paginated(
+    endpoint: str = AIRQO_SITES_ENDPOINT,
+    page_size: int = AIRQO_SITES_PAGE_SIZE,
+) -> tuple[dict, list]:
+    """
+    Fetch every page of an AirQo sites-listing endpoint.
+
+    AirQo paginates site listings; reading only the first page silently
+    truncates the network to ~30 sites. This walks pages via ``meta.nextPage``
+    until the reported ``meta.total`` is reached.
+
+    Args:
+        endpoint: Sites endpoint to page through.
+        page_size: Sites per request (AirQo caps this at 80).
+
+    Returns:
+        tuple: ``(first_response, all_sites)`` where ``first_response`` is the
+        raw first-page dict (for success/message checks) and ``all_sites`` is
+        the concatenated list of site dicts across all pages.
+    """
+    first = _call_airqo_api(endpoint, {"limit": page_size, "skip": 0})
+    if not first.get("success") or "sites" not in first:
+        return first, []
+
+    all_sites = list(first.get("sites") or [])
+    meta = first.get("meta") or {}
+    total = meta.get("total")
+    # totalPages reflects the page_size we asked for; pad it as a runaway guard.
+    page_cap = (meta.get("totalPages") or 1) + 2
+    skip = page_size
+    pages = 1
+
+    while meta.get("nextPage"):
+        if total is not None and len(all_sites) >= total:
+            break
+        if pages >= page_cap:
+            break
+        page = _call_airqo_api(endpoint, {"limit": page_size, "skip": skip})
+        page_sites = page.get("sites") or []
+        if not page.get("success") or not page_sites:
+            break
+        all_sites.extend(page_sites)
+        meta = page.get("meta") or {}
+        skip += page_size
+        pages += 1
+
+    return first, all_sites
+
+
 def fetch_airqo_metadata(**filters) -> pd.DataFrame:
     """
     Fetch site metadata from AirQo API.
@@ -158,7 +216,7 @@ def fetch_airqo_metadata(**filters) -> pd.DataFrame:
         >>> grids = fetch_airqo_grids()
     """
     try:
-        data = _call_airqo_api("devices/metadata/sites")
+        data, sites = _fetch_sites_paginated()
     except (requests.RequestException, ValueError, KeyError, TypeError) as e:
         warning(f"Failed to fetch AirQo metadata: {type(e).__name__}")
         warnings.warn(
@@ -178,8 +236,6 @@ def fetch_airqo_metadata(**filters) -> pd.DataFrame:
             stacklevel=2,
         )
         return empty_metadata_frame()
-
-    sites = data["sites"]
 
     # If sites endpoint returns empty, try grids/summary as fallback
     # This can happen with some API tokens that have grid-level access
@@ -293,12 +349,23 @@ def _create_metadata_normaliser():
     """
 
     def extract_location(df: pd.DataFrame) -> pd.DataFrame:
-        """Extract latitude/longitude from nested structure if needed."""
-        # AirQo returns approximate_latitude and approximate_longitude
-        if "approximate_latitude" in df.columns:
-            df["latitude"] = df["approximate_latitude"]
-        if "approximate_longitude" in df.columns:
-            df["longitude"] = df["approximate_longitude"]
+        """Extract latitude/longitude, always emitting both columns.
+
+        AirQo exposes coordinates as approximate_latitude/_longitude. When a
+        response omits them (e.g. the slimmed names-only projection), we still
+        create NaN columns so downstream consumers like ``find_sites`` never
+        KeyError on a missing ``latitude``/``longitude``.
+        """
+        df["latitude"] = (
+            df["approximate_latitude"]
+            if "approximate_latitude" in df.columns
+            else float("nan")
+        )
+        df["longitude"] = (
+            df["approximate_longitude"]
+            if "approximate_longitude" in df.columns
+            else float("nan")
+        )
         return df
 
     return compose(
