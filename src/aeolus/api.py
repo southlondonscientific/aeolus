@@ -95,8 +95,12 @@ def _as_utc(dt: datetime) -> pd.Timestamp:
 def _with_requested_range(data: pd.DataFrame, requested_range: tuple) -> pd.DataFrame:
     """Record what was asked for, so ``summarise`` can measure data capture
     against it: sources drop missing values, so the frame alone cannot say
-    whether an analyser was silent for most of the period."""
-    data.attrs["aeolus_requested_range"] = requested_range
+    whether an analyser was silent for most of the period.
+
+    Stored as ISO 8601 strings: pandas serialises ``attrs`` to JSON when
+    writing Parquet, so anything else here would break ``to_parquet()``."""
+    start, end = requested_range
+    data.attrs["aeolus_requested_range"] = [start.isoformat(), end.isoformat()]
     return data
 
 
@@ -809,7 +813,7 @@ def summarise(data: pd.DataFrame) -> pd.DataFrame:
         if requested is not None:
             # Measure against the requested range (capped at now): the frame
             # only spans first-to-last *valid* reading.
-            req_start, req_end = requested
+            req_start, req_end = (_as_utc(pd.Timestamp(t)) for t in requested)
             req_end = min(req_end, pd.Timestamp.now(tz="UTC"))
             span_hours = max((req_end - req_start).total_seconds() / 3600, 0)
             expected = max(span_hours / freq_hours, 1)
