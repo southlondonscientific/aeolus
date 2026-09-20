@@ -224,6 +224,27 @@ KeyError on missing lat/lon; AirQo `filter_invalid_rows` drops genuine 0 µg/m³
 sensor_community move learned types out of `unknown_sites`.
 **Severity: mixed Important/Medium.**
 
+### Diff review (plan step 3)  ✅ DONE
+**2026-09-20.** One reviewer over the actual diff of the five WP commits. No Critical; two Important, both introduced
+by WP3 and fixed in the follow-up commit:
+- `aq_stats` converted CO from mg/m³ to µg/m³ (annual mean 0.3 → 300) in an output with no units column. Now only
+  ppb/ppm are converted; mg/m³ stays (LAQM reports CO in mg/m³); `aq_stats` gains a **`units` column**.
+- A categorical `units` column without an `ug/m3` category raised `TypeError` on relabel.
+Minor, also fixed: integer `value` dtype; rows that cannot be converted (NOx/NO in ppb — no molecular weight) were
+relabelled `ug/m3` anyway; spelling variants of µg/m³ counted as "mixed units"; PurpleAir all-null channels tripped the
+strict-schema warning; a malformed `AEOLUS_CACHE_VOLATILE_TTL_S` broke `import aeolus`. Units logic is now one helper,
+`metrics.stats._unify_units`, shared by metrics and viz.
+**Unverified (needs the network):** AirNow accepts a single-hour chunk (`startDate == endDate`), and that both bounds
+are inclusive at hour resolution — the new chunk loop assumes both. Check with one live AirNow call before release.
+**Left:** `downsample_timeseries(method="mean")` can exceed the cap by one point when the span divides exactly.
+
+## Before release
+1. Live conformance run (`pytest -m conformance`) — not run this session — including the AirNow check above.
+2. Re-execute the notebooks against live APIs (02 uses `freq="ME"`: labels move to period start).
+3. Bump version + date the CHANGELOG `[Unreleased]` section.
+4. Argus: write-path upsert (`feat/readings-upsert-history`) must be live *before* Argus moves to this version, or the
+   corrected values are discarded. See `argus/docs/2026-09-20-write-path-upsert-handoff.md`.
+
 ---
 
 ## Deferred to rolling backlog (post-v0.4.6)

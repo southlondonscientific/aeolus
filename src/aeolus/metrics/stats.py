@@ -34,7 +34,7 @@ import numpy as np
 import pandas as pd
 
 from ..types import AeolusDataWarning
-from .base import ensure_ugm3_array, validate_data
+from .base import MOLECULAR_WEIGHTS, ensure_ugm3_array, validate_data
 
 
 # =============================================================================
@@ -92,58 +92,90 @@ def _infer_data_frequency(series: pd.Series) -> pd.Timedelta:
     return diffs.mode().iloc[0]
 
 
-_UGM3_UNITS = ("ug/m3", "µg/m³", "ugm3", "µg/m3", "ug/m³")
-_CONVERTIBLE_UNITS = ("mg/m3", "mg/m³", "mgm3", "ppb", "ppm")
+_UGM3_UNITS = ("ug/m3", "µg/m³", "ugm3", "µg/m3", "ug/m³", "μg/m³", "μg/m3")
+_MASS_UNITS = ("mg/m3", "mg/m³", "mgm3")
+_MIXING_RATIO_UNITS = ("ppb", "ppm")
 
 
-def _convert_group_to_ugm3(df: pd.DataFrame, rows: pd.Index, measurand: str) -> None:
-    """Convert the given rows of ``df`` to µg/m³ in place, relabelling units."""
-    df.loc[rows, "value"] = ensure_ugm3_array(
-        df.loc[rows, "value"].to_numpy(dtype=float),
-        measurand,
-        df.loc[rows, "units"],
-    )
-    df.loc[rows, "units"] = "ug/m3"
+def _unify_units(
+    df: pd.DataFrame, to_ugm3: bool = False, across_sites: bool = False
+) -> pd.DataFrame:
+    """Put each pollutant's values on one scale before they are pooled.
+
+    The ``units`` column is authoritative (sources label faithfully), so
+    metrics and plots must honour it rather than assume µg/m³:
+
+    - A pollutant reported in *more than one* unit — per site, or across the
+      whole frame with ``across_sites=True`` — is converted to µg/m³.
+    - ``to_ugm3=True`` also converts ppb/ppm, for callers whose thresholds are
+      defined in µg/m³. mg/m³ is left alone: it is the conventional unit for CO.
+    - Anything else is left exactly as the network reported it.
+
+    Only rows that can actually be converted are relabelled; a gas with no
+    molecular weight keeps its original unit (``ensure_ugm3_array`` warns).
+    Expects a unique index. Returns a new frame only if something changed.
+    """
+    if "units" not in df.columns or df.empty:
+        return df
+
+    raw = df["units"]
+    lower = raw.astype(object).where(raw.notna()).str.lower().str.strip()
+    # Spelling variants of µg/m³ are one unit, not a mix
+    lower = lower.where(~lower.isin(_UGM3_UNITS), "ug/m3")
+
+    keys = ["measurand"] if across_sites else ["site_code", "measurand"]
+    labels = df[keys].astype(object).assign(_unit=lower)
+    mixed = labels.groupby(keys, observed=True)["_unit"].transform("nunique") > 1
+
+    wanted = mixed & (lower != "ug/m3")
+    if to_ugm3:
+        wanted |= lower.isin(_MIXING_RATIO_UNITS)
+    has_weight = df["measurand"].astype(str).str.upper().isin(MOLECULAR_WEIGHTS)
+    convertible = lower.isin(_MASS_UNITS) | (lower.isin(_MIXING_RATIO_UNITS) & has_weight)
+
+    if mixed.any():
+        affected = sorted(df.loc[mixed, "measurand"].astype(str).unique())
+        warnings.warn(
+            f"Mixed units for {affected}; converting to ug/m3 before pooling.",
+            AeolusDataWarning,
+            stacklevel=4,
+        )
+    unconvertible = wanted & ~convertible
+    if unconvertible.any():
+        affected = sorted(df.loc[unconvertible, "measurand"].astype(str).unique())
+        warnings.warn(
+            f"Cannot convert {affected} to ug/m3 (no molecular weight or unknown "
+            "unit); those rows keep their reported units.",
+            AeolusDataWarning,
+            stacklevel=4,
+        )
+
+    rows = wanted & convertible
+    if not rows.any():
+        return df
+
+    df = df.copy()
+    df["value"] = df["value"].astype(float)
+    df["units"] = raw.astype(object)  # may be categorical without an ug/m3 category
+    for measurand in df.loc[rows, "measurand"].astype(str).unique():
+        sel = rows & (df["measurand"].astype(str) == measurand)
+        df.loc[sel, "value"] = ensure_ugm3_array(
+            df.loc[sel, "value"].to_numpy(dtype=float), measurand, df.loc[sel, "units"]
+        )
+        df.loc[sel, "units"] = "ug/m3"
+    return df
 
 
 def _prepare_observations(df: pd.DataFrame, to_ugm3: bool = False) -> pd.DataFrame:
     """Make each (site, measurand, timestamp) a single observation in one unit.
 
-    The ``units`` column is authoritative (sources label faithfully), so
-    metrics must honour it rather than assume µg/m³:
-
-    - ``to_ugm3=True`` converts every convertible unit (mg/m³, ppb, ppm) to
-      µg/m³, for functions whose thresholds are defined in µg/m³.
-    - Otherwise only groups reporting *mixed* units are converted to µg/m³;
-      single-unit groups are left exactly as the network reported them.
-
-    Duplicate (site_code, measurand, date_time) rows — typically from
-    concatenating overlapping downloads — are then collapsed to their mean so
-    they count once towards data capture and averages.
+    Units are unified per site (see :func:`_unify_units`). Duplicate
+    (site_code, measurand, date_time) rows — typically from concatenating
+    overlapping downloads — are then collapsed to their mean so they count
+    once towards data capture and averages.
     """
     # Concatenated downloads repeat index labels; rows are addressed by label below
-    df = df.reset_index(drop=True)
-
-    if "units" in df.columns:
-        for measurand, group in df.groupby("measurand", observed=True):
-            units_lower = group["units"].astype(str).str.lower().str.strip()
-            if to_ugm3:
-                mask = units_lower.isin(_CONVERTIBLE_UNITS)
-                if mask.any():
-                    _convert_group_to_ugm3(df, mask[mask].index, measurand)
-                continue
-            per_site = group.groupby("site_code", observed=True)["units"].nunique()
-            mixed_sites = per_site[per_site > 1].index
-            if len(mixed_sites) == 0:
-                continue
-            warnings.warn(
-                f"Mixed units for {measurand} at {list(mixed_sites)}; "
-                "converting to ug/m3 before averaging.",
-                AeolusDataWarning,
-                stacklevel=3,
-            )
-            mask = group["site_code"].isin(mixed_sites) & ~units_lower.isin(_UGM3_UNITS)
-            _convert_group_to_ugm3(df, mask[mask].index, measurand)
+    df = _unify_units(df.reset_index(drop=True), to_ugm3=to_ugm3)
 
     key = ["site_code", "measurand", "date_time"]
     duplicated = df.duplicated(subset=key, keep=False)
@@ -413,6 +445,7 @@ _AQ_STATS_COLUMNS = [
     "site_code",
     "year",
     "pollutant",
+    "units",
     "data_capture",
     "annual_mean",
     "max_hourly",
@@ -478,6 +511,7 @@ def aq_stats(
         return pd.DataFrame(columns=_AQ_STATS_COLUMNS)
 
     # Limit values below are defined in ug/m3, so honour the units column first
+    # (ppb/ppm are converted; CO in mg/m3 stays in mg/m3, as LAQM reports it)
     df = _prepare_observations(df, to_ugm3=True)
 
     results = []
@@ -516,6 +550,7 @@ def aq_stats(
             "site_code": site,
             "year": yr,
             "pollutant": meas,
+            "units": group["units"].iloc[0] if "units" in group.columns else "",
             "data_capture": dc,
         }
 

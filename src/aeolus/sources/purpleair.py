@@ -633,8 +633,7 @@ def create_purpleair_normaliser():
         return df
 
     # Compose the full pipeline
-    return compose(
-        melt_to_long_format,
+    pipeline = compose(
         parse_timestamps,
         rename_columns,
         convert_temperature,
@@ -653,6 +652,16 @@ def create_purpleair_normaliser():
             require_all=True,
         ),
     )
+
+    def normalise(df: pd.DataFrame) -> pd.DataFrame:
+        long_df = melt_to_long_format(df)
+        if long_df.empty:
+            # Every channel null (e.g. an offline sensor): legitimately no data,
+            # not a schema violation
+            return empty_data_frame()
+        return pipeline(long_df)
+
+    return normalise
 
 
 def _calculate_pm_channel_value(

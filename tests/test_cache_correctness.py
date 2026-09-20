@@ -281,3 +281,14 @@ def test_cache_disabled_in_fresh_interpreter():
         env={k: v for k, v in os.environ.items() if k != "AEOLUS_CACHE_DIR"},
     )
     assert out.stdout.split() == ["False", "False"]
+
+
+def test_invalid_ttl_env_var_does_not_break_import():
+    out = subprocess.run(
+        [sys.executable, "-c", "import aeolus.cache as c; print(c._VOLATILE_TTL_S)"],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "AEOLUS_CACHE_VOLATILE_TTL_S": "1h"},
+    )
+    assert out.returncode == 0, out.stderr
+    assert out.stdout.strip() == "3600"

@@ -10,6 +10,7 @@
 Tests for aeolus.metrics.stats — time_average, aq_stats, trend.
 """
 
+import warnings
 from datetime import datetime, timezone
 from unittest.mock import patch
 
@@ -605,3 +606,54 @@ class TestUnitsHonoured:
         result = time_average(df, freq="D")
         assert result["units"].iloc[0] == "mg/m3"
         assert result["value"].iloc[0] == pytest.approx(1.0)
+
+
+class TestUnitsEdgeCases:
+    """Review findings on the WP3 units handling."""
+
+    def test_aq_stats_leaves_co_in_mg_and_reports_units(self):
+        # LAQM reports CO in mg/m3; no ug/m3 threshold applies to it.
+        df = _make_year_data(measurand="CO", year=2023, value=0.3, units="mg/m3")
+        result = aq_stats(df)
+        assert result["annual_mean"].iloc[0] == pytest.approx(0.3)
+        assert result["units"].iloc[0] == "mg/m3"
+
+    def test_aq_stats_reports_converted_units(self):
+        result = aq_stats(_make_year_data(year=2023, value=150.0, units="ppb"))
+        assert result["units"].iloc[0] == "ug/m3"
+
+    def test_categorical_units_column(self):
+        df = _make_year_data(year=2023, value=150.0, units="ppb")
+        df["units"] = df["units"].astype("category")
+        result = aq_stats(df)
+        assert result["exceedance_hours_200"].iloc[0] == 8760
+
+    def test_integer_values(self):
+        df = _make_year_data(year=2023, value=150.0, units="ppb")
+        df["value"] = df["value"].astype("int64")
+        result = aq_stats(df)
+        assert result["exceedance_hours_200"].iloc[0] == 8760
+
+    def test_unit_label_variants_are_not_mixed_units(self):
+        a = _make_hourly_data(start="2023-01-01", end="2023-01-01 11:00", value=10.0)
+        b = _make_hourly_data(
+            start="2023-01-01 12:00", end="2023-01-01 23:00", value=10.0, units="µg/m³"
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            result = time_average(pd.concat([a, b]), freq="D")
+        assert result["value"].iloc[0] == pytest.approx(10.0)
+
+    def test_unconvertible_rows_keep_their_label(self):
+        # NOx has no molecular weight: ppb rows cannot become ug/m3.
+        ppb = _make_hourly_data(
+            measurand="NOx", start="2023-01-01", end="2023-01-01 11:00", value=10.0, units="ppb"
+        )
+        ug = _make_hourly_data(
+            measurand="NOx", start="2023-01-01 12:00", end="2023-01-01 23:00", value=10.0
+        )
+        from aeolus.metrics.stats import _unify_units
+
+        with pytest.warns(UserWarning):
+            out = _unify_units(pd.concat([ppb, ug], ignore_index=True))
+        assert set(out["units"]) == {"ppb", "ug/m3"}

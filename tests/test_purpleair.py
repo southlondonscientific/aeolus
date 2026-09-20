@@ -1676,3 +1676,20 @@ class TestLiveIntegration:
         # Verify structure even if empty
         expected_cols = {"site_code", "date_time", "measurand", "value", "units"}
         assert expected_cols.issubset(set(df.columns))
+
+
+def test_normaliser_all_null_channels_is_quietly_empty():
+    """An offline sensor (every channel null) is no data, not a schema violation."""
+    import warnings
+
+    from aeolus.sources.purpleair import create_purpleair_normaliser
+    from aeolus.types import DATA_COLUMNS
+
+    raw = pd.DataFrame(
+        {"sensor_index": [1], "time_stamp": [1704067200], "pm2.5_atm_a": [None], "pm2.5_atm_b": [None]}
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        result = create_purpleair_normaliser()(raw)
+    assert result.empty
+    assert list(result.columns) == DATA_COLUMNS

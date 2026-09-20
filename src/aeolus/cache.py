@@ -67,7 +67,11 @@ _DEFAULT_CACHE_DIR = Path.home() / ".cache" / "aeolus"
 # requested site — are served from cache for at most this many seconds before
 # being re-fetched. One hour matches the reporting resolution of the
 # regulatory networks. Complete results for explicit date ranges never expire.
-_VOLATILE_TTL_S = int(os.environ.get("AEOLUS_CACHE_VOLATILE_TTL_S", "3600"))
+try:
+    _VOLATILE_TTL_S = int(os.environ.get("AEOLUS_CACHE_VOLATILE_TTL_S", "3600"))
+except ValueError:
+    # A malformed setting must not break ``import aeolus``
+    _VOLATILE_TTL_S = 3600
 
 # Module-level state
 _cache_enabled = False

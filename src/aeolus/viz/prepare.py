@@ -278,31 +278,16 @@ def _harmonise_units(data: pd.DataFrame, pollutants: list[str]) -> pd.DataFrame:
     """
     Convert any pollutant reported in more than one unit to ug/m3.
 
+    Plots pool across sites, so units are compared across the whole frame.
     Single-unit pollutants are left exactly as the source reported them.
     """
-    if "units" not in data.columns:
-        return data
-
     # Import here to avoid circular dependency
-    from ..metrics.base import ensure_ugm3_array
+    from ..metrics.stats import _unify_units
 
-    mixed = [
-        p
-        for p in pollutants
-        if data.loc[data["measurand"] == p, "units"].nunique(dropna=True) > 1
-    ]
-    if not mixed:
-        return data
-
-    data = data.copy()
-    data["units"] = data["units"].astype(object)  # may be categorical
-    for p in mixed:
-        mask = data["measurand"] == p
-        data.loc[mask, "value"] = ensure_ugm3_array(
-            data.loc[mask, "value"].to_numpy(dtype=float), p, data.loc[mask, "units"]
-        )
-        data.loc[mask, "units"] = "ug/m3"
-    return data
+    subset = data[data["measurand"].isin(pollutants)].reset_index(drop=True)
+    unified = _unify_units(subset, across_sites=True)
+    # Unchanged input comes back as the same object: keep the caller's frame
+    return data if unified is subset else unified
 
 
 def prepare_timeseries(

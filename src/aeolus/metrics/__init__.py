@@ -296,7 +296,7 @@ def aqi_summary(
     else:
         periods = df_r["date_time"].dt.tz_localize(None).dt.to_period(freq)
         df_r["period"] = periods.astype(str)
-        periods = dict(zip(df_r["period"], periods, strict=True))
+        periods = dict(zip(df_r["period"].unique(), periods.unique(), strict=True))
 
     # Group and calculate statistics
     results = []
