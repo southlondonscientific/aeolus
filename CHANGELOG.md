@@ -5,6 +5,18 @@ All notable changes to Aeolus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.5.4] - 2026-06-08
+
+### Fixed (silent wrong numbers — please re-baseline)
+
+- **`LAQN-ERG` live source dropped the current day, parking ~a day stale** — ERG's `Data/Site` `EndDate` is date-granular *and exclusive*: a request for `EndDate=D` returns rows strictly before date `D`. `_fetch_erg_site_data` formatted `EndDate` from `end.date()` with no `+1 day`, and the same-day guard only padded windows *within one calendar day*. A live poll asks for `<yesterday> → now` (a window crossing midnight), so it sent `EndDate=<today>` and got back only through yesterday 23:00 — and since the next poll's window also crossed midnight, it never advanced into the current day. Net effect: `aeolus.download("LAQN-ERG", …, last=<short window>)` returned data ~24h stale, defeating the entire purpose of the live source (the regression that 0.4.5.3 was meant to fix for downstream live dashboards like Argus). `_fetch_erg_site_data` now advances `end` by a day before chunking so the requested end day survives the exclusive boundary; verified against the live ERG API (e.g. MY1 returns the current hour to within ~1h). **Migration**: re-poll recent `LAQN-ERG` windows; data fetched with 0.4.5.3 was capped at the previous day.
+
+## [0.4.5.3] - 2026-06-08
+
+### Added
+
+- **Live LAQN data via a new non-primary `LAQN-ERG` source** (`sources/laqn.py`). The default `LAQN` source fetches hourly data from the openair RData feed (`londonair.org.uk/r_data/`) — the right choice for bulk/backfill (~600× faster than the old ERG REST path), but those files regenerate only ~daily, so their newest rows lag real time by a day or more. That made the default `LAQN` source unusable for live polling: a consumer requesting a short trailing window (e.g. "last 2 hours") got nothing recent back, and LAQN silently dropped out of live consumers (Argus's 15-minute poller) when the RData switch landed. The upstream ERG REST API is healthy and current to within a few hours; it was just no longer wired to a data fetcher (the default source uses it for *metadata only*). This restores the ERG REST hourly-data path as a separate, **non-primary** `LAQN-ERG` source — mirroring the existing `AURN-SOS`-live / `AURN`-RData-backfill split — so callers that want live data opt into it explicitly while bulk/backfill keeps the fast RData default. `LAQN-ERG` also exposes `fetch_latest` (last-4h max per site/measurand), matching the SOS sources. Metadata is shared between both (the ERG JSON API). **Migration**: consumers needing near-real-time LAQN should set their source to `LAQN-ERG`; `LAQN` is unchanged and remains primary for bulk/backfill. Note `get_current("LAQN")` does **not** auto-route to `LAQN-ERG` (no `sos_backend` declared) — opt in explicitly.
+
 ## [0.4.5.2] - 2026-05-30
 
 ### Fixed (silent wrong numbers — please re-baseline)
