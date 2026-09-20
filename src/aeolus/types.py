@@ -167,6 +167,8 @@ class SourceSpec(_SourceSpecRequired, total=False):
         sos_backend: Name of the registered SOS-style "near-real-time"
             backend for this source (e.g. ``"AURN-SOS"``). Used by
             :func:`aeolus.get_current` to route to the right source.
+        status: "stable" (default) or "experimental". An experimental source
+            warns once per process on first use; ``status_note`` says why.
         default_measurands: Pollutants the source is known to measure when
             its per-site ``measurands`` column is unpopulated (``None``).
             Used by :func:`aeolus.find_sites` to keep these sites from
@@ -174,6 +176,8 @@ class SourceSpec(_SourceSpecRequired, total=False):
     """
     type: str
     primary: bool
+    status: str
+    status_note: str
     fetch_latest: DataFetcher
     bbox_aware: bool
     sos_backend: str
@@ -209,6 +213,14 @@ DATA_COLUMNS = [
 # =============================================================================
 # Warning class and empty DataFrame helper
 # =============================================================================
+
+
+class AeolusExperimentalWarning(UserWarning):
+    """Warning issued once per process when an experimental source is first used.
+
+    An experimental source works, but has known gaps or unverified behaviour
+    described in its ``status_note`` (see ``aeolus.get_source_info``).
+    """
 
 
 class AeolusDataWarning(UserWarning):

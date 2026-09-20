@@ -61,10 +61,29 @@ from .registry import (
     unknown_source_message as _unknown_source_message,
 )
 from .registry import list_sources as _list_sources
-from .types import AeolusDataWarning
+from .types import AeolusDataWarning, AeolusExperimentalWarning
 from .types import DATA_COLUMNS as _STANDARD_COLUMNS
 from .types import METADATA_COLUMNS as _METADATA_COLUMNS
 from .types import empty_metadata_frame as _empty_metadata_frame
+
+
+_warned_experimental: set[str] = set()
+
+
+def _warn_if_experimental(source_name: str, spec: dict) -> None:
+    """Warn, once per process per source, that an experimental source is in use."""
+    if spec.get("status", "stable") != "experimental":
+        return
+    name = source_name.upper()
+    if name in _warned_experimental:
+        return
+    _warned_experimental.add(name)
+    warnings.warn(
+        f"{name} support is experimental: {spec.get('status_note') or 'see the source documentation'} "
+        f"Details: aeolus.get_source_info({name!r}).",
+        AeolusExperimentalWarning,
+        stacklevel=4,
+    )
 
 
 def _fetch_single_source(
@@ -81,6 +100,7 @@ def _fetch_single_source(
     """
     source_spec = get_source(source_name)
     source_type = source_spec.get("type", "network")
+    _warn_if_experimental(source_name, source_spec)
 
     if source_type == "network":
         from .networks import download as network_download
@@ -309,6 +329,8 @@ def get_source_info(source: str) -> dict[str, Any]:
             - name: Display name of the source
             - type: "network" or "portal"
             - requires_api_key: Whether an API key is needed
+            - status: "stable" or "experimental"
+            - status_note: Why a source is experimental (None when stable)
 
     Raises:
         ValueError: If source is not registered
@@ -330,6 +352,8 @@ def get_source_info(source: str) -> dict[str, Any]:
         "name": source_obj["name"],
         "type": source_obj.get("type", "network"),
         "requires_api_key": source_obj["requires_api_key"],
+        "status": source_obj.get("status", "stable"),
+        "status_note": source_obj.get("status_note"),
     }
 
 
@@ -528,6 +552,7 @@ def find_sites(
     for name in source_names:
         spec = get_source(name)
         source_type = spec.get("type", "network")
+        _warn_if_experimental(name, spec)
         try:
             if source_type == "portal":
                 df = _fetch_portal_sites(name, spec, search_bbox, filters)

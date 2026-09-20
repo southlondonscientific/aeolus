@@ -358,3 +358,26 @@ verified row where both hold the same `(site, measurand, timestamp)`. `Verificat
 - Rename blast radius (for planning): `source_network` appears in 18 source files, 39 test files, 7 notebooks, 18 docs;
   `ratification` in 16 / 26 / 4 / 22. Mechanical but wide — one commit, with the mirrors in place so everything stays green.
 
+### 17.9 Conversion reference conditions are a property of the network  — *PROPOSED*
+**Found (2026-09-20, LAQN units defect):** aeolus converts ppb ↔ µg/m³ with `MOLAR_VOLUME = 24.45` L/mol (25 °C, the US
+convention). UK and EU data are defined at **20 °C / 1013 mb** (Defra factors: NO2 1.9125, O3 1.9957, SO2 2.6609,
+CO 1.1642, NO 1.2474) — aeolus's constant is 1.6 % low against them. It no longer bites UK data, because every UK route
+now emits mass units (LAQN is converted in the adapter with the exact factors — the one sanctioned exception to "label
+faithfully", because the ppb there is an openair interchange format, not what the network reports). It still applies
+when µg/m³ data from a 20 °C network is converted *to* ppb for the US EPA index, and to OpenAQ's mixed feeds.
+**Proposal:** a `reference_temperature_c` field on each NetworkSpec (20 for UK/EU, 25 for US), used by
+`ensure_ugm3`/`to_index_unit` when the row's network is known, falling back to 25. No change to results for US data.
+
+### 17.10 Units and time conventions — audit status  — *NOTE*
+**Units (audited 2026-09-20):** every RData host (AURN, SAQN, WAQN, NI, AQE) and all six LMAM providers pass an internal
+stoichiometry test — `(NOXasNO2 − NO2) / NO` is 1.533 in mass units, 1.000 in ppb; LAQN-ERG equals AURN exactly on a
+ratified week; Sonitus NO2 matches eight EEA Irish twins at 0.97–1.00. LAQN RData was the only defect. Not checked:
+non-PM fields of PurpleAir/Sensor.Community, and SOS and OpenAQ (no data returned in the sample).
+**Time (NOT audited — and never scheduled):** the v0.4.6 audit's five time-handling findings (Sonitus Dublin-local parsed
+as UTC; AirNow local hour as UTC; EEA never coerced; PurpleAir/Sonitus `.timestamp()` machine offset; Breathe London
+`strftime("…Z")`) were not assigned to any work package. Evidence gathered since: EEA `Start` equals the German UBA
+API's start times exactly and Luchtmeetnet's stamps exactly, which implies UTC+1 *if* UBA is fixed CET and Luchtmeetnet
+stamps hour-ending — conventions recalled, not found in writing; Sonitus returns its first record an hour after the
+requested UTC window start, suggesting local-time stamps. **This needs its own audit, by the same method as units:
+twin sources with known clocks, route by route. It should precede any claim in v0.5.0 that `date_time` is UTC.**
+

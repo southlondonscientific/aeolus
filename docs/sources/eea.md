@@ -2,13 +2,20 @@
 
 The [European Environment Agency](https://www.eea.europa.eu/) aggregates regulatory air quality data reported by EU member states and cooperating countries under the Air Quality Directive. Hourly data is available from 2013 onwards across 40+ countries and 7,000+ stations.
 
+!!! warning "Experimental"
+    EEA support is **experimental** (`aeolus.get_source_info("EEA")["status"]`), and Aeolus warns once per session when you use it. Known gaps:
+
+    - **Only recent data.** Aeolus queries the EEA *up-to-date* feed only. Requests for earlier years return an empty frame — the verified archive and the historical Airbase dataset are not wired in yet.
+    - **Everything is `Provisional`.** That follows from the point above: the up-to-date feed carries preliminary or unverified data.
+    - **Time zone unconfirmed.** Timestamps are labelled UTC, but comparison with national sources suggests the EEA may publish in UTC+1. Treat hour-level alignment with other sources with care. In Italy the two EEA feeds disagree with each other by an hour during summer time.
+
 ## Overview
 
 - **Coverage**: 40+ European countries, 7,000+ stations
 - **Data quality**: Reference (national regulatory networks, pooled by EEA)
 - **Ratification**: `Verified` (full QA/QC by the data provider) or `Provisional` (preliminary or not verified)
 - **API key**: Not required
-- **History**: 2013+ (hourly)
+- **History**: recent data only at present (see the warning above); the EEA itself holds hourly data from 2013
 - **Operator**: European Environment Agency
 
 ## No API Key Required

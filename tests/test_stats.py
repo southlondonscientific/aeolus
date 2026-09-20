@@ -645,15 +645,21 @@ class TestUnitsEdgeCases:
         assert result["value"].iloc[0] == pytest.approx(10.0)
 
     def test_unconvertible_rows_keep_their_label(self):
-        # NOx has no molecular weight: ppb rows cannot become ug/m3.
+        # Benzene has no molecular weight entry: ppb rows cannot become ug/m3.
         ppb = _make_hourly_data(
-            measurand="NOx", start="2023-01-01", end="2023-01-01 11:00", value=10.0, units="ppb"
+            measurand="BENZENE", start="2023-01-01", end="2023-01-01 11:00", value=10.0, units="ppb"
         )
         ug = _make_hourly_data(
-            measurand="NOx", start="2023-01-01 12:00", end="2023-01-01 23:00", value=10.0
+            measurand="BENZENE", start="2023-01-01 12:00", end="2023-01-01 23:00", value=10.0
         )
         from aeolus.metrics.stats import _unify_units
 
         with pytest.warns(UserWarning):
             out = _unify_units(pd.concat([ppb, ug], ignore_index=True))
         assert set(out["units"]) == {"ppb", "ug/m3"}
+
+    def test_nox_in_ppb_converts_as_no2(self):
+        df = _make_year_data(measurand="NOXasNO2", year=2023, value=100.0, units="ppb")
+        result = aq_stats(df)
+        assert result["units"].iloc[0] == "ug/m3"
+        assert result["annual_mean"].iloc[0] == pytest.approx(100.0 * 46.01 / 24.45, rel=1e-3)

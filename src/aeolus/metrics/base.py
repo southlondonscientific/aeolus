@@ -92,6 +92,8 @@ class AQIResult:
 #   CO:  28.0101 (NIST), rounded to 28.01
 MOLECULAR_WEIGHTS = {
     "NO2": 46.01,
+    "NOX": 46.01,  # NOx is conventionally expressed as NO2
+    "NOXASNO2": 46.01,
     "O3": 48.00,
     "SO2": 64.07,
     "CO": 28.01,

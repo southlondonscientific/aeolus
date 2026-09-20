@@ -145,6 +145,28 @@ LAQN_COLUMN_MAP = {
     "FINE": "PM2.5",
 }
 
+# The londonair openair files store gases in volume units (ppb; CO in ppm),
+# unlike every Defra-family file, which is already in mass units. They are an
+# interchange format: openair's ``importImperial`` converts to mass on read,
+# and the network itself publishes ug/m3 (its API, LAQN-ERG here, and its
+# website). So this is the one place aeolus converts in an adapter rather than
+# labelling faithfully — leaving these as ppb would make LAQN disagree with
+# LAQN-ERG for the same site and hour.
+#
+# These are Defra's published 20 °C / 1013 mb factors, not openair's rounded
+# 1.91 / 2.00 / 2.66. They are exact: for ratified years the converted file
+# reproduces the AURN twin (MY1, KC1, BL0/CLL2) to 0.00 ug/m3 — verified
+# 2005-2026, and pinned by TestLAQNUnitsAgainstAURNTwin. Keys are post-rename
+# (AURN-style) column names. Particulates are already in ug/m3.
+LAQN_VOLUME_TO_MASS = {
+    "NO": 1.2474,
+    "NO2": 1.9125,
+    "NOXasNO2": 1.9125,  # NOx is expressed as NO2
+    "O3": 1.9957,
+    "SO2": 2.6609,
+    "CO": 1.1642,  # ppm -> mg/m3
+}
+
 # Pollutants/measurands available in regulatory network data
 REGULATORY_MEASURANDS = [
     "O3",
@@ -466,6 +488,7 @@ def make_data_fetcher(
     network_name: str,
     column_map: dict[str, str] | None = None,
     site_path: Callable[[str], str | None] | None = None,
+    value_factors: dict[str, float] | None = None,
 ) -> DataFetcher:
     """
     Create a data fetcher function for a specific regulatory network.
@@ -479,6 +502,11 @@ def make_data_fetcher(
             inserted between ``base_url`` and ``{SITE}_{YEAR}.RData`` (e.g.
             ``"sussex/"`` for LMAM). Returning ``None`` causes the site to be
             skipped with a warning. When ``None``, no fragment is inserted.
+
+        value_factors: Optional per-column multipliers applied after
+            ``column_map``, for files whose values are not in the units the
+            shared pipeline labels them with (LAQN only — see
+            ``LAQN_VOLUME_TO_MASS``).
 
     Returns:
         DataFetcher: Function that fetches and normalises data
@@ -516,6 +544,10 @@ def make_data_fetcher(
                 if df is not None and not df.empty:
                     if column_map:
                         df = df.rename(columns=column_map)
+                    if value_factors:
+                        for column, factor in value_factors.items():
+                            if column in df.columns:
+                                df[column] = pd.to_numeric(df[column], errors="coerce") * factor
                     # LAQN openair files have no separate `code` column —
                     # the `site` column contains the site code (not a
                     # human-readable name). Provide a `code` column so the

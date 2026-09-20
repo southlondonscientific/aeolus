@@ -412,3 +412,4 @@ def test_registry_persists_across_calls(sample_source_spec):
     s2 = get_source("PERSISTENT")
 
     assert s1 == s2
+

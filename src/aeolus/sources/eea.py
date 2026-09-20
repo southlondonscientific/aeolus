@@ -667,4 +667,10 @@ register_source("EEA", {
     "normalise": normalise_eea_data(),
     "requires_api_key": False,
     "bbox_aware": True,
+    "status": "experimental",
+    "status_note": (
+        "only the EEA up-to-date feed is queried, so earlier years return no data "
+        "(the verified archive is not wired in yet); every row is therefore "
+        "'Provisional'; and the time zone of EEA timestamps is unconfirmed."
+    ),
 })
