@@ -1603,3 +1603,66 @@ class TestWHOAdditional:
         # CO only has AQG, not interim targets
         with pytest.raises(ValueError, match="not available"):
             who.check_guideline(3.0, "CO", "24h", "IT-1")
+
+
+# =============================================================================
+# v0.4.6 WP3 — duplicate timestamps and calendar-aware coverage
+# =============================================================================
+
+
+def _no2_frame(dates, values=10.0, site="S1"):
+    return pd.DataFrame(
+        {
+            "site_code": site,
+            "date_time": dates,
+            "measurand": "NO2",
+            "value": values,
+            "units": "ug/m3",
+            "source_network": "T",
+        }
+    )
+
+
+class TestAQISummaryCoverage:
+    def test_complete_february_has_full_coverage(self):
+        dates = pd.date_range("2023-02-01", "2023-02-28 23:00", freq="h")
+        result = metrics.aqi_summary(_no2_frame(dates), index="UK_DAQI", freq="M")
+        feb = result[result["pollutant"] == "NO2"].iloc[0]
+        assert feb["coverage"] == pytest.approx(1.0)
+
+    def test_sparse_sub_hourly_data_is_not_full_coverage(self):
+        # 15-minute data for the first 6 hours of a day = 25% coverage, not 100%.
+        dates = pd.date_range("2023-01-01", periods=24, freq="15min")
+        result = metrics.aqi_summary(
+            _no2_frame(dates), index="UK_DAQI", freq="D", warn_low_coverage=False
+        )
+        day = result[result["pollutant"] == "NO2"].iloc[0]
+        assert day["coverage"] == pytest.approx(0.25)
+
+    def test_duplicate_timestamps_do_not_inflate_coverage(self):
+        dates = pd.date_range("2023-01-01", periods=6, freq="h")
+        df = pd.concat([_no2_frame(dates), _no2_frame(dates)])
+        with pytest.warns(UserWarning, match="[Dd]uplicate"):
+            result = metrics.aqi_summary(
+                df, index="UK_DAQI", freq="D", warn_low_coverage=False
+            )
+        day = result[result["pollutant"] == "NO2"].iloc[0]
+        assert day["coverage"] == pytest.approx(0.25)
+
+
+class TestAQITimeseriesDuplicates:
+    def test_duplicates_collapse_to_one_row_per_timestamp(self):
+        dates = pd.date_range("2023-01-01", periods=48, freq="h")
+        df = pd.concat([_no2_frame(dates, 10.0), _no2_frame(dates[:1], 30.0)])
+        with pytest.warns(UserWarning, match="[Dd]uplicate"):
+            result = metrics.aqi_timeseries(df, index="UK_DAQI")
+        assert len(result) == 48
+        assert result["date_time"].is_unique
+        assert result.sort_values("date_time")["value"].iloc[0] == pytest.approx(20.0)
+
+    def test_input_frame_is_not_mutated(self):
+        dates = pd.date_range("2023-01-01", periods=48, freq="h")
+        df = _no2_frame(dates)
+        before = df.copy()
+        metrics.aqi_timeseries(df, index="UK_DAQI")
+        pd.testing.assert_frame_equal(df, before)

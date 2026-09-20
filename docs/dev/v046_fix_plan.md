@@ -66,7 +66,27 @@ Three commits. Scoped in parallel by 5 read-only scout agents (all findings conf
 **Re-baseline:** AirNow/SOS means/exceedances change (sentinels removed); AQI on a missing reading is
 now unknown rather than the worst category.
 
-### WP3 — Metrics correctness: units-honouring + duplicate-timestamp + calendar-period
+### WP3 — Metrics correctness: units-honouring + duplicate-timestamp + calendar-period  ✅ DONE
+**Landed 2026-09-20.** All five `stats.py` findings reproduced before fixing; red tests first.
+- `stats.py`: shared `_prepare_observations` (used by `time_average`, `aq_stats`, `trend`) — `aq_stats` converts
+  mg/m³/ppb/ppm to µg/m³ before thresholds; `time_average`/`trend` convert only *mixed-unit* groups (single-unit
+  groups stay as reported, per units philosophy B); duplicate keys collapse to their mean with an
+  `AeolusDataWarning`. `_start_anchored` maps ME/QE/YE/W (and legacy M/Q/Y) to left-closed, start-labelled bins.
+- `metrics/__init__.py`: `aqi_summary` coverage = observations / (real `pd.Period` span ÷ inferred cadence), replacing
+  the fixed 720/2160/8760 table and fixing the sub-hourly over-count; duplicates collapsed before rolling windows in
+  `aqi_summary` and `aqi_timeseries`.
+- **Narrowed/refuted on inspection:** ME bins did *not* leak values across months (pandas pads end-anchored edges to
+  end-of-day) — only the label and denominator were wrong. `aqi_timeseries` missing `.copy()` — refuted (groupby
+  slices are copies); guard test added. Rolling-window "leak" across periods — kept and documented: a trailing window
+  is attributed to the period in which it ends, which is how the indices are defined.
+- **Not done:** the three folded test-quality items (tautological capture bounds in `test_download_robustness`,
+  `test_stats` capture-range, `test_metrics_properties` below-band path) — the new exact-value capture tests cover the
+  first two in substance; the property-test gap remains open.
+- **Re-baseline:** `time_average(freq="ME"/"QE"/"YE"/"W")` rows are now labelled at period *start* (was end) and weekly
+  bins are Mon–Sun labelled Monday; `data_capture` for those freqs changes (Feb 0.90 → 1.0); `aq_stats` on ppb/ppm
+  input now reports µg/m³ and real exceedance counts; `aqi_summary` coverage values shift.
+
+_Original scope:_
 **Findings:** *(units-honouring, moved from WP1)* `aq_stats` exceedance thresholds assume `ug/m3`
 without checking the units column (ppb NO2 mis-tested); `time_average` stamps `units.iloc[0]` on a
 mixed-unit group and averages across scales — both must convert via `ensure_ugm3_array` / group on

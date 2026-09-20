@@ -33,7 +33,8 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
-from .base import validate_data
+from ..types import AeolusDataWarning
+from .base import ensure_ugm3_array, validate_data
 
 
 # =============================================================================
@@ -84,9 +85,102 @@ def _empty_time_average_df() -> pd.DataFrame:
 def _infer_data_frequency(series: pd.Series) -> pd.Timedelta:
     """Infer the most common data frequency from a datetime series."""
     diffs = series.sort_values().diff().dropna()
+    # Zero-length gaps come from duplicate timestamps, never a real cadence
+    diffs = diffs[diffs > pd.Timedelta(0)]
     if diffs.empty:
         return pd.Timedelta(hours=1)
     return diffs.mode().iloc[0]
+
+
+_UGM3_UNITS = ("ug/m3", "µg/m³", "ugm3", "µg/m3", "ug/m³")
+_CONVERTIBLE_UNITS = ("mg/m3", "mg/m³", "mgm3", "ppb", "ppm")
+
+
+def _convert_group_to_ugm3(df: pd.DataFrame, rows: pd.Index, measurand: str) -> None:
+    """Convert the given rows of ``df`` to µg/m³ in place, relabelling units."""
+    df.loc[rows, "value"] = ensure_ugm3_array(
+        df.loc[rows, "value"].to_numpy(dtype=float),
+        measurand,
+        df.loc[rows, "units"],
+    )
+    df.loc[rows, "units"] = "ug/m3"
+
+
+def _prepare_observations(df: pd.DataFrame, to_ugm3: bool = False) -> pd.DataFrame:
+    """Make each (site, measurand, timestamp) a single observation in one unit.
+
+    The ``units`` column is authoritative (sources label faithfully), so
+    metrics must honour it rather than assume µg/m³:
+
+    - ``to_ugm3=True`` converts every convertible unit (mg/m³, ppb, ppm) to
+      µg/m³, for functions whose thresholds are defined in µg/m³.
+    - Otherwise only groups reporting *mixed* units are converted to µg/m³;
+      single-unit groups are left exactly as the network reported them.
+
+    Duplicate (site_code, measurand, date_time) rows — typically from
+    concatenating overlapping downloads — are then collapsed to their mean so
+    they count once towards data capture and averages.
+    """
+    # Concatenated downloads repeat index labels; rows are addressed by label below
+    df = df.reset_index(drop=True)
+
+    if "units" in df.columns:
+        for measurand, group in df.groupby("measurand", observed=True):
+            units_lower = group["units"].astype(str).str.lower().str.strip()
+            if to_ugm3:
+                mask = units_lower.isin(_CONVERTIBLE_UNITS)
+                if mask.any():
+                    _convert_group_to_ugm3(df, mask[mask].index, measurand)
+                continue
+            per_site = group.groupby("site_code", observed=True)["units"].nunique()
+            mixed_sites = per_site[per_site > 1].index
+            if len(mixed_sites) == 0:
+                continue
+            warnings.warn(
+                f"Mixed units for {measurand} at {list(mixed_sites)}; "
+                "converting to ug/m3 before averaging.",
+                AeolusDataWarning,
+                stacklevel=3,
+            )
+            mask = group["site_code"].isin(mixed_sites) & ~units_lower.isin(_UGM3_UNITS)
+            _convert_group_to_ugm3(df, mask[mask].index, measurand)
+
+    key = ["site_code", "measurand", "date_time"]
+    duplicated = df.duplicated(subset=key, keep=False)
+    if duplicated.any():
+        warnings.warn(
+            f"{int(duplicated.sum())} rows share a duplicate (site_code, measurand, "
+            "date_time); averaging each set into one observation.",
+            AeolusDataWarning,
+            stacklevel=3,
+        )
+        means = df.groupby(key, observed=True, sort=False)["value"].transform("mean")
+        df = df.assign(value=means).drop_duplicates(subset=key, keep="first")
+
+    return df
+
+
+def _start_anchored(freq: str):
+    """Return the left-closed, start-labelled equivalent of a resample frequency.
+
+    Aeolus time bins are left-closed and labelled at their start. pandas'
+    end-anchored offsets (ME/QE/YE, W) default to right-closed, end-labelled
+    bins, so map them to the start-anchored offset covering the same periods.
+    Tick frequencies ("D", "8h", ...) are already left-closed and unchanged.
+    """
+    legacy = {"M": "MS", "Q": "QS", "Y": "YS", "A": "YS"}
+    offset = pd.tseries.frequencies.to_offset(legacy.get(freq, freq))
+    offsets = pd.tseries.offsets
+    if isinstance(offset, offsets.MonthEnd):
+        return offsets.MonthBegin(offset.n)
+    if isinstance(offset, offsets.QuarterEnd):
+        return offsets.QuarterBegin(offset.n, startingMonth=offset.startingMonth % 12 + 1)
+    if isinstance(offset, offsets.YearEnd):
+        return offsets.YearBegin(offset.n, month=offset.month % 12 + 1)
+    if isinstance(offset, offsets.Week) and offset.weekday is not None:
+        # "W" (W-SUN) means weeks *ending* Sunday; the same weeks start Monday
+        return offsets.Week(offset.n, weekday=(offset.weekday + 1) % 7)
+    return offset
 
 
 def _expected_observations(data_freq: pd.Timedelta, target_freq: str) -> float:
@@ -224,6 +318,12 @@ def time_average(
         if df.empty:
             return _empty_time_average_df()
 
+    df = _prepare_observations(df)
+    offset = _start_anchored(freq)
+
+    def resampled(series: pd.Series):
+        return series.resample(offset, closed="left", label="left")
+
     results = []
 
     for (site, measurand), group in df.groupby(
@@ -238,23 +338,25 @@ def time_average(
 
         # Apply aggregation
         if statistic == "mean":
-            agg = values.resample(freq).mean()
+            agg = resampled(values).mean()
         elif statistic == "max":
-            agg = values.resample(freq).max()
+            agg = resampled(values).max()
         elif statistic == "min":
-            agg = values.resample(freq).min()
+            agg = resampled(values).min()
         elif statistic == "median":
-            agg = values.resample(freq).median()
+            agg = resampled(values).median()
         elif statistic == "sum":
-            agg = values.resample(freq).sum(min_count=1)
+            agg = resampled(values).sum(min_count=1)
         elif statistic == "std":
-            agg = values.resample(freq).std()
+            agg = resampled(values).std()
         elif statistic == "percentile":
-            agg = values.resample(freq).quantile(percentile / 100.0)
+            agg = resampled(values).quantile(
+                percentile / 100.0, interpolation="linear"
+            )
         else:
             raise ValueError(f"Unknown statistic: {statistic}")
 
-        counts = values.resample(freq).count()
+        counts = resampled(values).count()
 
         # Data capture: fraction of expected observations present.
         # Expected count is computed per-bin using each bin's actual
@@ -262,7 +364,7 @@ def time_average(
         # This matters for monthly/yearly/quarterly aggregations where
         # period length varies (28-31 days, 365-366 days, etc.) and around
         # DST transitions where a month gains/loses an hour.
-        expected = _expected_observations_per_bin(data_freq, freq, counts.index)
+        expected = _expected_observations_per_bin(data_freq, offset, counts.index)
         with np.errstate(divide="ignore", invalid="ignore"):
             dc = counts / expected
         dc = dc.fillna(1.0 if len(counts) == 0 else 0.0)
@@ -375,6 +477,9 @@ def aq_stats(
     if df.empty:
         return pd.DataFrame(columns=_AQ_STATS_COLUMNS)
 
+    # Limit values below are defined in ug/m3, so honour the units column first
+    df = _prepare_observations(df, to_ugm3=True)
+
     results = []
 
     for (site, yr, meas), group in df.groupby(
@@ -435,8 +540,8 @@ def aq_stats(
         # Basic stats from hourly values
         row["annual_mean"] = values.mean()
         row["max_hourly"] = values.max()
-        row["p95"] = values.quantile(0.95)
-        row["p99"] = values.quantile(0.99)
+        row["p95"] = values.quantile(0.95, interpolation="linear")
+        row["p99"] = values.quantile(0.99, interpolation="linear")
 
         # Daily means (18/24 hour threshold per day)
         daily = values.resample("D").agg(["mean", "count"])
@@ -543,6 +648,7 @@ def trend(
         raise ValueError(f"No data found for pollutant: {pollutant}")
 
     df["date_time"] = pd.to_datetime(df["date_time"])
+    df = _prepare_observations(df)
 
     sites = df["site_code"].unique()
     results = []
