@@ -150,7 +150,9 @@ def download(
 
     from .. import cache as _cache
 
-    return _cache.fetch_with_cache(network, sites, start_date, end_date, fetcher)
+    return _cache.fetch_with_cache(
+        network, sites, start_date, end_date, fetcher, last=last
+    )
 
 
 def list_networks() -> list[str]:

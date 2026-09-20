@@ -68,7 +68,11 @@ from .types import empty_metadata_frame as _empty_metadata_frame
 
 
 def _fetch_single_source(
-    source_name: str, source_sites: list[str], start_date: datetime, end_date: datetime
+    source_name: str,
+    source_sites: list[str],
+    start_date: datetime | None,
+    end_date: datetime | None,
+    last: str | None = None,
 ) -> pd.DataFrame:
     """Dispatch a single-source download to the appropriate submodule.
 
@@ -80,10 +84,10 @@ def _fetch_single_source(
 
     if source_type == "network":
         from .networks import download as network_download
-        return network_download(source_name, source_sites, start_date, end_date)
+        return network_download(source_name, source_sites, start_date, end_date, last)
     if source_type == "portal":
         from .portals import download as portal_download
-        return portal_download(source_name, source_sites, start_date, end_date)
+        return portal_download(source_name, source_sites, start_date, end_date, last)
     raise ValueError(f"Unknown source type: {source_type}")
 
 
@@ -201,7 +205,11 @@ def download(
         ... )
     """
     # Resolve last= shorthand and validate that we have a date range.
+    # The submodules re-resolve ``last`` themselves so the cache can key on
+    # the shorthand; resolving here validates the arguments up front.
     start_date, end_date = _resolve_dates(start_date, end_date, last)
+    if last is not None:
+        start_date = end_date = None
 
     # Case 1: Single source (string) - simple case
     if isinstance(sources, str):
@@ -217,7 +225,7 @@ def download(
         if not source_spec:
             raise ValueError(_unknown_source_message(sources))
 
-        return _fetch_single_source(sources, sites, start_date, end_date)
+        return _fetch_single_source(sources, sites, start_date, end_date, last)
 
     # Case 2: Multiple sources (dict) - explicit mapping
     elif isinstance(sources, dict):
@@ -245,7 +253,7 @@ def download(
 
             try:
                 data = _fetch_single_source(
-                    source_name, source_sites, start_date, end_date
+                    source_name, source_sites, start_date, end_date, last
                 )
                 all_data[source_name] = data
 

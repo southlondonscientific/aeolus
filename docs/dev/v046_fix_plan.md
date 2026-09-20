@@ -114,7 +114,24 @@ missing `measurands` column; AirQo always emit lat/lon (NaN) + terminate normali
 `measurands`; `test_sensor_community` subset-only column checks.
 **Severity: Important.**
 
-### WP5 — Caching correctness
+### WP5 — Caching correctness  ✅ DONE
+**Landed 2026-09-20.** Scout confirmed all four findings; patch reviewed and one design point changed.
+- `last=` windows are keyed on the shorthand (`SOURCE|sites|last=30d`) and expire by file mtime after
+  `AEOLUS_CACHE_VOLATILE_TTL_S` (default 3600 s); a refresh overwrites the same file, so growth is bounded. Windows no
+  longer than the TTL bypass the cache. Quantising the timestamps was rejected: flooring `parse_last` shifts the window
+  for uncached users, and flooring keys makes explicit sub-hour ranges collide.
+- **Incomplete results** (a requested site absent) are cached but volatile — same TTL. The scout proposed never caching
+  them; rejected because a bulk pull containing one closed site would then never cache at all. A 404 and a transient
+  failure are indistinguishable at this layer; per-site cache entries (→ v0.5.0, needs fetchers to report failures) are
+  the real fix.
+- `_cache_key` normalises aware datetimes to naive UTC, so pre-0.4.6 naive keys stay valid (pinned by a test).
+- `cache_info` / `clear_cache` tolerate concurrent file removal.
+- Tests: new `tests/test_cache_correctness.py`; vacuous `test_disabled_by_default` replaced by a fresh-interpreter check.
+- **Still open:** an explicit `end_date` at or after "now" is cached forever with whatever had been published;
+  `end_date=datetime.now()` in user scripts has the same unique-key growth as `last=` did. Orphaned `last=` Parquet
+  files from earlier versions are harmless; `clear_cache()` removes them (CHANGELOG line needed).
+
+_Original scope:_
 **Findings:** `last=` downloads never hit cache (`datetime.now()` µs → unique key every call →
 unbounded Parquet growth, "instant re-run" promise broken); partial-success fetches cached as
 authoritative (latches transient per-site failures); `_cache_key` tz-sensitive (naive vs UTC hash

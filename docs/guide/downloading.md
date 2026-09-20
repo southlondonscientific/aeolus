@@ -179,6 +179,15 @@ enable_cache(cache_dir="/path/to/cache")
 # export AEOLUS_CACHE_DIR=/path/to/cache
 ```
 
+### What expires
+
+Complete results for an explicit date range are kept until you clear them. Two kinds of entry are treated as volatile and re-fetched after an hour:
+
+- **Rolling windows** (`last="30d"`) — cached under the shorthand, so re-running a notebook is instant, but refreshed hourly so new data appears. Windows of an hour or less are always fetched live.
+- **Incomplete results** — if a requested site is missing from the result (a transient failure, or a site with no data in the range), the download is retried after the hour rather than kept indefinitely.
+
+Set `AEOLUS_CACHE_VOLATILE_TTL_S` to change the hour.
+
 ## Large Downloads
 
 For large date ranges, data is downloaded in chunks automatically. Progress is shown in the console.
