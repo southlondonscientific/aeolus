@@ -613,3 +613,59 @@ def test_measurand_filter_default_does_not_override_populated(
     result = api.find_sites("MEAS_NET", measurand="NO2")
     # C1 has measurands=None and MEAS_NET has no default_measurands → excluded.
     assert "C1" not in set(result["site_code"])
+
+
+# ---------------------------------------------------------------------------
+# Sources whose metadata omits core columns (custom sources, upstream drift)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def register_no_measurands_network():
+    """Network whose metadata legally omits the measurands column."""
+    register_source(
+        "NOMEAS_NET",
+        {
+            "type": "network",
+            "name": "No Measurands Network",
+            "fetch_metadata": lambda **kw: _make_metadata(
+                LONDON_SITES, "NOMEAS_NET"
+            ).drop(columns=["measurands"]),
+            "fetch_data": lambda sites, s, e: pd.DataFrame(),
+            "normalise": lambda df: df,
+            "requires_api_key": False,
+            "default_measurands": ["NO2"],
+        },
+    )
+
+
+def test_measurand_filter_source_without_measurands_column(register_no_measurands_network):
+    """Missing measurands column falls back to defaults instead of KeyError."""
+    assert len(api.find_sites("NOMEAS_NET", measurand="NO2")) == 4
+    assert api.find_sites("NOMEAS_NET", measurand="SO2").empty
+
+
+def test_measurand_filter_after_empty_spatial_keeps_schema(register_measurand_network):
+    """near= matching nothing + measurand= must not strip the columns."""
+    result = api.find_sites("MEAS_NET", near=(10.0, 10.0), radius_km=5, measurand="NO2")
+    assert result.empty
+    assert list(result.columns) == METADATA_COLUMNS + ["distance_km"]
+
+
+def test_source_without_latlon_does_not_keyerror():
+    register_source(
+        "NOCOORD_NET",
+        {
+            "type": "network",
+            "name": "No Coords",
+            "fetch_metadata": lambda **kw: pd.DataFrame(
+                {"site_code": ["X1"], "source_network": ["NOCOORD_NET"]}
+            ),
+            "fetch_data": lambda sites, s, e: pd.DataFrame(),
+            "normalise": lambda df: df,
+            "requires_api_key": False,
+        },
+    )
+    result = api.find_sites("NOCOORD_NET")
+    assert list(result.columns) == METADATA_COLUMNS
+    assert api.find_sites("NOCOORD_NET", near=(51.5, -0.1)).empty

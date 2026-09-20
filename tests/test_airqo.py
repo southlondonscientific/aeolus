@@ -1373,6 +1373,14 @@ class TestAirQoNormalizer:
         # timestamp — which is strictly BEFORE ``marker``.
         assert (result["created_at"] >= marker).all()
 
+    def test_normaliser_missing_time_keeps_full_schema(self):
+        from aeolus.types import DATA_COLUMNS, AeolusDataWarning
+
+        raw = pd.DataFrame([{"site_id": "s1", "pm2_5": {"value": 10.0}}])
+        with pytest.warns(AeolusDataWarning):
+            result = create_airqo_normaliser()(raw)
+        assert list(result.columns) == DATA_COLUMNS
+
     def test_filters_invalid_values(self):
         """Negative values are filtered out; zero is a genuine reading."""
         normaliser = create_airqo_normaliser()

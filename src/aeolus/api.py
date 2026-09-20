@@ -546,6 +546,13 @@ def find_sites(
 
     combined = pd.concat(results, ignore_index=True)
 
+    # Guarantee the core metadata schema: a source that omits a column
+    # (e.g. no per-site measurands) degrades to None/NaN rather than
+    # raising a KeyError below.
+    for col in _METADATA_COLUMNS:
+        if col not in combined.columns:
+            combined[col] = None
+
     # --- spatial post-filtering ---
     # Ensure lat/lon are numeric (some sources may return strings)
     combined["latitude"] = pd.to_numeric(combined["latitude"], errors="coerce")
@@ -588,19 +595,30 @@ def find_sites(
             if defaults:
                 source_defaults[src_name] = set(defaults)
 
-        def _matches(row):
-            m = row["measurands"]
-            if isinstance(m, list):
+        def _matches(m, network) -> bool:
+            if isinstance(m, (list, tuple, set)):
                 return bool(wanted & set(m))
             # measurands is None / NaN / unknown — fall back to the
             # source-declared defaults if any. This catches sources whose
             # metadata feeds don't expose per-site measurands.
-            defaults = source_defaults.get(row["source_network"])
+            defaults = source_defaults.get(network)
             if defaults is None:
                 return False
             return bool(wanted & defaults)
 
-        combined = combined[combined.apply(_matches, axis=1)].reset_index(drop=True)
+        # Built without DataFrame.apply(axis=1): on a zero-row frame that
+        # returns an empty DataFrame and the boolean index strips every column.
+        mask = pd.Series(
+            [
+                _matches(m, n)
+                for m, n in zip(
+                    combined["measurands"], combined["source_network"], strict=True
+                )
+            ],
+            index=combined.index,
+            dtype=bool,
+        )
+        combined = combined[mask].reset_index(drop=True)
 
     # --- order columns: core -> distance_km -> extras ---
     core = [c for c in _METADATA_COLUMNS if c in combined.columns]

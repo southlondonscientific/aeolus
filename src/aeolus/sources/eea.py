@@ -523,7 +523,7 @@ def normalise_eea_data():
         add_column("source_network", "EEA"),
         map_verification,
         add_column("created_at", lambda df: datetime.now(timezone.utc)),
-        select_columns(*DATA_COLUMNS),
+        select_columns(*DATA_COLUMNS, require_all=True),
         reset_index(),
     )
 

@@ -650,6 +650,7 @@ def create_purpleair_normaliser():
             "source_network",
             "ratification",
             "created_at",
+            require_all=True,
         ),
     )
 

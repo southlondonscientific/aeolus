@@ -723,6 +723,7 @@ def create_airqo_normaliser():
             "source_network",
             "ratification",
             "created_at",
+            require_all=True,
         ),
     )
 

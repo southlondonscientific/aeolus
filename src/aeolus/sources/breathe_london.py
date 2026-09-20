@@ -463,6 +463,7 @@ def create_breathe_london_normaliser():
             "source_network",
             "ratification",
             "created_at",
+            require_all=True,
         ),
     )
 

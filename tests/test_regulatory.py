@@ -334,24 +334,11 @@ class TestNormaliseRegulatoryData:
             assert all(result["source_network"] == network)
 
     def test_normalise_data_standard_schema(self, mock_data_df):
-        """Should produce standard 8-column schema."""
-        normaliser = normalise_regulatory_data("AURN")
-        result = normaliser(mock_data_df)
+        """Should produce the strict 8-column schema in DATA_COLUMNS order."""
+        from aeolus.types import DATA_COLUMNS
 
-        expected_columns = {
-            "site_code", "date_time", "measurand", "value",
-            "units", "source_network", "ratification", "created_at",
-        }
-        assert set(result.columns) == expected_columns
-
-
-# ============================================================================
-# Tests for make_metadata_fetcher()
-# ============================================================================
-
-
-class TestMakeMetadataFetcher:
-    """Tests for metadata fetcher factory."""
+        result = normalise_regulatory_data("AURN")(mock_data_df)
+        assert list(result.columns) == DATA_COLUMNS
 
     def test_make_metadata_fetcher_returns_callable(self):
         """Should return a callable function."""

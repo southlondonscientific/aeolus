@@ -33,6 +33,10 @@ Work packages from `docs/dev/v046_fix_plan.md`. Many of these change emitted val
 - `networks.list_networks()` listed hidden backends (`AURN-SOS`, `LAQN-ERG`, …); pass `include_all=True` to see them.
 - Breathe London `find_sites` with a location filter raised `KeyError` when the API omitted coordinates.
 - Sensor.Community re-probed every candidate sensor type on every day of a download, even after learning the type.
+- **`find_sites("LMAM", measurand=...)` returned no sites** — LMAM emitted `measurands` as a comma-separated string where every other source emits a list. It is now a sorted list.
+- `find_sites()` raised `KeyError` for a source whose metadata omitted `measurands` or coordinates, and returned a frame with **no columns** when `near=` matched nothing and `measurand=` was also given. The core metadata columns are now always present.
+- AURN-family, LAQN and LMAM data frames now have the documented column order (`units` and `ratification` were swapped relative to `DATA_COLUMNS`).
+- A normaliser that loses a schema column (upstream drift) now warns and returns an empty full-schema frame, rather than silently emitting seven columns.
 - **`last=` downloads never hit the cache and grew it without bound** — the window was keyed on `datetime.now()` to the microsecond. Rolling windows are now keyed on the shorthand and refreshed after `AEOLUS_CACHE_VOLATILE_TTL_S` seconds (default 3600); windows of an hour or less are always fetched live. Parquet files written by earlier versions for `last=` calls are orphaned — `clear_cache()` removes them.
 - **A transient per-site failure was cached permanently** — a result missing a requested site now expires after the same TTL instead of being served forever.
 - **Cache keys depended on timezone-awareness** — the same instant as a naive and a UTC-aware datetime keyed differently. Existing naive-keyed entries remain valid.

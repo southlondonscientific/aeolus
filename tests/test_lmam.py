@@ -92,7 +92,7 @@ class TestMetadataNormalisation:
     def test_measurands_aggregated_and_deduped(self, mock_lmam_metadata_df):
         result = _normalise_lmam_metadata(mock_lmam_metadata_df)
         ad1 = result[result["site_code"] == "AD1"].iloc[0]
-        assert set(ad1["measurands"].split(",")) == {"NO2", "PM10", "PM2.5"}
+        assert ad1["measurands"] == ["NO2", "PM10", "PM2.5"]
 
     def test_filters_out_unsupported_pcodes(self, mock_lmam_metadata_df):
         """`london` has no per-site RData files on the LMAM server; sites
@@ -241,8 +241,7 @@ class TestFetchData:
         result = fetch_lmam_data(["AD1"], start, end)
 
         from aeolus.types import DATA_COLUMNS
-        for col in DATA_COLUMNS:
-            assert col in result.columns
+        assert list(result.columns) == DATA_COLUMNS
         assert (result["source_network"] == "LMAM").all()
 
 
@@ -258,3 +257,13 @@ class TestRegistration:
         assert source is not None
         assert source["type"] == "network"
         assert source["requires_api_key"] is False
+
+
+class TestFindSitesMeasurandFilter:
+    @patch("aeolus.sources.lmam.fetch_rdata")
+    def test_measurand_filter_keeps_lmam_sites(self, mock_fetch, mock_lmam_metadata_df):
+        import aeolus
+
+        mock_fetch.return_value = mock_lmam_metadata_df
+        result = aeolus.find_sites("LMAM", measurand="PM10")
+        assert list(result["site_code"]) == ["AD1"]

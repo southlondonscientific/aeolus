@@ -36,12 +36,13 @@ Example:
     >>> df_normalised = normalise(df_raw)
 """
 
+import warnings
 from functools import reduce
 from typing import Any, Callable
 
 import pandas as pd
 
-from .types import Transformer
+from .types import AeolusDataWarning, Transformer
 
 
 def pipe(df: pd.DataFrame, *functions: Transformer) -> pd.DataFrame:
@@ -453,15 +454,20 @@ def fillna(
     return transform
 
 
-def select_columns(*columns: str) -> Transformer:
+def select_columns(*columns: str, require_all: bool = False) -> Transformer:
     """
     Return a function that selects only specified columns from a DataFrame.
 
     Only selects columns that exist in the DataFrame - silently ignores
     columns that don't exist.
 
+    With ``require_all=True`` (used on the data path), a missing column is a
+    contract violation: warn and return an empty frame carrying the full
+    requested schema rather than silently emitting fewer columns.
+
     Args:
         *columns: Variable number of column names to select
+        require_all: Treat a missing column as an error (see above)
 
     Returns:
         Transformer: Function that selects the specified columns
@@ -472,6 +478,17 @@ def select_columns(*columns: str) -> Transformer:
     """
 
     def transform(df: pd.DataFrame) -> pd.DataFrame:
+        if require_all:
+            missing = [col for col in columns if col not in df.columns]
+            if missing:
+                warnings.warn(
+                    f"Normalised frame is missing required column(s) {missing}; "
+                    "returning an empty frame with the full schema",
+                    AeolusDataWarning,
+                    stacklevel=2,
+                )
+                return pd.DataFrame(columns=list(columns))
+            return df[list(columns)]
         cols_to_select = [col for col in columns if col in df.columns]
         return df[cols_to_select]
 

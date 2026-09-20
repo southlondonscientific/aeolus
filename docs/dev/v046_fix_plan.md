@@ -102,7 +102,24 @@ bin closure to left-closed; explicit `interpolation='linear'`; `.copy()`. Touch 
 can't catch >1.0; `test_metrics_properties` array-vs-scalar never reaches below-band/gap path.
 **Re-baseline:** data-capture and period-AQI values shift. **Severity: Important.**
 
-### WP4 — Schema consistency & find_sites robustness  *(crashes + silent concat misalignment)*
+### WP4 — Schema consistency & find_sites robustness  ✅ DONE
+**Landed 2026-09-20.** Findings 1–4 confirmed (1 with reduced impact); 5 already fixed by `f7a7014`; one new bug.
+- Regulatory normaliser ends with `select_columns(*DATA_COLUMNS)` — fixes column *order* for AURN/SAQN/WAQN/NI/AQE,
+  LAQN RData and LMAM. **Refuted sub-claims:** raw columns cannot leak (`melt` drops them) and `pd.concat` aligns by
+  name, so there was no "silent concat misalignment" — only positional access was affected.
+- `select_columns(..., require_all=True)` on all seven data paths: a missing schema column warns and returns an empty
+  full-schema frame. The plan's `reindex` fix was **rejected**: a NaN-filled `date_time` turns the concatenated column
+  into `object` dtype under pandas 3, breaking `.dt` for the whole multi-source result. Lenient default unchanged.
+- LMAM `measurands` is a sorted list (or `None`), not a comma-string — `find_sites("LMAM", measurand=...)` returned 0.
+- `find_sites` forces the core metadata columns after concat, so a source omitting `measurands`, `latitude`/`longitude`
+  or `site_name` degrades instead of raising. **NEW:** `near=` matching nothing plus `measurand=` returned a frame with
+  *no columns* (`DataFrame.apply(axis=1)` on zero rows); mask now built without `apply`.
+- **Left:** AirQo metadata passes ~60 upstream columns through (trimming breaks the `country=` post-filter — cosmetic);
+  `fetch_airqo_grids` error paths return the data schema, not the metadata schema (audit line 210).
+- **Noticed, not fixed:** `test_airqo::test_registered_with_correct_functions` fails if `test_find_sites` runs first
+  (registry reload) — order-dependent, green in the default alphabetical order.
+
+_Original scope:_
 **Findings:** regulatory normaliser omits `select_columns` (wrong column order); `select_columns`
 silently emits <8 cols when an upstream step failed; LMAM `measurands` is a comma-string not a list
 (breaks `measurand=` filter — drops all LMAM); `find_sites(measurand=...)` KeyErrors when a source omits
