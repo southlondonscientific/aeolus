@@ -331,17 +331,37 @@ ARGUS backend in 0.5.0 or a 0.5.x. The CI parity test (§5) starts as aeolus-aut
 has seeds to compare. Separately, Argus's write path had to stop discarding corrected values (`ON CONFLICT DO NOTHING`)
 before it can absorb *any* re-baseline — implemented on Argus branch `feat/readings-upsert-history`, 2026-09-20.
 
-### 17.6 EEA queries the wrong dataset  — *FOUND 2026-09-20, NEW WORK ITEM*
-**Found (probed live, IE NO2):** the download API's `dataset` ids are **1 = up-to-date E2a** (recent data only, every row
-`Verification=2`), **2 = verified E1a** (2019 and 2023 present, `Verification=1`), **3 = historical Airbase** (2012
-present, `Verification=0`). The adapter's constant `DATASET_E1A = 1` is misnamed: aeolus requests only the up-to-date
-feed, so **EEA downloads for earlier years return empty**. The conformance test never noticed because it only asserts
-`if not data.empty`. (The `Verification` label map was also inverted — fixed in PR #13, cited to the EIONET vocabulary.)
-**Proposal:** fold into §7's EEA wiring, which already keys tier on `dataset`. Select datasets by requested window —
-verified archive first, up-to-date feed for what the archive does not yet cover, Airbase before 2013 — preferring the
-verified row where both hold the same `(site, measurand, timestamp)`. `Verification=0` (Airbase) needs a vocabulary entry;
-§15 already suspects it is `supplied` rather than `ratified`. Make the conformance test assert non-empty for a past year.
-**Open:** whether this should be pulled forward of 0.5.0 — historical EEA data is unreachable in the released version.
+### 17.6 EEA: only the up-to-date feed is queried, and the feeds do not separate cleanly  — *CHARACTERISED 2026-09-20; design PROPOSED*
+**Method:** 240 live requests (8 countries — IE DE FR ES PL NO IT NL — × 10 periods 2010–2026 × 3 datasets, NO2,
+three-day windows), then 400 one-day requests month by month 2023–2026 for datasets 1 and 2. Zero request errors.
+**Settled:**
+- **Dataset ids:** 1 = E2a up-to-date, 2 = E1a verified, 3 = Airbase (≤2012). The API names its own zip folders
+  `E2a` / `E1a` / `Airbase`, and EEA's *How to download* guide defines them the same way. The adapter's
+  `DATASET_E1A = 1` is misnamed; aeolus has only ever queried the up-to-date feed, so **earlier years return empty in
+  every country tested**. The April 2026 notes (`docs/superpowers/plans/2026-04-07-…`) had ids 1 and 2 swapped.
+- **`Verification`:** EEA's guide points the parquet field at the EIONET vocabulary — 1 Verified, 2 Preliminary verified,
+  3 Not verified. The data agree: E1a is 100 % code 1 in all eight countries for every period from 2015; Germany's data
+  from a fortnight ago is 100 % code 3; Airbase rows carry code 0. (The inverted label map is fixed in PR #13.)
+- **No coverage gap** between the archive and the feed in any country (2025 onward, monthly), bar one missing day (NL).
+**Messy — the design has to handle all of these:**
+- *Handover differs by country.* E2a begins 2026-01 for IE, FR, NO (clean switch, no overlap); 2025-01 for ES; and
+  2024-01 for DE, IT, NL, PL, where it overlaps E1a for up to 24 months.
+- *E1a is incomplete for the latest year.* Germany 2025: 363 sampling points in E1a against 405 in E2a. Spain and Poland
+  have no E1a after 2024.
+- *Overlapping rows disagree, for three different reasons.* Poland: rounding (E1a stored to 0.1; all within 0.05).
+  Germany: genuine verification corrections (~8 % of hours, p95 0.7 µg/m³). **Italy: a one-hour timestamp offset between
+  the feeds that follows daylight saving** — 340 of 390 sampling points in September 2025, ~13 % in winter; DE, NL and PL
+  show none in either season.
+- *`Verification` is per row, not per dataset.* A quarter of Germany's March 2024 E2a rows already carry code 1;
+  Norway's E2a is entirely code 1.
+- *Sampling-point sets differ* slightly between the feeds for the same country and period.
+**Proposal:** query by window — E1a first, then E2a for sampling-point-hours E1a does not hold, Airbase before 2013 —
+and where both hold the same `(sampling point, hour)` keep the E1a row. `qa_code` carries the verbatim `Verification`
+code per row; `backend`/provenance should record which dataset served the row. Do **not** deduplicate Italy across feeds
+until the timestamp offset is understood (see §17.10 — time). `Verification = 0` (Airbase) needs a vocabulary entry;
+§15 suspects `supplied`. The conformance test must assert non-empty data for a past year — it currently passes on empty.
+**Status while this is open:** EEA is registered `status="experimental"` with a one-time warning (PR #13).
+**Open:** whether to pull this forward of v0.5.0.
 
 ### 17.7 AURN-family ratification is per parameter, and already downloaded  — *NOTE*
 **Found:** §7 says "join each site's `ratified_to` date". The openair metadata RData that aeolus already fetches carries
