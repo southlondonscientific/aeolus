@@ -225,10 +225,13 @@ def fetch_airnow_metadata(
 
     min_lon, min_lat, max_lon, max_lat = bbox
 
-    # Fetch current observations to get site list
+    # Fetch recent observations to get the site list. Not the current hour:
+    # it is usually unpublished (or only partly published), so asking for it
+    # alone intermittently finds no sites at all. Use the two hours before it.
+    this_hour = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
     params = {
-        "startDate": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H"),
-        "endDate": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H"),
+        "startDate": (this_hour - timedelta(hours=2)).strftime("%Y-%m-%dT%H"),
+        "endDate": (this_hour - timedelta(hours=1)).strftime("%Y-%m-%dT%H"),
         "parameters": "OZONE,PM25,PM10,CO,NO2,SO2",
         "BBOX": f"{min_lon},{min_lat},{max_lon},{max_lat}",
         "dataType": "B",  # AQI and concentrations

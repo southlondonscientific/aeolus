@@ -29,6 +29,7 @@ The correctness scrub planned as v0.4.6, held to ship as part of v0.5.0 (one re-
 - **Network retries never happened for AURN-family, AirNow, PurpleAir and Sensor.Community downloads** — `@retry_on_network_error` only retries exceptions that propagate, and these fetchers caught them internally, so one dropped connection silently lost a site-year. Retries now work (3 attempts; a 404 is still never retried) and each function's return contract is unchanged. PurpleAir retries a single request, never a whole download.
 - **Retry log lines could contain API keys** — tenacity's default logger prints the exception message, which includes the request URL and its `?API_KEY=`/`token=` query string. This already affected AirQo. Retry logs now name only the exception type.
 - **Empty lookups were cached for the life of the process** — a transient failure building the EEA sampling-point mapping or an SOS network mapping latched `{}`, silencing that source until restart.
+- **AirNow `find_sites` intermittently found no sites** — site discovery asked only for the current hour, which is usually unpublished. It now asks for the two hours before it.
 - `find_sites(near=...)` near the poles or the antimeridian built an invalid bounding box (latitude > 90, longitude > 180), which upstreams rejected and Aeolus reported as zero sites.
 - `networks.list_networks()` listed hidden backends (`AURN-SOS`, `LAQN-ERG`, …); pass `include_all=True` to see them.
 - Breathe London `find_sites` with a location filter raised `KeyError` when the API omitted coordinates.

@@ -5,7 +5,7 @@ Tests the API calls, metadata fetching, data fetching, and normalization
 with mocked responses.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -275,6 +275,21 @@ class TestCallAirnowApi:
 
 class TestFetchMetadata:
     """Test the metadata fetcher."""
+
+    @patch("aeolus.sources.airnow._call_airnow_api")
+    def test_fetch_metadata_queries_published_hours_not_the_current_one(
+        self, mock_api, mock_metadata_response
+    ):
+        """The current hour is usually unpublished; asking only for it finds no sites."""
+        mock_api.return_value = mock_metadata_response
+        fetch_airnow_metadata()
+
+        params = mock_api.call_args[0][1]
+        now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+        start = datetime.strptime(params["startDate"], "%Y-%m-%dT%H").replace(tzinfo=timezone.utc)
+        end = datetime.strptime(params["endDate"], "%Y-%m-%dT%H").replace(tzinfo=timezone.utc)
+        assert end < now
+        assert start < end
 
     @patch("aeolus.sources.airnow._call_airnow_api")
     def test_fetch_metadata_basic(self, mock_api, mock_metadata_response):
