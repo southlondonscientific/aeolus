@@ -6,7 +6,7 @@ The [European Environment Agency](https://www.eea.europa.eu/) aggregates regulat
 
 - **Coverage**: 40+ European countries, 7,000+ stations
 - **Data quality**: Reference (national regulatory networks, pooled by EEA)
-- **Ratification**: `Verified` (verified by EEA or member state) or `Provisional` (not yet verified)
+- **Ratification**: `Verified` (full QA/QC by the data provider) or `Provisional` (preliminary or not verified)
 - **API key**: Not required
 - **History**: 2013+ (hourly)
 - **Operator**: European Environment Agency
@@ -57,11 +57,14 @@ Each row is labelled with a `ratification` value derived from the EEA `Verificat
 
 | EEA field value | `ratification` |
 |-----------------|----------------|
-| 1 (Not yet verified) | `Provisional` |
-| 2 (Verified by EEA) | `Verified` |
-| 3 (Verified by member state) | `Verified` |
+| 1 (Verified) | `Verified` |
+| 2 (Preliminary verified) | `Provisional` |
+| 3 (Not verified) | `Provisional` |
 
-For recent months, expect mostly `Provisional` data; for previous calendar years, most data is `Verified`.
+Codes follow the [EIONET observation-verification vocabulary](https://dd.eionet.europa.eu/vocabulary/aq/observationverification). Versions before 0.5.0 had this mapping inverted.
+
+!!! warning "Historical coverage"
+    Aeolus currently queries only the EEA *up-to-date* feed, which holds recent data (all `Provisional`). Requests for earlier years return an empty frame; the verified archive is not yet wired in.
 
 ## Notes
 

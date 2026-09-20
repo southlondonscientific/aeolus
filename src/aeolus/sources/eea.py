@@ -34,13 +34,14 @@ Data download: EEA Parquet Download API (Azure)
 Samplingpoint mapping: EEA metadata CSV (discomap.eea.europa.eu)
 
 Implementation notes:
-    The EEA publishes two dataset variants (E1a and E2a) through different
-    reporting pipelines. We use E1a (dataset=1, "Verified") which has the
-    best coverage for recent data. The per-row ``Verification`` field
-    determines ratification status:
-      - 1 = Not yet verified  -> "Provisional"
-      - 2 = Verified by EEA   -> "Verified"
-      - 3 = Verified by member state -> "Verified"
+    The download API serves three datasets: 1 = up-to-date (E2a, recent data
+    only), 2 = verified (E1a, reported annually), 3 = historical Airbase
+    (<=2012). Only dataset=1 is queried today — see the note on
+    ``DATASET_E1A`` below. The per-row ``Verification`` field determines
+    ratification status (EIONET observationverification vocabulary):
+      - 1 = Verified             -> "Verified"
+      - 2 = Preliminary verified -> "Provisional"
+      - 3 = Not verified         -> "Provisional"
 
     The Samplingpoint identifier format varies wildly between countries
     (e.g. "IE/SPO.IE.IE0131ASample1_8" for Ireland, "DE/SPO.DE_DEBB021_NO2_dataGroup1"
@@ -130,14 +131,22 @@ MEASURAND_TO_NOTATION = {
     "C6H6": "C6H6",
 }
 
-# EEA Verification codes -> Aeolus ratification values
+# EEA Verification codes -> Aeolus ratification values, per the EIONET
+# vocabulary (https://dd.eionet.europa.eu/vocabulary/aq/observationverification):
+#   1 = Verified, 2 = Preliminary verified, 3 = Not verified.
+# Until v0.4.6 this map was inverted (1 -> Provisional, 2/3 -> Verified).
 VERIFICATION_MAP = {
-    1: "Provisional",
-    2: "Verified",
-    3: "Verified",
+    1: "Verified",
+    2: "Provisional",
+    3: "Provisional",
 }
 
-# Dataset ID: E1a (primary validated assessment data)
+# Dataset ID sent to the download API. NB the name is historical and wrong:
+# probing the API (2026-09-20) shows dataset=1 is the *up-to-date* E2a feed
+# (recent data only, Verification=2), dataset=2 is the verified E1a archive
+# (Verification=1) and dataset=3 is historical Airbase (<=2012). Only
+# dataset=1 is queried today, so downloads before the up-to-date window come
+# back empty. Multi-dataset selection is v0.5.0 work: docs/dev/v050_design.md §17.
 DATASET_E1A = 1
 
 # Pollutant names as they appear in PopupInfo HTML

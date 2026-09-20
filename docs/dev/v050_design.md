@@ -2,6 +2,8 @@
 
 **Date:** 2026-06-09
 **Status:** Design approved in brainstorming (2026-06-09); pending written-spec review before implementation planning.
+**Addendum 2026-09-20 (§17):** seven items from checking this spec against the code after the correctness scrub landed
+(PR #13). All are *proposals* until reviewed; §17 records the outcome of each.
 **Supersedes framing in:** `sls-meta/2026-05-17-aeolus-v0.5-network-backend-architecture.md` (the full network/backend
 refactor — now split: v0.5.0 takes the *contract*, v0.6.0 takes the *routing engine*).
 **Grounded by:** the 2026-06-09 adversarial network-grounding workflow (64 agents, 21 cards, 2 skeptics/card +
@@ -41,6 +43,7 @@ cross-backend dedup; `source=` deprecation→removal; multi-backend split-and-st
 | D4 | **LMAM = one platform code + `provider` per-site attribute** | Grounding refuted the per-pcode split: `aqdm` is a multi-council custodian bundle, pcode→council membership is unverified, and the "dataless pcode" partition is false (availability is per-site). |
 | D5 | **`ratification_lag` is structured, not a scalar** | The single int conflated cadence vs first-ratification latency vs full-year-published across 10 networks — the #1 consistency defect. |
 | D6 | **Gate ARGUS backend on Argus v1** (QA migration + `/api/v1/`) | Build clean against v1, no throwaway field-rename glue. |
+| D6′ | *(proposed 2026-09-20, see §17.5)* Gate **only the ARGUS backend (§11)** on Argus v1 — not the release | The dependency is circular: Argus ingests through aeolus, so Argus's QA columns stay empty until aeolus wires real flags. |
 | D7 | **Cut a 0.5.0a/rc** for internal consumers to migrate against | Catch schema-break surprises before a pinned release. |
 
 ---
@@ -276,3 +279,82 @@ sites, all emitting `qa_tier=unknown` (the harvest feed carries no QA flag).
 Dataless pcodes (`london`/`aqengland`/`essex`): **do not reserve codes** — the per-pcode "dataless" partition was
 empirically refuted (availability is per-site). `london` sites route to LAQN; `aqengland` (Hertfordshire & Bedfordshire)
 must **not** collide with the existing `AQE` code if ever minted.
+
+---
+
+## 17. Addendum 2026-09-20 — spec checked against the code
+
+Written after the correctness scrub (§13, rollout step 1) landed as PR #13. Each item states what was found, the
+proposal, and its review status. **Nothing here is decided until its status says so.**
+
+### 17.1 How the deprecation mirrors warn  — *PROPOSED*
+**Found:** §3.1/§12 say `source_network` and `ratification` are kept as mirrors "with `DeprecationWarning`", but pandas
+cannot warn when a column is *read*, so the mechanism is unspecified.
+**Proposal:** emit one `DeprecationWarning` per process, from the first public call that returns a data or metadata frame
+(`download`, `fetch`, `find_sites`, `get_current`), with `stacklevel` pointing at the caller — so it shows in notebooks,
+scripts and pytest runs, and stays hidden when aeolus is called from deep inside another library. Add an opt-out,
+`AEOLUS_LEGACY_COLUMNS=0` (and `aeolus.options.legacy_columns = False`), which drops the mirrors and the warning. The
+opt-out doubles as the migration test for Hermes/RHEA/Clara/Argus: run their suites with it set, and anything still
+reading a mirror fails loudly. aeolus's own metrics/viz/cache/summarise code must read `network`, never the mirror.
+
+### 17.2 The Parquet cache holds v0.4 frames  — *PROPOSED*
+**Found:** `aeolus.cache` keys on source/sites/window only. After upgrading, a cached 8-column frame would be served as if
+it were a v0.5.0 result. The spec versions only the ARGUS backend's cache key (§11).
+**Proposal:** a schema version in the cache *path* (`~/.cache/aeolus/v2/<SOURCE>/…`), so old and new entries can never be
+confused and old ones are easy to find and delete; plus a defensive check on read — a cached frame whose columns are not
+the current `DATA_COLUMNS` is treated as a miss. `cache_info()` reports legacy files; `clear_cache()` removes them.
+
+### 17.3 Rows upstream marks invalid: drop or `flagged`?  — *PROPOSED*
+**Found:** EEA rows with `Validity < 1` (−1 not valid, −99 maintenance/calibration) are dropped today; §7 maps `Validity`
+→ tier and §4.1 has a `flagged` tier, without saying which applies. PurpleAir already *keeps* doubtful rows behind
+`include_flagged`. The scrub (WP2) dropped AirNow `-999` and NaN values on the principle that a bad number must never
+reach `value`.
+**Proposal — one rule for every adapter:** a row is **dropped** when upstream says the value is not a measurement
+(invalid, sentinel, missing); a row is **`flagged`** when upstream publishes a usable value with a quality caveat
+(PurpleAir channel disagreement, EEA below-detection-limit codes 2/3 are *valid* and are not flagged at all). So EEA
+−1/−99 stay dropped, consistent with WP2.
+
+### 17.4 AirQo: no calibrated/raw signal in the adapter  — *OPEN, needs investigation*
+**Found:** §7/§8 map `calibratedValue` → `lcs_calibrated` and `raw` → `lcs_factory_only`, but the adapter reads only
+`pm2_5.value` / `pm10.value`, and the measurement shape characterised on 2026-06-09 had no other field. Cannot be checked
+now: `AIRQO_API_KEY` is failing authentication (conformance run, 2026-09-20).
+**Proposal:** do not block the alpha on this. Ship AirQo as `qa_tier=unknown` in 0.5.0a1; once the key is regenerated,
+characterise the live payload and either wire the distinction or amend §8 with a cited reason it is unavailable.
+
+### 17.5 D6 — what is actually gated on Argus  — *PROPOSED (see D6′ in §2)*
+**Found:** as of Argus `main` @ `103116f` none of the three Argus deliverables exists (Phase 1 QA migration, `/api/v1/`,
+rich vocabulary seeds), and the dependency is circular — Argus's `qa_flag` is NULL for every AURN-family row *because*
+aeolus emits `'None'`. Argus's Phase 1 spec also predates the 2026-06-09 grounding and carries refuted premises.
+**Proposal:** gate only §11 (the ARGUS backend). Sequence: aeolus 0.5.0a1 (schema + registry + QA wiring) → Argus Phase 1,
+seeds and `/api/v1/` migrate *against the alpha* (the real-world vocabulary check D7 wanted) → aeolus 0.5.0 final, with the
+ARGUS backend in 0.5.0 or a 0.5.x. The CI parity test (§5) starts as aeolus-authored YAML and is switched on when Argus
+has seeds to compare. Separately, Argus's write path had to stop discarding corrected values (`ON CONFLICT DO NOTHING`)
+before it can absorb *any* re-baseline — implemented on Argus branch `feat/readings-upsert-history`, 2026-09-20.
+
+### 17.6 EEA queries the wrong dataset  — *FOUND 2026-09-20, NEW WORK ITEM*
+**Found (probed live, IE NO2):** the download API's `dataset` ids are **1 = up-to-date E2a** (recent data only, every row
+`Verification=2`), **2 = verified E1a** (2019 and 2023 present, `Verification=1`), **3 = historical Airbase** (2012
+present, `Verification=0`). The adapter's constant `DATASET_E1A = 1` is misnamed: aeolus requests only the up-to-date
+feed, so **EEA downloads for earlier years return empty**. The conformance test never noticed because it only asserts
+`if not data.empty`. (The `Verification` label map was also inverted — fixed in PR #13, cited to the EIONET vocabulary.)
+**Proposal:** fold into §7's EEA wiring, which already keys tier on `dataset`. Select datasets by requested window —
+verified archive first, up-to-date feed for what the archive does not yet cover, Airbase before 2013 — preferring the
+verified row where both hold the same `(site, measurand, timestamp)`. `Verification=0` (Airbase) needs a vocabulary entry;
+§15 already suspects it is `supplied` rather than `ratified`. Make the conformance test assert non-empty for a past year.
+**Open:** whether this should be pulled forward of 0.5.0 — historical EEA data is unreachable in the released version.
+
+### 17.7 AURN-family ratification is per parameter, and already downloaded  — *NOTE*
+**Found:** §7 says "join each site's `ratified_to` date". The openair metadata RData that aeolus already fetches carries
+`ratified_to` **per site *and* parameter** (verified live for AURN and SAQN; e.g. `ABD9` → `2026-06-30`), alongside
+`start_date`/`end_date`. No new upstream source is needed, and the join key should be `(site_code, measurand)`, not
+`site_code` — a site's pollutants can be ratified to different dates. Effort drops from "medium" towards "low–medium".
+
+### 17.8 What the scrub changed that this spec should assume
+- Every data path now ends in `select_columns(*DATA_COLUMNS, require_all=True)` — a single choke point. The new columns,
+  the mirrors and `qa_tier` derivation can be added in **one shared finalising step** rather than in 14 adapters.
+- `units` is authoritative and metrics/viz convert on use; `aq_stats` output has a `units` column.
+- Retry is effective and RData hosts have a circuit-breaker; the ARGUS backend's "rate-limit-aware retry" (§11) should
+  reuse that machinery, including the key-safe retry logger.
+- Rename blast radius (for planning): `source_network` appears in 18 source files, 39 test files, 7 notebooks, 18 docs;
+  `ratification` in 16 / 26 / 4 / 22. Mechanical but wide — one commit, with the mirrors in place so everything stays green.
+
