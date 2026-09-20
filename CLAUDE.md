@@ -281,3 +281,7 @@ Mock API responses are defined as pytest fixtures within each test file.
 ## Cross-product session log
 
 A running log of development across all SLS products lives at `../SLS-PRODUCT-DEV.md`. At the end of any session that materially changes this project's state (commits, deploys, design decisions, new dependencies), append an entry to that file's Session Log section (newest first) and update the Status Snapshot row for this product. The template and conventions are in the log's "How to update" section — keep entries terse (~250 words) with Achieved / Decisions / Next / Open subsections. Skip for trivial sessions (single-line fixes, pure exploration, no commits).
+
+## Plan execution recommendation
+
+When the superpowers:writing-plans skill's Execution Handoff offers "Subagent-Driven (recommended)" vs "Inline Execution", ignore the boilerplate "(recommended)" label — it is hardcoded in the skill, not a judgement. Make a genuine per-task recommendation instead: subagent-driven when tasks are independent and self-contained enough for fresh-context workers; inline when tasks are tightly coupled, the plan is short (≤3 tasks), or this session already holds hard-won context a subagent would have to rebuild. State which you recommend and why in one sentence.
