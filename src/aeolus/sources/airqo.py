@@ -36,6 +36,7 @@ from logging import getLogger, warning
 import pandas as pd
 import requests
 
+from .._dates import to_utc
 from ..decorators import retry_on_network_error
 from ..registry import register_source
 from ..transforms import add_column, compose, rename_columns, select_columns
@@ -463,8 +464,8 @@ def fetch_airqo_data(
     normaliser = create_airqo_normaliser()
 
     # Format dates for API (YYYY-MM-DD or ISO format)
-    start_str = start_date.strftime("%Y-%m-%dT00:00:00.000Z")
-    end_str = end_date.strftime("%Y-%m-%dT23:59:59.000Z")
+    start_str = to_utc(start_date).strftime("%Y-%m-%dT00:00:00.000Z")
+    end_str = to_utc(end_date).strftime("%Y-%m-%dT23:59:59.000Z")
 
     from ..progress import track
 
@@ -550,8 +551,8 @@ def fetch_airqo_data_by_grid(
     logger = logging.getLogger(__name__)
 
     # Format dates for API
-    start_str = start_date.strftime("%Y-%m-%dT00:00:00.000Z")
-    end_str = end_date.strftime("%Y-%m-%dT23:59:59.000Z")
+    start_str = to_utc(start_date).strftime("%Y-%m-%dT00:00:00.000Z")
+    end_str = to_utc(end_date).strftime("%Y-%m-%dT23:59:59.000Z")
 
     try:
         endpoint = f"devices/measurements/grids/{grid_id}/historical"

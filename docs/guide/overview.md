@@ -100,6 +100,9 @@ When using `near`, an additional `distance_km` column is included, sorted neares
 
 ## Time Conventions
 
-Aeolus uses **left-closed intervals** for timestamps. A timestamp of `13:00` represents the period from `12:00` to `13:00`.
+Every `date_time` is timezone-aware **UTC** and marks the **start** of its averaging interval: a timestamp of `13:00` is the mean over `13:00`–`14:00` (left-closed: `[13:00, 14:00)`).
 
-This matches the convention used by most regulatory networks.
+This is openair's "date beginning" convention. The UK-AIR web portal shows the same data "date ending", so values there appear an hour later. Where an upstream uses a different clock or labels the end of the interval (the EEA publishes in UTC+1, Sonitus stamps the end of each 15-minute bin, OpenAQ gives both ends), Aeolus converts, so the same hour from two sources carries the same timestamp.
+
+!!! note "Earlier versions of this page"
+    Before 0.5.0 this page said `13:00` meant `12:00`–`13:00`. The UK sources never worked that way; the page was wrong, not the data.

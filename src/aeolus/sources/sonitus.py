@@ -43,12 +43,13 @@ Dataset: https://data.smartdublin.ie/dataset/sonitus
 """
 
 import warnings
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from logging import getLogger
 
 import pandas as pd
 import requests
 
+from .._dates import to_utc
 from ..decorators import retry_on_network_error
 from ..progress import track
 from ..registry import register_source
@@ -218,6 +219,9 @@ def normalise_sonitus_data(site_code: str) -> callable:
             add_column("site_code", site_code),
             rename_columns({"datetime": "date_time"}),
             convert_timestamps("date_time", utc=True),
+            # Sonitus stamps the END of each 15-minute bin, in UTC (verified
+            # against EEA Irish twins: r=1.0000). Aeolus labels interval starts.
+            add_column("date_time", lambda df: df["date_time"] - pd.Timedelta(minutes=15)),
             add_column(
                 "measurand",
                 lambda df: df["measurand_raw"].map(COLUMN_TO_MEASURAND),
@@ -253,7 +257,7 @@ def normalise_sonitus_data(site_code: str) -> callable:
 
 
 def _datetime_to_unix(dt: datetime) -> str:
-    return str(int(dt.timestamp()))
+    return str(int(to_utc(dt).timestamp()))
 
 
 def fetch_sonitus_data(
@@ -261,8 +265,12 @@ def fetch_sonitus_data(
     start_date: datetime,
     end_date: datetime,
 ) -> pd.DataFrame:
-    start_unix = _datetime_to_unix(start_date)
-    end_unix = _datetime_to_unix(end_date)
+    start_date, end_date = to_utc(start_date), to_utc(end_date)
+    # The server filters by Dublin LOCAL time, so in summer a plain request
+    # loses the first hour and overruns the end. Ask an hour wider each side,
+    # then trim to what was requested.
+    start_unix = _datetime_to_unix(start_date - timedelta(hours=1))
+    end_unix = _datetime_to_unix(end_date + timedelta(hours=1))
 
     dfs = []
     for site in track(sites, description="Fetching Sonitus data"):
@@ -292,7 +300,9 @@ def fetch_sonitus_data(
     if not dfs:
         return empty_data_frame()
 
-    return pd.concat(dfs, ignore_index=True)
+    data = pd.concat(dfs, ignore_index=True)
+    in_window = (data["date_time"] >= start_date) & (data["date_time"] <= end_date)
+    return data[in_window].reset_index(drop=True)
 
 
 # ============================================================================

@@ -38,6 +38,7 @@ from logging import getLogger, warning
 import pandas as pd
 import requests
 
+from .._dates import to_utc
 from ..decorators import retry_on_network_error
 from ..registry import register_source
 from ..transforms import add_column, compose, select_columns
@@ -431,8 +432,8 @@ def fetch_purpleair_data(
                     client.request_sensor_historic_data,
                     sensor_index=sensor_idx,
                     fields=DEFAULT_HISTORY_FIELDS,
-                    start_timestamp=int(chunk_start.timestamp()),
-                    end_timestamp=int(chunk_end.timestamp()),
+                    start_timestamp=int(to_utc(chunk_start).timestamp()),
+                    end_timestamp=int(to_utc(chunk_end).timestamp()),
                     average=60,  # Hourly averages
                 )
             except (PurpleAirAPIError, requests.RequestException, ValueError, KeyError) as e:

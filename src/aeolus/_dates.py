@@ -41,6 +41,19 @@ _LAST_UNITS = {
 }
 
 
+def to_utc(dt: datetime) -> datetime:
+    """Return *dt* as a tz-aware UTC datetime.
+
+    Naive datetimes are UTC by library convention. Never call ``.timestamp()``
+    or ``strftime("...Z")`` on a user-supplied datetime without this: the first
+    applies the *machine's* local offset to a naive value, the second labels an
+    aware non-UTC wall time as UTC.
+    """
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
 def parse_last(last: str) -> tuple[datetime, datetime]:
     """Parse a ``last="30d"`` shorthand into ``(start_date, end_date)``.
 

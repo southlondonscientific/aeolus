@@ -43,6 +43,7 @@ from logging import getLogger
 import pandas as pd
 import requests
 
+from .._dates import to_utc
 from ..decorators import retry_on_network_error
 from ..progress import track
 from ..registry import register_source
@@ -339,7 +340,11 @@ def fetch_laqn_erg_data(
         )
         return empty_data_frame()
 
-    return pd.concat(dfs, ignore_index=True)
+    # ERG's StartDate/EndDate are whole days; trim to the requested window, as
+    # the RData path does.
+    data = pd.concat(dfs, ignore_index=True)
+    in_window = (data["date_time"] >= to_utc(start_date)) & (data["date_time"] <= to_utc(end_date))
+    return data[in_window].reset_index(drop=True)
 
 
 def fetch_laqn_erg_latest(sites: list[str]) -> pd.DataFrame:

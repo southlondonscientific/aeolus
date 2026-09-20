@@ -41,6 +41,7 @@ from pathlib import Path
 import pandas as pd
 import requests
 
+from .._dates import to_utc
 from ..decorators import retry_on_network_error
 from ..geo import haversine_distance
 from ..registry import register_source
@@ -466,11 +467,9 @@ def make_sos_data_fetcher(network: str):
     ) -> pd.DataFrame:
         mapping = _get_network_mapping(network)
 
-        # Ensure dates are tz-aware UTC
-        if start_date.tzinfo is None:
-            start_date = start_date.replace(tzinfo=timezone.utc)
-        if end_date.tzinfo is None:
-            end_date = end_date.replace(tzinfo=timezone.utc)
+        # tz-aware UTC: naive means UTC, and an aware non-UTC value is converted
+        # (strftime below writes a literal Z)
+        start_date, end_date = to_utc(start_date), to_utc(end_date)
 
         timespan = (
             f"{start_date.strftime('%Y-%m-%dT%H:%M:%SZ')}/"

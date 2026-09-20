@@ -7,7 +7,7 @@ The [European Environment Agency](https://www.eea.europa.eu/) aggregates regulat
 
     - **Only recent data.** Aeolus queries the EEA *up-to-date* feed only. Requests for earlier years return an empty frame — the verified archive and the historical Airbase dataset are not wired in yet.
     - **Everything is `Provisional`.** That follows from the point above: the up-to-date feed carries preliminary or unverified data.
-    - **Time zone unconfirmed.** Timestamps are labelled UTC, but comparison with national sources suggests the EEA may publish in UTC+1. Treat hour-level alignment with other sources with care. In Italy the two EEA feeds disagree with each other by an hour during summer time.
+    - **Italy.** The EEA publishes hourly data in fixed UTC+1, which Aeolus converts to UTC. Italy's up-to-date feed is the exception — it is on local clock time — so Aeolus treats Italian stamps as Europe/Rome; the hour that does not exist each spring, and the ambiguous one each autumn, are dropped.
 
 ## Overview
 

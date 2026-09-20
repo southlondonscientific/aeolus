@@ -72,6 +72,22 @@ PARAMETER_MAP = {
 _client = None
 
 
+def _period_start(measurement):
+    """UTC start of a measurement's averaging period.
+
+    OpenAQ gives both ends of the period; Aeolus labels intervals at their
+    START, like every UK route. (This used ``datetime_to``, which put OpenAQ
+    one hour out of step with the same hour from AURN.)
+    """
+    period = getattr(measurement, "period", None)
+    if not period:
+        return None
+    for edge in (period.datetime_from, period.datetime_to):
+        if edge:
+            return edge.utc
+    return None
+
+
 def _openaq_error_class():
     """Return the SDK's base exception, wherever this SDK version keeps it.
 
@@ -368,9 +384,7 @@ def fetch_openaq_data(
                                 "sensor_id": sensor_id,
                                 "parameter": param_name,
                                 "value": m.value,
-                                "datetime": m.period.datetime_to.utc
-                                if m.period and m.period.datetime_to
-                                else None,
+                                "datetime": _period_start(m),
                                 "units": sensor.parameter.units
                                 if sensor.parameter
                                 else "",

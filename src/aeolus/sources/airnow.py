@@ -483,6 +483,26 @@ def _fetch_site_historical(
 # ============================================================================
 
 
+# AirNow's current-observation endpoint has no UTC field: it reports the local
+# date and hour plus a zone abbreviation. Offsets are hours behind UTC.
+_AIRNOW_ZONE_OFFSETS = {
+    "AST": -4, "ADT": -3, "EST": -5, "EDT": -4, "CST": -6, "CDT": -5, "MST": -7, "MDT": -6,
+    "PST": -8, "PDT": -7, "AKST": -9, "AKDT": -8, "HST": -10, "HDT": -9, "SST": -11, "CHST": 10,
+}
+
+
+def _observation_time_utc(obs: dict) -> pd.Timestamp | None:
+    """UTC time of a current observation, or None if it cannot be placed."""
+    offset = _AIRNOW_ZONE_OFFSETS.get(str(obs.get("LocalTimeZone", "")).strip().upper())
+    if offset is None:
+        return None
+    try:
+        local = pd.Timestamp(f"{obs.get('DateObserved', '').strip()} {int(obs.get('HourObserved', 0)):02d}:00:00")
+    except (ValueError, TypeError):
+        return None
+    return (local - pd.Timedelta(hours=offset)).tz_localize("UTC")
+
+
 def fetch_airnow_current(
     latitude: float,
     longitude: float,
@@ -535,10 +555,7 @@ def fetch_airnow_current(
         # Parse observation time
         date_str = obs.get("DateObserved", "")
         hour = obs.get("HourObserved", 0)
-        try:
-            dt = pd.to_datetime(f"{date_str} {hour}:00:00", utc=True)
-        except (ValueError, TypeError):
-            dt = fetch_time
+        dt = _observation_time_utc(obs) or fetch_time
 
         measurand = PARAMETER_MAP.get(param.upper(), param)
 
