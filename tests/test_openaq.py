@@ -12,7 +12,9 @@ import pandas as pd
 import pytest
 
 pytest.importorskip("openaq", reason="openaq SDK not installed")
-from openaq.shared.exceptions import OpenAQError
+from aeolus.sources.openaq import _openaq_error_class
+
+OpenAQError = _openaq_error_class()
 
 from aeolus.types import empty_data_frame as _empty_dataframe
 
