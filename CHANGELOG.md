@@ -5,6 +5,43 @@ All notable changes to Aeolus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — v0.4.6 correctness scrub
+
+Work packages from `docs/dev/v046_fix_plan.md`. Many of these change emitted values; consumers (Hermes, RHEA, Clara, Argus) should re-baseline.
+
+### Fixed (silent wrong numbers — please re-baseline)
+
+- **CO was labelled `ug/m3` by SOS and Sonitus** — both hard-coded the unit. SOS now uses the `uom` it already derives per timeseries and Sonitus labels per measurand, so CO is `mg/m3`. The number is unchanged; the label was wrong by ~1000×. EEA now canonicalises every unit notation (`µ`/`μ`→`u`, `.m-3`→`/m3`), not only `ug.m-3`.
+- **Missing-data sentinels and NaNs reached the `value` column** — AirNow `-999` is dropped (and a non-numeric `Value` no longer aborts the site), SOS JSON nulls no longer crash the timeseries, regulatory/Sonitus/EEA drop NaN values, Sensor.Community skips `NaT` timestamps. Means and exceedance counts for AirNow and SOS change.
+- **AQI of a missing reading was the worst band** — all five index `calculate()` functions now return an unknown result for NaN (EU CAQI, China and India reported the worst category; US EPA and UK DAQI crashed). `get_current()` returns the latest *valid* reading rather than a NaN row.
+- **`aq_stats()` ignored the `units` column** — exceedance thresholds are defined in µg/m³ but were applied to the raw value, so NO2 in ppb (AirNow, some OpenAQ) never exceeded 200 and `annual_mean` was ppb labelled as µg/m³. Values in mg/m³, ppb and ppm are now converted first.
+- **Mixed-unit groups were averaged across scales** — `time_average()`, `trend()`, `prepare_timeseries()` and the temporal plots pooled e.g. CO in mg/m³ with CO in µg/m³ and labelled the result with whichever unit came first. A pollutant reported in more than one unit is now converted to µg/m³ (with an `AeolusDataWarning`); single-unit data is left exactly as the network reported it.
+- **Duplicate timestamps counted twice** — duplicate `(site_code, measurand, date_time)` rows (typically overlapping downloads concatenated together) inflated `data_capture` to 100 %, were averaged as independent observations, and corrupted rolling AQI windows in `aqi_summary()` / `aqi_timeseries()`. Each set now collapses to its mean, with a warning.
+- **`time_average()` period bins were end-labelled with the wrong denominator** — for `ME`/`QE`/`YE` (and legacy `M`/`Q`/`Y`) each bin's expected count was taken from the *next* period, so a complete February reported 90 % capture and marginal months crossed the 75 % threshold the wrong way. Bins are now left-closed and **labelled at the period start** (`2023-02-01`, not `2023-02-28`), matching the documented convention; `W` bins are whole Mon–Sun weeks labelled on the Monday.
+- **`aqi_summary()` coverage used 720/2160/8760 hours** regardless of the actual month, quarter or leap year, and counted sub-hourly readings as hours (15-minute data always read as 100 %). Coverage now uses the real period span and the data's own cadence.
+- **A single month or weekday was drawn across every bar** — `plot_monthly(style="bar")` and `plot_weekly()` broadcast a one-row aggregate across the whole axis, so any download within one calendar month drew twelve identical bars.
+- **UK DAQI official colours used the last band of each category** — ten band colours were collapsed onto four category keys, so "Low" was band 3's colour and "High" band 9's. Each category now uses its middle band.
+
+### Fixed
+
+- **`last=` downloads never hit the cache and grew it without bound** — the window was keyed on `datetime.now()` to the microsecond. Rolling windows are now keyed on the shorthand and refreshed after `AEOLUS_CACHE_VOLATILE_TTL_S` seconds (default 3600); windows of an hour or less are always fetched live. Parquet files written by earlier versions for `last=` calls are orphaned — `clear_cache()` removes them.
+- **A transient per-site failure was cached permanently** — a result missing a requested site now expires after the same TTL instead of being served forever.
+- **Cache keys depended on timezone-awareness** — the same instant as a naive and a UTC-aware datetime keyed differently. Existing naive-keyed entries remain valid.
+- `cache_info()` and `clear_cache()` no longer crash if a file is removed concurrently.
+- **Temporal plots crashed on sparse data** — `plot_diurnal`, `plot_weekly`, `plot_monthly`, `plot_time_variation` and `plot_distribution(group_by="weekday"|"month")` raised a shape mismatch when the data did not cover every hour, weekday or month.
+- `downsample_timeseries()` — `decimate` and `mean` now honour `target_points` (a floored step returned every point for inputs under twice the target); sub-second `mean` no longer raises `ZeroDivisionError`; series already under the target have their NaNs dropped like every other path.
+- `get_official_colours("WHO")` degrades to the Aeolus compliance palette instead of raising, so `plot_aqi_card(..., index="WHO", official_colours=True)` works.
+- `plot_trend()` labels its axis with the trended pollutant's units rather than the first row's.
+- `ensure_ugm3_array()` warns on unknown units and on ppb/ppm without a molecular weight, matching the scalar `ensure_ugm3()`.
+
+### Changed
+
+- Multi-site input to the temporal plots is pooled into one mean, as before; this is now documented on each function.
+
+### Added
+
+- GitHub Actions workflow running the offline test suite on pushes to `main` and on pull requests.
+
 ## [0.4.5.4] - 2026-06-08
 
 ### Fixed (silent wrong numbers — please re-baseline)
