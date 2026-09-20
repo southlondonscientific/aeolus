@@ -344,3 +344,40 @@ def test_source_name_lookup_is_case_insensitive():
         assert get_source(key.swapcase()) is get_source(key), (
             f"get_source({key.swapcase()!r}) failed — swapcase must also resolve"
         )
+
+
+# =========================================================================
+# Source status (stable / experimental)
+# =========================================================================
+
+
+class TestSourceStatus:
+    def test_eea_is_experimental_and_says_why(self):
+        import aeolus
+        import aeolus.sources  # noqa: F401
+
+        info = aeolus.get_source_info("EEA")
+        assert info["status"] == "experimental"
+        assert "verified archive" in info["status_note"]
+
+    def test_sources_are_stable_by_default(self):
+        import aeolus
+        import aeolus.sources  # noqa: F401
+
+        assert aeolus.get_source_info("AURN")["status"] == "stable"
+        assert aeolus.get_source_info("AURN")["status_note"] is None
+
+    def test_experimental_source_warns_once_per_process(self):
+        import warnings
+
+        from aeolus import api
+        from aeolus.types import AeolusExperimentalWarning
+
+        api._warned_experimental.discard("EEA")
+        spec = {"status": "experimental", "status_note": "because reasons"}
+        with pytest.warns(AeolusExperimentalWarning, match="EEA.*experimental.*because reasons"):
+            api._warn_if_experimental("EEA", spec)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            api._warn_if_experimental("EEA", spec)  # second use: silent
+            api._warn_if_experimental("AURN", {})  # stable: silent

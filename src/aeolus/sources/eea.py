@@ -34,13 +34,14 @@ Data download: EEA Parquet Download API (Azure)
 Samplingpoint mapping: EEA metadata CSV (discomap.eea.europa.eu)
 
 Implementation notes:
-    The EEA publishes two dataset variants (E1a and E2a) through different
-    reporting pipelines. We use E1a (dataset=1, "Verified") which has the
-    best coverage for recent data. The per-row ``Verification`` field
-    determines ratification status:
-      - 1 = Not yet verified  -> "Provisional"
-      - 2 = Verified by EEA   -> "Verified"
-      - 3 = Verified by member state -> "Verified"
+    The download API serves three datasets: 1 = up-to-date (E2a, recent data
+    only), 2 = verified (E1a, reported annually), 3 = historical Airbase
+    (<=2012). Only dataset=1 is queried today — see the note on
+    ``DATASET_E1A`` below. The per-row ``Verification`` field determines
+    ratification status (EIONET observationverification vocabulary):
+      - 1 = Verified             -> "Verified"
+      - 2 = Preliminary verified -> "Provisional"
+      - 3 = Not verified         -> "Provisional"
 
     The Samplingpoint identifier format varies wildly between countries
     (e.g. "IE/SPO.IE.IE0131ASample1_8" for Ireland, "DE/SPO.DE_DEBB021_NO2_dataGroup1"
@@ -72,6 +73,7 @@ from ..transforms import (
     reset_index,
     select_columns,
 )
+from ..units import canonical_units
 from ..types import (
     DATA_COLUMNS,
     METADATA_COLUMNS,
@@ -130,14 +132,22 @@ MEASURAND_TO_NOTATION = {
     "C6H6": "C6H6",
 }
 
-# EEA Verification codes -> Aeolus ratification values
+# EEA Verification codes -> Aeolus ratification values, per the EIONET
+# vocabulary (https://dd.eionet.europa.eu/vocabulary/aq/observationverification):
+#   1 = Verified, 2 = Preliminary verified, 3 = Not verified.
+# Until v0.4.6 this map was inverted (1 -> Provisional, 2/3 -> Verified).
 VERIFICATION_MAP = {
-    1: "Provisional",
-    2: "Verified",
-    3: "Verified",
+    1: "Verified",
+    2: "Provisional",
+    3: "Provisional",
 }
 
-# Dataset ID: E1a (primary validated assessment data)
+# Dataset ID sent to the download API. NB the name is historical and wrong:
+# probing the API (2026-09-20) shows dataset=1 is the *up-to-date* E2a feed
+# (recent data only, Verification=2), dataset=2 is the verified E1a archive
+# (Verification=1) and dataset=3 is historical Airbase (<=2012). Only
+# dataset=1 is queried today, so downloads before the up-to-date window come
+# back empty. Multi-dataset selection is v0.5.0 work: docs/dev/v050_design.md §17.
 DATASET_E1A = 1
 
 # Pollutant names as they appear in PopupInfo HTML
@@ -220,8 +230,11 @@ def _get_spo_mapping() -> dict[str, str]:
         # Fallback: the CSV may have severe issues. Parse line-by-line.
         logger.warning("EEA metadata CSV parsing failed; building mapping line-by-line")
         mapping = _parse_csv_fallback(csv_text, spo_col, eoi_col)
-        _spo_to_eoi = mapping
-        return _spo_to_eoi
+        if mapping:
+            _spo_to_eoi = mapping
+        else:
+            logger.warning("EEA metadata CSV yielded no mappings; not caching")
+        return mapping
 
     mapping: dict[str, str] = {}
     for _, row in df.drop_duplicates().iterrows():
@@ -229,6 +242,13 @@ def _get_spo_mapping() -> dict[str, str]:
         eoi = str(row[eoi_col]).strip('"')
         if spo and eoi and spo != "nan" and eoi != "nan":
             mapping[spo] = eoi
+
+    if not mapping:
+        # An empty mapping is never legitimate (the real CSV has tens of
+        # thousands of rows). Don't latch it — leave the cache None so the
+        # next call retries.
+        logger.warning("EEA metadata CSV yielded no mappings; not caching")
+        return {}
 
     _spo_to_eoi = mapping
     logger.info("Built EEA Samplingpoint mapping: %d entries", len(mapping))
@@ -261,13 +281,16 @@ def _parse_csv_fallback(csv_text: str, spo_col: str, eoi_col: str) -> dict[str, 
     return mapping
 
 
-def _samplingpoint_to_eoi(samplingpoint: str) -> str:
+def _samplingpoint_to_eoi(
+    samplingpoint: str, mapping: dict[str, str] | None = None
+) -> str:
     """Convert a Samplingpoint identifier to an EoI station code.
 
     Looks up the EEA metadata CSV mapping. Falls back to returning
     the raw Samplingpoint if no mapping is found.
     """
-    mapping = _get_spo_mapping()
+    if mapping is None:
+        mapping = _get_spo_mapping()
 
     # Strip country prefix: "IE/SPO.IE.IE0131A..." -> "SPO.IE.IE0131A..."
     if "/" in samplingpoint:
@@ -458,7 +481,12 @@ def normalise_eea_data():
 
     def extract_site_codes(df: pd.DataFrame) -> pd.DataFrame:
         df = df.copy()
-        df["site_code"] = df["Samplingpoint"].apply(_samplingpoint_to_eoi)
+        # Resolve the mapping once per frame, not once per row: while the
+        # cache is unpopulated every _get_spo_mapping() call re-downloads.
+        mapping = _get_spo_mapping()
+        df["site_code"] = df["Samplingpoint"].apply(
+            _samplingpoint_to_eoi, mapping=mapping
+        )
         return df
 
     def map_pollutants(df: pd.DataFrame) -> pd.DataFrame:
@@ -473,7 +501,12 @@ def normalise_eea_data():
 
     def normalise_units(df: pd.DataFrame) -> pd.DataFrame:
         df = df.copy()
-        df["units"] = df["units"].str.replace("ug.m-3", "ug/m3", regex=False)
+        # Canonicalise ALL EEA unit notations, not just 'ug.m-3': map the micro
+        # sign (both U+00B5 and the Greek mu U+03BC) to 'u', and the '.m-3'
+        # suffix to '/m3'. This turns 'mg.m-3' -> 'mg/m3' (e.g. CO), 'ng.m-3' ->
+        # 'ng/m3', and 'µg/m3' -> 'ug/m3', so units are consistent across all
+        # species from the source rather than CO being left as 'mg.m-3'.
+        df["units"] = canonical_units(df["units"])
         return df
 
     def map_verification(df: pd.DataFrame) -> pd.DataFrame:
@@ -487,11 +520,15 @@ def normalise_eea_data():
         map_pollutants,
         rename_columns({"Start": "date_time", "Value": "value", "Unit": "units"}),
         convert_value,
+        # convert_value coerces unparseable values to NaN; drop them (the
+        # Validity>=1 filter is a QA flag, not a value-presence check). Matches
+        # every other source, which drop NaN measurements.
+        filter_rows(lambda df: df["value"].notna()),
         normalise_units,
         add_column("source_network", "EEA"),
         map_verification,
         add_column("created_at", lambda df: datetime.now(timezone.utc)),
-        select_columns(*DATA_COLUMNS),
+        select_columns(*DATA_COLUMNS, require_all=True),
         reset_index(),
     )
 
@@ -626,4 +663,10 @@ register_source("EEA", {
     "normalise": normalise_eea_data(),
     "requires_api_key": False,
     "bbox_aware": True,
+    "status": "experimental",
+    "status_note": (
+        "only the EEA up-to-date feed is queried, so earlier years return no data "
+        "(the verified archive is not wired in yet); every row is therefore "
+        "'Provisional'; and the time zone of EEA timestamps is unconfirmed."
+    ),
 })

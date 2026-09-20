@@ -46,6 +46,15 @@ logger = getLogger(__name__)
 # Configuration
 AIRQO_API_BASE = "https://api.airqo.net/api/v2"
 
+# Site listing endpoint. AirQo slimmed `devices/metadata/sites` to a names-only
+# projection with no coordinates; `devices/sites` still carries
+# `approximate_latitude`/`approximate_longitude`, so we source metadata there.
+AIRQO_SITES_ENDPOINT = "devices/sites"
+
+# AirQo paginates site listings (default 30, hard max 80 per page). Request the
+# max to minimise round-trips.
+AIRQO_SITES_PAGE_SIZE = 80
+
 # Parameter name standardization
 # Maps AirQo parameter names to Aeolus standard names
 PARAMETER_MAP = {
@@ -131,6 +140,78 @@ def _call_airqo_api(endpoint: str, params: dict | None = None) -> dict:
 # ============================================================================
 
 
+def _safe_error(e: Exception) -> str:
+    """Describe *e* without leaking the API token.
+
+    AirQo authenticates with ``?token=`` in the query string, and ``requests``
+    embeds the full URL in its exception messages. Our own errors (a missing
+    key, a bad argument) carry no URL and keep their actionable text.
+    """
+    if isinstance(e, requests.exceptions.RequestException):
+        status = getattr(getattr(e, "response", None), "status_code", None)
+        return f"{type(e).__name__}" + (f" (HTTP {status})" if status else "")
+    return str(e)
+
+
+def _fetch_sites_paginated(
+    endpoint: str = AIRQO_SITES_ENDPOINT,
+    page_size: int = AIRQO_SITES_PAGE_SIZE,
+) -> tuple[dict, list]:
+    """
+    Fetch every page of an AirQo sites-listing endpoint.
+
+    AirQo paginates site listings; reading only the first page silently
+    truncates the network to ~30 sites. This walks pages via ``meta.nextPage``
+    until the reported ``meta.total`` is reached.
+
+    Args:
+        endpoint: Sites endpoint to page through.
+        page_size: Sites per request (AirQo caps this at 80).
+
+    Returns:
+        tuple: ``(first_response, all_sites)`` where ``first_response`` is the
+        raw first-page dict (for success/message checks) and ``all_sites`` is
+        the concatenated list of site dicts across all pages.
+    """
+    first = _call_airqo_api(endpoint, {"limit": page_size, "skip": 0})
+    if not first.get("success") or "sites" not in first:
+        return first, []
+
+    all_sites = list(first.get("sites") or [])
+    meta = first.get("meta") or {}
+    total = meta.get("total")
+    # Runaway guard: enough pages for `total` even if the server returns fewer
+    # sites per page than requested (totalPages is not always present).
+    per_page = max(len(all_sites), 1)
+    page_cap = (meta.get("totalPages") or -(-(total or 0) // per_page) or 1) + 2
+    # Advance by what was actually returned: if AirQo lowers its page cap
+    # below page_size, skipping by page_size would silently drop sites.
+    skip = len(all_sites)
+    pages = 1
+
+    while meta.get("nextPage"):
+        if total is not None and len(all_sites) >= total:
+            break
+        if pages >= page_cap:
+            break
+        page = _call_airqo_api(endpoint, {"limit": page_size, "skip": skip})
+        page_sites = page.get("sites") or []
+        if not page.get("success") or not page_sites:
+            break
+        all_sites.extend(page_sites)
+        meta = page.get("meta") or {}
+        skip += len(page_sites)
+        pages += 1
+
+    if total is not None and len(all_sites) < total:
+        warnings.warn(
+            f"AirQo site listing is incomplete: {len(all_sites)} of {total} sites retrieved",
+            AeolusDataWarning,
+            stacklevel=2,
+        )
+    return first, all_sites
+
+
 def fetch_airqo_metadata(**filters) -> pd.DataFrame:
     """
     Fetch site metadata from AirQo API.
@@ -158,11 +239,11 @@ def fetch_airqo_metadata(**filters) -> pd.DataFrame:
         >>> grids = fetch_airqo_grids()
     """
     try:
-        data = _call_airqo_api("devices/metadata/sites")
+        data, sites = _fetch_sites_paginated()
     except (requests.RequestException, ValueError, KeyError, TypeError) as e:
         warning(f"Failed to fetch AirQo metadata: {type(e).__name__}")
         warnings.warn(
-            f"Failed to fetch AirQo metadata: {e}",
+            f"Failed to fetch AirQo metadata: {_safe_error(e)}",
             AeolusDataWarning,
             stacklevel=2,
         )
@@ -178,8 +259,6 @@ def fetch_airqo_metadata(**filters) -> pd.DataFrame:
             stacklevel=2,
         )
         return empty_metadata_frame()
-
-    sites = data["sites"]
 
     # If sites endpoint returns empty, try grids/summary as fallback
     # This can happen with some API tokens that have grid-level access
@@ -258,7 +337,7 @@ def fetch_airqo_grids() -> pd.DataFrame:
     except (requests.RequestException, ValueError, KeyError, TypeError) as e:
         warning(f"Failed to fetch AirQo grids: {type(e).__name__}")
         warnings.warn(
-            f"Failed to fetch AirQo grids: {e}",
+            f"Failed to fetch AirQo grids: {_safe_error(e)}",
             AeolusDataWarning,
             stacklevel=2,
         )
@@ -293,12 +372,18 @@ def _create_metadata_normaliser():
     """
 
     def extract_location(df: pd.DataFrame) -> pd.DataFrame:
-        """Extract latitude/longitude from nested structure if needed."""
-        # AirQo returns approximate_latitude and approximate_longitude
-        if "approximate_latitude" in df.columns:
-            df["latitude"] = df["approximate_latitude"]
-        if "approximate_longitude" in df.columns:
-            df["longitude"] = df["approximate_longitude"]
+        """Extract latitude/longitude, always emitting both columns.
+
+        AirQo exposes coordinates as approximate_latitude/_longitude. When a
+        response omits them (e.g. the slimmed names-only projection), we still
+        create NaN columns so downstream consumers like ``find_sites`` never
+        KeyError on a missing ``latitude``/``longitude``.
+        """
+        for column in ("latitude", "longitude"):
+            if f"approximate_{column}" in df.columns:
+                df[column] = df[f"approximate_{column}"]
+            elif column not in df.columns:
+                df[column] = float("nan")
         return df
 
     return compose(
@@ -628,9 +713,10 @@ def create_airqo_normaliser():
             if col in df.columns:
                 df = df.dropna(subset=[col])
 
-        # Filter out zero/negative values (invalid readings)
+        # Filter out negative values (invalid readings). Zero is a genuine
+        # reading (clean air / below detection) and must be kept.
         if "value" in df.columns:
-            df = df[df["value"] > 0]
+            df = df[df["value"] >= 0]
 
         return df
 
@@ -655,6 +741,7 @@ def create_airqo_normaliser():
             "source_network",
             "ratification",
             "created_at",
+            require_all=True,
         ),
     )
 

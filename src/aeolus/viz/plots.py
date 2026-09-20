@@ -30,6 +30,7 @@ import numpy as np
 import pandas as pd
 
 from .prepare import (
+    _harmonise_units,
     prepare_aqi_card,
     prepare_timeseries,
 )
@@ -499,6 +500,7 @@ def plot_distribution(
 
     # Filter to requested pollutant
     df = data[data["measurand"] == pollutant].copy()
+    df = _harmonise_units(df, [pollutant])
     if df.empty:
         raise ValueError(f"No data found for pollutant: {pollutant}")
 
@@ -539,6 +541,10 @@ def plot_distribution(
     # Get unique groups in order
     if order is None:
         groups = df["group"].unique()
+    elif group_by in ("weekday", "month"):
+        # Fixed axis: the tick labels below are positional, so keep every
+        # weekday/month (absent ones draw as empty slots)
+        groups = order
     else:
         groups = [g for g in order if g in df["group"].values]
 
@@ -702,6 +708,9 @@ def plot_diurnal(
     This is one of the most useful plots for understanding pollution sources -
     traffic-related pollutants (NO2, PM) typically show rush hour peaks.
 
+    Multi-site input is pooled into a single row-weighted mean (the title
+    reads "N sites"); filter on ``site_code`` first for a per-site profile.
+
     Args:
         data: DataFrame from aeolus.download()
         pollutants: List of pollutants to plot (default: all)
@@ -734,7 +743,8 @@ def plot_diurnal(
         raise ValueError("No valid pollutants found in data")
 
     # Ensure datetime
-    df = data.copy()
+    # Honour the units column before pooling (mixed-unit pollutants -> ug/m3)
+    df = _harmonise_units(data, pollutants).copy()
     df["date_time"] = pd.to_datetime(df["date_time"])
     df["hour"] = df["date_time"].dt.hour
 
@@ -758,6 +768,8 @@ def plot_diurnal(
         hourly = p_data.groupby("hour")["value"].agg(
             ["mean", "std", "count", "min", "max"]
         )
+        # Sparse data may not cover every hour; align to the fixed 24-hour axis
+        hourly = hourly.reindex(hours)
 
         # Plot mean line
         ax.plot(
@@ -844,6 +856,9 @@ def plot_weekly(
     Useful for identifying weekend effects - many pollutants show lower
     concentrations on weekends due to reduced traffic and industrial activity.
 
+    Multi-site input is pooled into a single row-weighted mean (the title
+    reads "N sites"); filter on ``site_code`` first for a per-site profile.
+
     Args:
         data: DataFrame from aeolus.download()
         pollutants: List of pollutants to plot (default: all)
@@ -873,7 +888,8 @@ def plot_weekly(
     if not pollutants:
         raise ValueError("No valid pollutants found in data")
 
-    df = data.copy()
+    # Honour the units column before pooling (mixed-unit pollutants -> ug/m3)
+    df = _harmonise_units(data, pollutants).copy()
     df["date_time"] = pd.to_datetime(df["date_time"])
     df["weekday"] = df["date_time"].dt.dayofweek
 
@@ -896,6 +912,8 @@ def plot_weekly(
         colour = get_pollutant_colour(pollutant, i)
 
         daily = p_data.groupby("weekday")["value"].agg(["mean", "std", "count"])
+        # Align to the fixed 7-day axis (missing weekdays become NaN gaps)
+        daily = daily.reindex(days)
 
         # Position bars
         pos = days + (i - len(pollutants) / 2 + 0.5) * width
@@ -968,6 +986,9 @@ def plot_monthly(
     Useful for identifying seasonal patterns - O3 typically peaks in summer,
     while PM and NO2 often peak in winter.
 
+    Multi-site input is pooled into a single row-weighted mean (the title
+    reads "N sites"); filter on ``site_code`` first for a per-site profile.
+
     Args:
         data: DataFrame from aeolus.download()
         pollutants: List of pollutants to plot (default: all)
@@ -997,7 +1018,8 @@ def plot_monthly(
     if not pollutants:
         raise ValueError("No valid pollutants found in data")
 
-    df = data.copy()
+    # Honour the units column before pooling (mixed-unit pollutants -> ug/m3)
+    df = _harmonise_units(data, pollutants).copy()
     df["date_time"] = pd.to_datetime(df["date_time"])
     df["month"] = df["date_time"].dt.month
 
@@ -1034,6 +1056,8 @@ def plot_monthly(
             colour = get_pollutant_colour(pollutant, i)
 
             monthly = p_data.groupby("month")["value"].agg(["mean", "std", "count"])
+            # Align to the fixed 12-month axis (missing months become NaN gaps)
+            monthly = monthly.reindex(months)
 
             pos = months + (i - len(pollutants) / 2 + 0.5) * width
 
@@ -1065,6 +1089,8 @@ def plot_monthly(
             colour = get_pollutant_colour(pollutant, i)
 
             monthly = p_data.groupby("month")["value"].agg(["mean", "std", "count"])
+            # Align to the fixed 12-month axis (missing months become NaN gaps)
+            monthly = monthly.reindex(months)
 
             ax.plot(
                 months,
@@ -1144,6 +1170,9 @@ def plot_calendar(
     Similar to GitHub contribution graphs, this shows data density
     and patterns across an entire year at a glance.
 
+    Multi-site input is pooled into a single row-weighted mean (the title
+    reads "N sites"); filter on ``site_code`` first for a per-site profile.
+
     Args:
         data: DataFrame from aeolus.download()
         pollutant: Pollutant to display
@@ -1169,6 +1198,7 @@ def plot_calendar(
         cmap = get_aeolus_cmap()
 
     df = data[data["measurand"] == pollutant].copy()
+    df = _harmonise_units(df, [pollutant])
     if df.empty:
         raise ValueError(f"No data found for pollutant: {pollutant}")
 
@@ -1276,8 +1306,10 @@ def _plot_diurnal_panel(
     """Plot diurnal (hourly) panel for plot_time_variation."""
     colour = get_pollutant_colour(pollutant)
     df["hour"] = df["date_time"].dt.hour
-    hourly = df.groupby("hour")["value"].agg(["mean", "std", "count"])
     hours = np.arange(24)
+    hourly = df.groupby("hour")["value"].agg(["mean", "std", "count"])
+    # Align to the fixed 24-hour axis (matches the weekly/monthly panels)
+    hourly = hourly.reindex(hours)
 
     ax.plot(
         hours,
@@ -1393,6 +1425,9 @@ def plot_time_variation(
         - Bottom-left: Monthly (bar chart by month)
         - Bottom-right: Hour x Weekday heatmap
 
+    Multi-site input is pooled into a single row-weighted mean (the title
+    reads "N sites"); filter on ``site_code`` first for a per-site profile.
+
     Args:
         data: DataFrame from aeolus.download() with standard schema.
         pollutant: Single pollutant to analyse (e.g. "NO2", "PM2.5").
@@ -1413,6 +1448,7 @@ def plot_time_variation(
 
     # Filter to requested pollutant
     df = data[data["measurand"] == pollutant].copy()
+    df = _harmonise_units(df, [pollutant])
     if df.empty:
         raise ValueError(f"No data found for pollutant: {pollutant}")
 
@@ -1563,7 +1599,13 @@ def plot_trend(
 
     # Labels
     ax.set_xlabel("Year")
-    units_col = data["units"].iloc[0] if "units" in data.columns else ""
+    # Units of the trended pollutant, not of whatever row happens to come first
+    units_rows = data[data["measurand"] == trend_result.pollutant]
+    units_col = (
+        units_rows["units"].iloc[0]
+        if "units" in data.columns and not units_rows.empty
+        else ""
+    )
     ax.set_ylabel(f"{label} ({units_col})" if units_col else label)
 
     if title:

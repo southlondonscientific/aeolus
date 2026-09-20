@@ -61,14 +61,55 @@ from .registry import (
     unknown_source_message as _unknown_source_message,
 )
 from .registry import list_sources as _list_sources
-from .types import AeolusDataWarning
+from .types import AeolusDataWarning, AeolusExperimentalWarning
 from .types import DATA_COLUMNS as _STANDARD_COLUMNS
 from .types import METADATA_COLUMNS as _METADATA_COLUMNS
 from .types import empty_metadata_frame as _empty_metadata_frame
 
 
+_warned_experimental: set[str] = set()
+
+
+def _warn_if_experimental(source_name: str, spec: dict) -> None:
+    """Warn, once per process per source, that an experimental source is in use."""
+    if spec.get("status", "stable") != "experimental":
+        return
+    name = source_name.upper()
+    if name in _warned_experimental:
+        return
+    _warned_experimental.add(name)
+    warnings.warn(
+        f"{name} support is experimental: {spec.get('status_note') or 'see the source documentation'} "
+        f"Details: aeolus.get_source_info({name!r}).",
+        AeolusExperimentalWarning,
+        stacklevel=4,
+    )
+
+
+def _as_utc(dt: datetime) -> pd.Timestamp:
+    """Timestamp of *dt* in UTC; naive datetimes are UTC by library convention."""
+    ts = pd.Timestamp(dt)
+    return ts.tz_localize("UTC") if ts.tzinfo is None else ts.tz_convert("UTC")
+
+
+def _with_requested_range(data: pd.DataFrame, requested_range: tuple) -> pd.DataFrame:
+    """Record what was asked for, so ``summarise`` can measure data capture
+    against it: sources drop missing values, so the frame alone cannot say
+    whether an analyser was silent for most of the period.
+
+    Stored as ISO 8601 strings: pandas serialises ``attrs`` to JSON when
+    writing Parquet, so anything else here would break ``to_parquet()``."""
+    start, end = requested_range
+    data.attrs["aeolus_requested_range"] = [start.isoformat(), end.isoformat()]
+    return data
+
+
 def _fetch_single_source(
-    source_name: str, source_sites: list[str], start_date: datetime, end_date: datetime
+    source_name: str,
+    source_sites: list[str],
+    start_date: datetime | None,
+    end_date: datetime | None,
+    last: str | None = None,
 ) -> pd.DataFrame:
     """Dispatch a single-source download to the appropriate submodule.
 
@@ -77,13 +118,14 @@ def _fetch_single_source(
     """
     source_spec = get_source(source_name)
     source_type = source_spec.get("type", "network")
+    _warn_if_experimental(source_name, source_spec)
 
     if source_type == "network":
         from .networks import download as network_download
-        return network_download(source_name, source_sites, start_date, end_date)
+        return network_download(source_name, source_sites, start_date, end_date, last)
     if source_type == "portal":
         from .portals import download as portal_download
-        return portal_download(source_name, source_sites, start_date, end_date)
+        return portal_download(source_name, source_sites, start_date, end_date, last)
     raise ValueError(f"Unknown source type: {source_type}")
 
 
@@ -201,7 +243,12 @@ def download(
         ... )
     """
     # Resolve last= shorthand and validate that we have a date range.
+    # The submodules re-resolve ``last`` themselves so the cache can key on
+    # the shorthand; resolving here validates the arguments up front.
     start_date, end_date = _resolve_dates(start_date, end_date, last)
+    requested_range = (_as_utc(start_date), _as_utc(end_date))
+    if last is not None:
+        start_date = end_date = None
 
     # Case 1: Single source (string) - simple case
     if isinstance(sources, str):
@@ -217,7 +264,10 @@ def download(
         if not source_spec:
             raise ValueError(_unknown_source_message(sources))
 
-        return _fetch_single_source(sources, sites, start_date, end_date)
+        return _with_requested_range(
+            _fetch_single_source(sources, sites, start_date, end_date, last),
+            requested_range,
+        )
 
     # Case 2: Multiple sources (dict) - explicit mapping
     elif isinstance(sources, dict):
@@ -245,7 +295,7 @@ def download(
 
             try:
                 data = _fetch_single_source(
-                    source_name, source_sites, start_date, end_date
+                    source_name, source_sites, start_date, end_date, last
                 )
                 all_data[source_name] = data
 
@@ -259,7 +309,9 @@ def download(
         if combine:
             non_empty = [df for df in all_data.values() if not df.empty]
             if non_empty:
-                return pd.concat(non_empty, ignore_index=True)
+                return _with_requested_range(
+                    pd.concat(non_empty, ignore_index=True), requested_range
+                )
             else:
                 return pd.DataFrame(columns=_STANDARD_COLUMNS)
         else:
@@ -301,6 +353,8 @@ def get_source_info(source: str) -> dict[str, Any]:
             - name: Display name of the source
             - type: "network" or "portal"
             - requires_api_key: Whether an API key is needed
+            - status: "stable" or "experimental"
+            - status_note: Why a source is experimental (None when stable)
 
     Raises:
         ValueError: If source is not registered
@@ -322,6 +376,8 @@ def get_source_info(source: str) -> dict[str, Any]:
         "name": source_obj["name"],
         "type": source_obj.get("type", "network"),
         "requires_api_key": source_obj["requires_api_key"],
+        "status": source_obj.get("status", "stable"),
+        "status_note": source_obj.get("status_note"),
     }
 
 
@@ -520,6 +576,7 @@ def find_sites(
     for name in source_names:
         spec = get_source(name)
         source_type = spec.get("type", "network")
+        _warn_if_experimental(name, spec)
         try:
             if source_type == "portal":
                 df = _fetch_portal_sites(name, spec, search_bbox, filters)
@@ -537,6 +594,13 @@ def find_sites(
         return _empty_metadata_frame()
 
     combined = pd.concat(results, ignore_index=True)
+
+    # Guarantee the core metadata schema: a source that omits a column
+    # (e.g. no per-site measurands) degrades to None/NaN rather than
+    # raising a KeyError below.
+    for col in _METADATA_COLUMNS:
+        if col not in combined.columns:
+            combined[col] = None
 
     # --- spatial post-filtering ---
     # Ensure lat/lon are numeric (some sources may return strings)
@@ -580,19 +644,30 @@ def find_sites(
             if defaults:
                 source_defaults[src_name] = set(defaults)
 
-        def _matches(row):
-            m = row["measurands"]
-            if isinstance(m, list):
+        def _matches(m, network) -> bool:
+            if isinstance(m, (list, tuple, set)):
                 return bool(wanted & set(m))
             # measurands is None / NaN / unknown — fall back to the
             # source-declared defaults if any. This catches sources whose
             # metadata feeds don't expose per-site measurands.
-            defaults = source_defaults.get(row["source_network"])
+            defaults = source_defaults.get(network)
             if defaults is None:
                 return False
             return bool(wanted & defaults)
 
-        combined = combined[combined.apply(_matches, axis=1)].reset_index(drop=True)
+        # Built without DataFrame.apply(axis=1): on a zero-row frame that
+        # returns an empty DataFrame and the boolean index strips every column.
+        mask = pd.Series(
+            [
+                _matches(m, n)
+                for m, n in zip(
+                    combined["measurands"], combined["source_network"], strict=True
+                )
+            ],
+            index=combined.index,
+            dtype=bool,
+        )
+        combined = combined[mask].reset_index(drop=True)
 
     # --- order columns: core -> distance_km -> extras ---
     core = [c for c in _METADATA_COLUMNS if c in combined.columns]
@@ -669,9 +744,16 @@ def get_current(
     if df.empty:
         return df
 
-    # Keep only the most recent reading per site + measurand
-    idx = df.groupby(["site_code", "measurand"])["date_time"].idxmax()
-    return df.loc[idx].reset_index(drop=True)
+    # Keep only the most recent *valid* reading per site + measurand. Drop
+    # NaN-value rows first: near-real-time feeds often publish the newest hour
+    # with a timestamp but a NaN (unratified) value, which would otherwise mask
+    # an older genuine measurement. A group whose values are all NaN yields no
+    # row. (Also sidesteps idxmax on an all-NaT group for the dropped rows.)
+    valid = df[df["value"].notna()]
+    if valid.empty:
+        return valid.reset_index(drop=True)
+    idx = valid.groupby(["site_code", "measurand"])["date_time"].idxmax()
+    return valid.loc[idx].reset_index(drop=True)
 
 
 # ============================================================================
@@ -709,6 +791,7 @@ def summarise(data: pd.DataFrame) -> pd.DataFrame:
 
     df = data.copy()
     df["date_time"] = pd.to_datetime(df["date_time"])
+    requested = data.attrs.get("aeolus_requested_range")
 
     rows = []
     for (site, network, measurand), g in df.groupby(
@@ -727,8 +810,16 @@ def summarise(data: pd.DataFrame) -> pd.DataFrame:
             freq_hours = max(median_gap, 1 / 60)  # floor at 1 minute
         else:
             freq_hours = 1.0
-        span_hours = (end - start).total_seconds() / 3600
-        expected = (span_hours / freq_hours) + 1 if span_hours > 0 else 1
+        if requested is not None:
+            # Measure against the requested range (capped at now): the frame
+            # only spans first-to-last *valid* reading.
+            req_start, req_end = (_as_utc(pd.Timestamp(t)) for t in requested)
+            req_end = min(req_end, pd.Timestamp.now(tz="UTC"))
+            span_hours = max((req_end - req_start).total_seconds() / 3600, 0)
+            expected = max(span_hours / freq_hours, 1)
+        else:
+            span_hours = (end - start).total_seconds() / 3600
+            expected = (span_hours / freq_hours) + 1 if span_hours > 0 else 1
         dc = min(valid / expected, 1.0)
 
         rows.append({

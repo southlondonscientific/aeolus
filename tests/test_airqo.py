@@ -9,6 +9,8 @@ from datetime import datetime
 
 import pandas as pd
 import pytest
+import re
+
 import responses
 
 from aeolus.sources.airqo import (
@@ -415,7 +417,7 @@ class TestFetchAirQoMetadata:
 
         responses.add(
             responses.GET,
-            f"{AIRQO_API_BASE}/devices/metadata/sites",
+            f"{AIRQO_API_BASE}/devices/sites",
             json=mock_sites_response,
             status=200,
         )
@@ -436,7 +438,7 @@ class TestFetchAirQoMetadata:
 
         responses.add(
             responses.GET,
-            f"{AIRQO_API_BASE}/devices/metadata/sites",
+            f"{AIRQO_API_BASE}/devices/sites",
             json=mock_sites_response,
             status=200,
         )
@@ -456,7 +458,7 @@ class TestFetchAirQoMetadata:
 
         responses.add(
             responses.GET,
-            f"{AIRQO_API_BASE}/devices/metadata/sites",
+            f"{AIRQO_API_BASE}/devices/sites",
             json=mock_sites_response,
             status=200,
         )
@@ -472,7 +474,7 @@ class TestFetchAirQoMetadata:
 
         responses.add(
             responses.GET,
-            f"{AIRQO_API_BASE}/devices/metadata/sites",
+            f"{AIRQO_API_BASE}/devices/sites",
             json=mock_sites_response,
             status=200,
         )
@@ -492,7 +494,7 @@ class TestFetchAirQoMetadata:
 
         responses.add(
             responses.GET,
-            f"{AIRQO_API_BASE}/devices/metadata/sites",
+            f"{AIRQO_API_BASE}/devices/sites",
             status=500,
         )
 
@@ -513,7 +515,7 @@ class TestFetchAirQoMetadata:
 
         responses.add(
             responses.GET,
-            f"{AIRQO_API_BASE}/devices/metadata/sites",
+            f"{AIRQO_API_BASE}/devices/sites",
             json=mock_error_response,
             status=200,
         )
@@ -534,7 +536,7 @@ class TestFetchAirQoMetadata:
         # First call to sites returns empty
         responses.add(
             responses.GET,
-            f"{AIRQO_API_BASE}/devices/metadata/sites",
+            f"{AIRQO_API_BASE}/devices/sites",
             json=mock_empty_sites_response,
             status=200,
         )
@@ -564,7 +566,7 @@ class TestFetchAirQoMetadata:
 
         responses.add(
             responses.GET,
-            f"{AIRQO_API_BASE}/devices/metadata/sites",
+            f"{AIRQO_API_BASE}/devices/sites",
             json=mock_empty_sites_response,
             status=200,
         )
@@ -591,7 +593,7 @@ class TestFetchAirQoMetadata:
 
         responses.add(
             responses.GET,
-            f"{AIRQO_API_BASE}/devices/metadata/sites",
+            f"{AIRQO_API_BASE}/devices/sites",
             json=mock_empty_sites_response,
             status=200,
         )
@@ -617,7 +619,7 @@ class TestFetchAirQoMetadata:
 
         responses.add(
             responses.GET,
-            f"{AIRQO_API_BASE}/devices/metadata/sites",
+            f"{AIRQO_API_BASE}/devices/sites",
             json=mock_empty_sites_response,
             status=200,
         )
@@ -633,6 +635,255 @@ class TestFetchAirQoMetadata:
         # Should return empty DataFrame, not raise exception
         assert isinstance(result, pd.DataFrame)
         assert result.empty
+
+
+# ============================================================================
+# Regression: upstream shape change (v0.4.6)
+#
+# AirQo's `devices/metadata/sites` endpoint was slimmed to a names-only
+# projection (no coordinates) and every site listing is now paginated
+# (default 30, max 80 per page). The richer `devices/sites` endpoint still
+# carries `approximate_latitude`/`approximate_longitude`. These tests pin the
+# fixed behaviour: query `devices/sites`, paginate, and always emit lat/lon
+# columns so `find_sites()` never KeyErrors on a coordless frame.
+# ============================================================================
+
+
+@pytest.fixture
+def mock_sites_devices_response():
+    """Mock `devices/sites` — rich shape with coordinates, single page."""
+    return {
+        "success": True,
+        "message": "successfully retrieved the site details",
+        "meta": {
+            "total": 2,
+            "totalResults": 2,
+            "limit": 80,
+            "skip": 0,
+            "page": 1,
+            "totalPages": 1,
+        },
+        "sites": [
+            {
+                "_id": "site_001",
+                "name": "Kampala Central",
+                "formatted_name": "Kampala Central Station",
+                "country": "Uganda",
+                "region": "Central",
+                "approximate_latitude": 0.3163,
+                "approximate_longitude": 32.5822,
+            },
+            {
+                "_id": "site_002",
+                "name": "Nairobi Industrial",
+                "formatted_name": "Nairobi Industrial Station",
+                "country": "Kenya",
+                "region": "Nairobi",
+                "approximate_latitude": -1.2921,
+                "approximate_longitude": 36.8219,
+            },
+        ],
+    }
+
+
+@pytest.fixture
+def mock_sites_coordless_response():
+    """Mock `devices/sites` returning the slimmed names-only projection.
+
+    Mirrors the live regression where each site carries only id/name fields
+    and no coordinates at all.
+    """
+    return {
+        "success": True,
+        "message": "successfully retrieved the site details",
+        "meta": {
+            "total": 2,
+            "totalResults": 2,
+            "limit": 80,
+            "skip": 0,
+            "page": 1,
+            "totalPages": 1,
+        },
+        "sites": [
+            {
+                "_id": "site_001",
+                "name": "Kampala Central",
+                "generated_name": "aq_g_001",
+                "formatted_name": "Kampala Central Station",
+            },
+            {
+                "_id": "site_002",
+                "name": "Nairobi Industrial",
+                "generated_name": "aq_g_002",
+                "formatted_name": "Nairobi Industrial Station",
+            },
+        ],
+    }
+
+
+@pytest.fixture
+def mock_sites_page1_response():
+    """First page of a two-page `devices/sites` listing (nextPage set)."""
+    return {
+        "success": True,
+        "message": "successfully retrieved the site details",
+        "meta": {
+            "total": 4,
+            "totalResults": 2,
+            "limit": 2,
+            "skip": 0,
+            "page": 1,
+            "totalPages": 2,
+            "nextPage": "http://api.airqo.net/api/v2/devices/sites?limit=2&skip=2",
+        },
+        "sites": [
+            {
+                "_id": "site_001",
+                "name": "Site One",
+                "approximate_latitude": 0.1,
+                "approximate_longitude": 32.1,
+            },
+            {
+                "_id": "site_002",
+                "name": "Site Two",
+                "approximate_latitude": 0.2,
+                "approximate_longitude": 32.2,
+            },
+        ],
+    }
+
+
+@pytest.fixture
+def mock_sites_page2_response():
+    """Second/last page of a two-page `devices/sites` listing (no nextPage)."""
+    return {
+        "success": True,
+        "message": "successfully retrieved the site details",
+        "meta": {
+            "total": 4,
+            "totalResults": 2,
+            "limit": 2,
+            "skip": 2,
+            "page": 2,
+            "totalPages": 2,
+        },
+        "sites": [
+            {
+                "_id": "site_003",
+                "name": "Site Three",
+                "approximate_latitude": 0.3,
+                "approximate_longitude": 32.3,
+            },
+            {
+                "_id": "site_004",
+                "name": "Site Four",
+                "approximate_latitude": 0.4,
+                "approximate_longitude": 32.4,
+            },
+        ],
+    }
+
+
+class TestAirQoMetadataShapeRegression:
+    """Pin behaviour after the upstream `devices/sites` shape change."""
+
+    @responses.activate
+    def test_queries_devices_sites_endpoint(
+        self, mock_sites_devices_response, monkeypatch
+    ):
+        """Metadata is sourced from `devices/sites` (which still has coords)."""
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
+
+        responses.add(
+            responses.GET,
+            f"{AIRQO_API_BASE}/devices/sites",
+            json=mock_sites_devices_response,
+            status=200,
+        )
+
+        result = fetch_airqo_metadata()
+
+        assert len(responses.calls) >= 1
+        assert "/devices/sites" in responses.calls[0].request.url
+        assert "latitude" in result.columns
+        assert "longitude" in result.columns
+        assert result["latitude"].notna().all()
+
+    @responses.activate
+    def test_guarantees_lat_lon_columns_when_coords_absent(
+        self, mock_sites_coordless_response, monkeypatch
+    ):
+        """A coordless response still yields lat/lon columns (all NaN).
+
+        This is the guard that stops `find_sites()` KeyErroring at
+        ``combined["latitude"]`` when AirQo omits coordinates.
+        """
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
+
+        responses.add(
+            responses.GET,
+            f"{AIRQO_API_BASE}/devices/sites",
+            json=mock_sites_coordless_response,
+            status=200,
+        )
+
+        result = fetch_airqo_metadata()
+
+        assert "latitude" in result.columns
+        assert "longitude" in result.columns
+        assert result["latitude"].isna().all()
+        assert result["longitude"].isna().all()
+
+    @responses.activate
+    def test_paginates_across_all_pages(
+        self, mock_sites_page1_response, mock_sites_page2_response, monkeypatch
+    ):
+        """All pages are fetched, not just the first."""
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
+
+        responses.add(
+            responses.GET,
+            f"{AIRQO_API_BASE}/devices/sites",
+            json=mock_sites_page1_response,
+            status=200,
+        )
+        responses.add(
+            responses.GET,
+            f"{AIRQO_API_BASE}/devices/sites",
+            json=mock_sites_page2_response,
+            status=200,
+        )
+
+        result = fetch_airqo_metadata()
+
+        assert len(result) == 4
+        assert set(result["site_code"]) == {
+            "site_001",
+            "site_002",
+            "site_003",
+            "site_004",
+        }
+
+    @responses.activate
+    def test_find_sites_airqo_does_not_keyerror_without_coords(
+        self, mock_sites_coordless_response, monkeypatch
+    ):
+        """End-to-end: AIRQO-only find_sites() survives a coordless frame."""
+        import aeolus
+
+        monkeypatch.setenv("AIRQO_API_KEY", "test_token_123")
+
+        responses.add(
+            responses.GET,
+            f"{AIRQO_API_BASE}/devices/sites",
+            json=mock_sites_coordless_response,
+            status=200,
+        )
+
+        result = aeolus.find_sites("AIRQO")
+
+        assert isinstance(result, pd.DataFrame)
+        assert "latitude" in result.columns
 
 
 # ============================================================================
@@ -1124,8 +1375,16 @@ class TestAirQoNormalizer:
         # timestamp — which is strictly BEFORE ``marker``.
         assert (result["created_at"] >= marker).all()
 
+    def test_normaliser_missing_time_keeps_full_schema(self):
+        from aeolus.types import DATA_COLUMNS, AeolusDataWarning
+
+        raw = pd.DataFrame([{"site_id": "s1", "pm2_5": {"value": 10.0}}])
+        with pytest.warns(AeolusDataWarning):
+            result = create_airqo_normaliser()(raw)
+        assert list(result.columns) == DATA_COLUMNS
+
     def test_filters_invalid_values(self):
-        """Test that zero/negative values are filtered out."""
+        """Negative values are filtered out; zero is a genuine reading."""
         normaliser = create_airqo_normaliser()
 
         df = pd.DataFrame(
@@ -1137,7 +1396,7 @@ class TestAirQoNormalizer:
                 },
                 {
                     "time": "2024-01-01T01:00:00.000Z",
-                    "pm2_5": {"value": 0},  # Invalid
+                    "pm2_5": {"value": 0},  # Valid: clean air
                     "siteDetails": {"_id": "site_001", "name": "Test"},
                 },
                 {
@@ -1150,9 +1409,7 @@ class TestAirQoNormalizer:
 
         result = normaliser(df)
 
-        # Only first row should remain
-        assert len(result) == 1
-        assert result["value"].iloc[0] == 35.5
+        assert sorted(result["value"].tolist()) == [0.0, 35.5]
 
     def test_filters_null_timestamps(self):
         """Test that rows with null timestamps are filtered."""
@@ -1331,7 +1588,7 @@ class TestAirQoIntegration:
 
         responses.add(
             responses.GET,
-            f"{AIRQO_API_BASE}/devices/metadata/sites",
+            f"{AIRQO_API_BASE}/devices/sites",
             json=mock_sites_response,
             status=200,
         )
@@ -1398,7 +1655,7 @@ class TestLiveIntegration:
             pytest.skip("AIRQO_API_KEY not set")
 
     def test_live_fetch_all_metadata(self):
-        """Test fetching all AirQo site metadata."""
+        """Test fetching all AirQo site metadata (paginated)."""
         df = fetch_airqo_metadata()
 
         assert not df.empty
@@ -1408,27 +1665,31 @@ class TestLiveIntegration:
         assert "longitude" in df.columns
         assert all(df["source_network"] == "AIRQO")
 
-        # AirQo primarily covers Africa
-        # Coordinates should be roughly in Africa/East Africa
-        # (latitude roughly -35 to 40, longitude roughly -20 to 55)
-        assert df["latitude"].min() > -40
-        assert df["latitude"].max() < 45
-        assert df["longitude"].min() > -25
-        assert df["longitude"].max() < 60
+        # Pagination must surface the whole network, not just the first page
+        # (~30 sites). AirQo runs several hundred sites.
+        assert len(df) > 50
+
+        # Coordinates, where present, must be globally valid. AirQo's coverage
+        # now spans multiple continents and individual sites can be mislocated,
+        # so we assert valid ranges rather than a regional bounding box.
+        lat = pd.to_numeric(df["latitude"], errors="coerce")
+        lon = pd.to_numeric(df["longitude"], errors="coerce")
+        assert lat.dropna().between(-90, 90).all()
+        assert lon.dropna().between(-180, 180).all()
+        assert lat.notna().mean() > 0.5
 
     def test_live_fetch_metadata_by_country(self):
-        """Test fetching metadata filtered by country (Uganda)."""
+        """Country filtering returns only rows matching the requested country.
+
+        Note: AirQo's ``country`` field is unreliable — many sites worldwide are
+        tagged "Uganda" — so we assert the filter's contract, not geography.
+        """
         df = fetch_airqo_metadata(country="Uganda")
 
         if not df.empty:
             assert "site_code" in df.columns
             assert all(df["source_network"] == "AIRQO")
-
-            # Uganda coordinates roughly: lat 0-4, lon 29-35
-            assert df["latitude"].min() > -2
-            assert df["latitude"].max() < 5
-            assert df["longitude"].min() > 28
-            assert df["longitude"].max() < 36
+            assert (df["country"].str.lower() == "uganda").all()
 
     def test_live_fetch_metadata_by_city(self):
         """Test fetching metadata filtered by city (Kampala)."""
@@ -1542,3 +1803,46 @@ class TestLiveIntegration:
         # Verify structure even if empty
         expected_cols = {"site_code", "date_time", "measurand", "value", "units"}
         assert expected_cols.issubset(set(df.columns))
+
+
+class TestTokenNeverLeaks:
+    @responses.activate
+    def test_metadata_failure_warning_has_no_token(self, monkeypatch):
+        import warnings as _w
+
+        monkeypatch.setenv("AIRQO_API_KEY", "CANARY_TOKEN_123")
+        responses.add(responses.GET, re.compile(r"https://api\.airqo\.net/.*"), status=500)
+        with _w.catch_warnings(record=True) as caught:
+            _w.simplefilter("always")
+            fetch_airqo_metadata()
+        text = " ".join(str(w.message) for w in caught)
+        assert caught, "expected a failure warning"
+        assert "CANARY_TOKEN_123" not in text
+
+
+class TestPaginationRobustness:
+    def test_skip_advances_by_sites_returned_not_requested(self, monkeypatch):
+        """If AirQo lowers its page cap below what we ask for, no sites may be skipped."""
+        from aeolus.sources import airqo
+
+        sites = [{"_id": f"s{i}"} for i in range(120)]
+        calls = []
+
+        def fake(endpoint, params):
+            calls.append(params["skip"])
+            page = sites[params["skip"]: params["skip"] + 50]  # server caps at 50, we ask for 80
+            more = params["skip"] + 50 < len(sites)
+            return {"success": True, "sites": page, "meta": {"total": 120, "nextPage": more or None}}
+
+        monkeypatch.setattr(airqo, "_call_airqo_api", fake)
+        _, got = airqo._fetch_sites_paginated("devices/sites")
+        assert [s["_id"] for s in got] == [s["_id"] for s in sites]
+        assert calls == [0, 50, 100]
+
+    def test_existing_coordinates_are_not_overwritten(self):
+        from aeolus.sources.airqo import _create_metadata_normaliser
+
+        raw = pd.DataFrame([{"_id": "s1", "name": "A", "latitude": 0.31, "longitude": 32.58}])
+        out = _create_metadata_normaliser()(raw)
+        assert out["latitude"].iloc[0] == pytest.approx(0.31)
+        assert out["longitude"].iloc[0] == pytest.approx(32.58)

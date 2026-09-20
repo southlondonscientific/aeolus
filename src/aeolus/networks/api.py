@@ -150,10 +150,12 @@ def download(
 
     from .. import cache as _cache
 
-    return _cache.fetch_with_cache(network, sites, start_date, end_date, fetcher)
+    return _cache.fetch_with_cache(
+        network, sites, start_date, end_date, fetcher, last=last
+    )
 
 
-def list_networks() -> list[str]:
+def list_networks(include_all: bool = False) -> list[str]:
     """
     List all available networks.
 
@@ -167,4 +169,9 @@ def list_networks() -> list[str]:
     """
     from ..registry import SOURCES
 
-    return [name for name, spec in SOURCES.items() if spec.get("type") == "network"]
+    return [
+        name
+        for name, spec in SOURCES.items()
+        if spec.get("type") == "network"
+        and (include_all or spec.get("primary", True))
+    ]

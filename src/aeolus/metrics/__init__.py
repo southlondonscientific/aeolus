@@ -65,7 +65,8 @@ from .base import (
 )
 from .indices import get_index
 from .indices import list_indices as _list_indices
-from .stats import TrendResult, aq_stats, time_average, trend
+from ..types import AeolusDataWarning
+from .stats import TrendResult, _infer_data_frequency, aq_stats, time_average, trend
 
 # Re-export key types
 __all__ = [
@@ -258,6 +259,8 @@ def aqi_summary(
     # value within that period — this matches how the regulators report it.
     df = df.sort_values(["site_code", "pollutant_std", "date_time"])
     rolling_chunks: list[pd.DataFrame] = []
+    cadences: dict[tuple, pd.Timedelta] = {}
+    duplicates_found = False
     for (site, pollutant), g in df.groupby(
         ["site_code", "pollutant_std"], observed=True
     ):
@@ -267,6 +270,11 @@ def aqi_summary(
         gi["value_ugm3"] = ensure_ugm3_array(
             gi["value"].values, pollutant, gi["units"]
         )
+        gi, had_duplicates = _collapse_duplicate_timestamps(gi)
+        duplicates_found = duplicates_found or had_duplicates
+        # Cadence is a property of the whole series: inferred per period, a
+        # sparse period would pass itself off as complete coarse-cadence data.
+        cadences[(site, pollutant)] = _infer_data_frequency(gi.index.to_series())
         gi["rolling_avg"] = (
             gi["value_ugm3"]
             .rolling(
@@ -279,13 +287,20 @@ def aqi_summary(
 
     if not rolling_chunks:
         return _empty_aqi_summary_frame(format, overall_only)
+    if duplicates_found:
+        _warn_duplicate_timestamps()
     df_r = pd.concat(rolling_chunks, ignore_index=True)
 
-    # Determine period grouping
+    # Determine period grouping. The rolling window is trailing, so a period's
+    # first readings legitimately draw on the previous period's tail: the AQI
+    # is attributed to the period in which the averaging window *ends*.
     if freq is None:
         df_r["period"] = "all"
+        periods = None
     else:
-        df_r["period"] = df_r["date_time"].dt.to_period(freq).astype(str)
+        periods = df_r["date_time"].dt.tz_localize(None).dt.to_period(freq)
+        df_r["period"] = periods.astype(str)
+        periods = dict(zip(df_r["period"].unique(), periods.unique(), strict=True))
 
     # Group and calculate statistics
     results = []
@@ -313,12 +328,16 @@ def aqi_summary(
         # Per-group coverage: use this (site, pollutant, period)'s actual
         # span rather than the dataset-wide span, which would mis-attribute
         # coverage in mixed-pollutant inputs.
-        if freq is not None:
-            expected_hours = _get_expected_hours(freq)
+        # Expected count uses the period's real calendar length and the data's
+        # own cadence, so February, leap years and sub-hourly feeds are right.
+        data_freq = cadences[(site, pollutant)]
+        if periods is not None:
+            span = _period_span(periods[period])
+            expected = span / data_freq
         else:
             span = group["date_time"].max() - group["date_time"].min()
-            expected_hours = max(1.0, span.total_seconds() / 3600 + 1)
-        stats["coverage"] = min(len(valid_raw) / expected_hours, 1.0)
+            expected = span / data_freq + 1
+        stats["coverage"] = min(len(valid_raw) / max(1.0, expected), 1.0)
 
         # AQI is the worst-case rolling value in the period. Skip if
         # rolling-window coverage was insufficient throughout.
@@ -425,6 +444,7 @@ def aqi_timeseries(
     df = df.sort_values(["site_code", "pollutant_std", "date_time"])
 
     result_dfs = []
+    duplicates_found = False
 
     for (site, pollutant), group in df.groupby(
         ["site_code", "pollutant_std"], observed=True
@@ -448,6 +468,8 @@ def aqi_timeseries(
             pollutant,
             group["units"],
         )
+        group, had_duplicates = _collapse_duplicate_timestamps(group)
+        duplicates_found = duplicates_found or had_duplicates
 
         # Calculate rolling average in µg/m³
         group["rolling_avg"] = (
@@ -492,6 +514,9 @@ def aqi_timeseries(
             group_result["rolling_avg"] = group["rolling_avg"].values
 
         result_dfs.append(group_result)
+
+    if duplicates_found:
+        _warn_duplicate_timestamps()
 
     if not result_dfs:
         cols = [
@@ -644,16 +669,34 @@ def _period_to_hours(period: str) -> int:
     return 24  # Default
 
 
-def _get_expected_hours(freq: str) -> int:
-    """Get expected hours for a frequency."""
-    expected = {
-        "D": 24,
-        "W": 168,
-        "M": 720,  # ~30 days
-        "Q": 2160,  # ~90 days
-        "Y": 8760,  # 365 days
-    }
-    return expected.get(freq, 24)
+def _period_span(period: pd.Period) -> pd.Timedelta:
+    """Actual calendar length of *period* (28-31 day months, leap years)."""
+    return (period + 1).start_time - period.start_time
+
+
+def _collapse_duplicate_timestamps(group: pd.DataFrame) -> tuple[pd.DataFrame, bool]:
+    """Average duplicate timestamps in a date_time-indexed group into one row.
+
+    Time-based rolling windows do not raise on a non-unique index; they
+    silently produce partial windows and double-count the repeated hours.
+    """
+    if not group.index.has_duplicates:
+        return group, False
+    means = group.groupby(level=0)["value_ugm3"].mean()
+    group = group[~group.index.duplicated(keep="first")].copy()
+    group["value_ugm3"] = means
+    return group, True
+
+
+def _warn_duplicate_timestamps() -> None:
+    import warnings
+
+    warnings.warn(
+        "Data contains duplicate (site_code, pollutant, date_time) rows; "
+        "averaging each set into one observation.",
+        AeolusDataWarning,
+        stacklevel=3,
+    )
 
 
 def _index_unit(index_module, pollutant: str) -> str:

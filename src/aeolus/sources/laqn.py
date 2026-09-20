@@ -63,6 +63,7 @@ from ..types import (
 )
 from .regulatory import (
     LAQN_COLUMN_MAP,
+    LAQN_VOLUME_TO_MASS,
     make_data_fetcher,
     normalise_regulatory_data,
 )
@@ -319,7 +320,7 @@ def fetch_laqn_erg_data(
             add_column("source_network", "LAQN"),
             add_column("ratification", "None"),
             add_column("created_at", lambda df: datetime.now(timezone.utc)),
-            select_columns(*DATA_COLUMNS),
+            select_columns(*DATA_COLUMNS, require_all=True),
             reset_index(),
         )
 
@@ -358,7 +359,9 @@ def fetch_laqn_erg_latest(sites: list[str]) -> pd.DataFrame:
 
 # Default data path uses the openair RData feed (fast, ~1s/site/year) — best
 # for bulk and backfill, but lags real time by ~a day.
-fetch_laqn_data = make_data_fetcher("laqn", column_map=LAQN_COLUMN_MAP)
+fetch_laqn_data = make_data_fetcher(
+    "laqn", column_map=LAQN_COLUMN_MAP, value_factors=LAQN_VOLUME_TO_MASS
+)
 
 register_source("LAQN", {
     "type": "network",

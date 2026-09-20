@@ -6,7 +6,11 @@ on:
       - 'v*'
 
 jobs:
+  test:
+    uses: ./.github/workflows/tests.yml
+
   release:
+    needs: test  # never publish a build the offline suite rejects
     runs-on: ubuntu-latest
     permissions:
       contents: write

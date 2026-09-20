@@ -390,6 +390,80 @@ class TestDataFetching:
         assert all(df["site_code"] == "CLL2")
         assert all(df["measurand"] == "NO2")
         assert all(df["source_network"] == "AURN")
+        # NO2 is reported in ug/m3 — the units must reflect the timeseries uom.
+        assert all(df["units"] == "ug/m3")
+
+    @responses.activate
+    def test_units_use_timeseries_uom_not_hardcoded(self):
+        """SOS must emit the per-timeseries uom (e.g. CO in mg/m3), not a flat
+        hardcoded 'ug/m3'. _build_station_mapping already derives ts_info['uom'];
+        the data fetcher previously ignored it and mislabelled CO ~1000x."""
+        responses.add(
+            responses.GET,
+            f"{sos.SOS_BASE_URL}/timeseries/3/getData",
+            json=MOCK_GETDATA_RESPONSE,
+            status=200,
+        )
+        _register_mock_aurn_and_sos()
+        sos._network_mappings["aurn"] = {
+            "CLL2": [{"ts_id": "3", "measurand": "CO", "uom": "mg/m3"}],
+        }
+
+        fetcher = sos.make_sos_data_fetcher("aurn")
+        df = fetcher(
+            ["CLL2"],
+            datetime(2026, 3, 18, tzinfo=timezone.utc),
+            datetime(2026, 3, 19, tzinfo=timezone.utc),
+        )
+
+        assert not df.empty
+        assert all(df["measurand"] == "CO")
+        assert all(df["units"] == "mg/m3")
+
+    @responses.activate
+    @pytest.mark.parametrize("shipped, expected", [("ug/m-3", "ug/m3"), ("mg/m-3", "mg/m3")])
+    def test_units_are_canonical_for_the_shipped_mapping_spelling(self, shipped, expected):
+        """_sos_mapping.json holds 'ug/m-3' / 'mg/m-3' (a half-done replace)."""
+        responses.add(
+            responses.GET, f"{sos.SOS_BASE_URL}/timeseries/3/getData",
+            json=MOCK_GETDATA_RESPONSE, status=200,
+        )
+        _register_mock_aurn_and_sos()
+        sos._network_mappings["aurn"] = {"CLL2": [{"ts_id": "3", "measurand": "CO", "uom": shipped}]}
+        df = sos.make_sos_data_fetcher("aurn")(
+            ["CLL2"], datetime(2026, 3, 18, tzinfo=timezone.utc), datetime(2026, 3, 19, tzinfo=timezone.utc)
+        )
+        assert set(df["units"]) == {expected}
+
+    @responses.activate
+    def test_null_value_dropped_not_crash(self):
+        """A JSON null value must be dropped, not crash the whole timeseries
+        fetch — float(None) previously raised TypeError and aborted everything."""
+        responses.add(
+            responses.GET,
+            f"{sos.SOS_BASE_URL}/timeseries/3/getData",
+            json={
+                "values": [
+                    {"timestamp": 1773792000000, "value": 59.096},
+                    {"timestamp": 1773795600000, "value": None},  # JSON null
+                    {"timestamp": 1773799200000, "value": 50.299},
+                ]
+            },
+            status=200,
+        )
+        sos._network_mappings["aurn"] = {
+            "CLL2": [{"ts_id": "3", "measurand": "NO2", "uom": "ug/m3"}],
+        }
+
+        fetcher = sos.make_sos_data_fetcher("aurn")
+        df = fetcher(
+            ["CLL2"],
+            datetime(2026, 3, 18, tzinfo=timezone.utc),
+            datetime(2026, 3, 19, tzinfo=timezone.utc),
+        )
+
+        assert len(df) == 2
+        assert sorted(df["value"].tolist()) == [50.299, 59.096]
 
     @responses.activate
     def test_missing_sentinel_filtered(self):
@@ -730,6 +804,64 @@ class TestGetCurrent:
         }
 
         df = api.get_current("AURN", sites=["CLL2"])
+        assert list(df.columns) == DATA_COLUMNS
+
+    def test_fallback_skips_nan_value_latest_row(self):
+        """The fetch_data fallback must return the latest VALID reading, not a
+        freshly-published NaN-value hour that masks an older measurement."""
+        now = datetime.now(tz=timezone.utc)
+
+        def fake_fetch_data(sites, start, end):
+            return pd.DataFrame({
+                "site_code": ["S1", "S1"],
+                "date_time": [now - timedelta(hours=2), now - timedelta(hours=1)],
+                "measurand": ["NO2", "NO2"],
+                "value": [42.0, float("nan")],  # latest hour is NaN
+                "units": ["ug/m3", "ug/m3"],
+                "source_network": ["FAKE", "FAKE"],
+                "ratification": ["Unvalidated", "Unvalidated"],
+                "created_at": [now, now],
+            })
+
+        register_source("FAKE", {
+            "name": "FAKE",
+            "fetch_metadata": lambda *a, **k: pd.DataFrame(),
+            "fetch_data": fake_fetch_data,
+            "normalise": lambda df: df,
+            "requires_api_key": False,
+        })
+
+        df = api.get_current("FAKE", sites=["S1"])
+        assert len(df) == 1
+        assert df.iloc[0]["value"] == 42.0
+        assert df.iloc[0]["date_time"] == now - timedelta(hours=2)
+
+    def test_fallback_all_nan_group_yields_no_row(self):
+        """A group whose values are all NaN produces no current reading."""
+        now = datetime.now(tz=timezone.utc)
+
+        def fake_fetch_data(sites, start, end):
+            return pd.DataFrame({
+                "site_code": ["S1", "S1"],
+                "date_time": [now - timedelta(hours=2), now - timedelta(hours=1)],
+                "measurand": ["NO2", "NO2"],
+                "value": [float("nan"), float("nan")],
+                "units": ["ug/m3", "ug/m3"],
+                "source_network": ["FAKE", "FAKE"],
+                "ratification": ["Unvalidated", "Unvalidated"],
+                "created_at": [now, now],
+            })
+
+        register_source("FAKE", {
+            "name": "FAKE",
+            "fetch_metadata": lambda *a, **k: pd.DataFrame(),
+            "fetch_data": fake_fetch_data,
+            "normalise": lambda df: df,
+            "requires_api_key": False,
+        })
+
+        df = api.get_current("FAKE", sites=["S1"])
+        assert df.empty
         assert list(df.columns) == DATA_COLUMNS
 
 

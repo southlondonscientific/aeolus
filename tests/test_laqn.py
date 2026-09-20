@@ -177,8 +177,7 @@ class TestFetchData:
         result = fetch_laqn_data(["MY1"], start, end)
 
         from aeolus.types import DATA_COLUMNS
-        for col in DATA_COLUMNS:
-            assert col in result.columns
+        assert list(result.columns) == DATA_COLUMNS
 
     @patch("aeolus.sources.regulatory.fetch_rdata")
     def test_source_network_is_laqn(self, mock_rdata, mock_laqn_rdata_df):
@@ -345,8 +344,7 @@ class TestFetchERGData:
         result = fetch_laqn_erg_data(["MY1"], start, end)
 
         from aeolus.types import DATA_COLUMNS
-        for col in DATA_COLUMNS:
-            assert col in result.columns
+        assert list(result.columns) == DATA_COLUMNS
 
     @patch("aeolus.sources.laqn._get_json")
     def test_source_network_is_laqn(self, mock_get, mock_erg_data_response):
@@ -496,3 +494,56 @@ class TestERGRegistration:
         """Adding the ERG source must not disturb the default LAQN source."""
         from aeolus.registry import get_source
         assert get_source("LAQN") is not None
+
+
+# =========================================================================
+# londonair RData stores gases in ppb (CO in ppm); the adapter converts
+# =========================================================================
+
+
+class TestRdataUnitsConversion:
+    """The londonair openair files are an interchange format that openair's
+    ``importImperial`` converts to mass units on read. Defra's published 20 °C
+    factors reproduce the AURN twin files exactly for ratified years."""
+
+    FACTORS = {"NO2": 1.9125, "NOXasNO2": 1.9125, "NO": 1.2474, "O3": 1.9957, "CO": 1.1642}
+
+    @patch("aeolus.sources.regulatory.fetch_rdata")
+    def test_gases_converted_to_mass_units(self, mock_rdata, mock_laqn_rdata_df):
+        mock_rdata.return_value = mock_laqn_rdata_df
+        start = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        end = datetime(2024, 1, 2, tzinfo=timezone.utc)
+        result = fetch_laqn_data(["MY1"], start, end)
+
+        first = result.sort_values("date_time").groupby("measurand").first()
+        raw = {"NO2": 13.4, "NOXasNO2": 30.1, "NO": 17.2, "O3": 19.6, "CO": 0.3}
+        for measurand, factor in self.FACTORS.items():
+            assert first.loc[measurand, "value"] == pytest.approx(raw[measurand] * factor), measurand
+        assert first.loc["CO", "units"] == "mg/m3"
+        assert first.loc["NO2", "units"] == "ug/m3"
+
+    @patch("aeolus.sources.regulatory.fetch_rdata")
+    def test_particulates_are_not_converted(self, mock_rdata, mock_laqn_rdata_df):
+        mock_rdata.return_value = mock_laqn_rdata_df
+        start = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        end = datetime(2024, 1, 2, tzinfo=timezone.utc)
+        result = fetch_laqn_data(["MY1"], start, end)
+
+        first = result.sort_values("date_time").groupby("measurand").first()
+        assert first.loc["PM10", "value"] == pytest.approx(22.1)
+        assert first.loc["PM2.5", "value"] == pytest.approx(12.3)
+
+    @patch("aeolus.sources.regulatory.fetch_rdata")
+    def test_defra_family_files_are_left_alone(self, mock_rdata):
+        """AURN-family files are already in mass units — the conversion is LAQN-only."""
+        from aeolus.sources.regulatory import make_data_fetcher
+
+        base = 1704067200.0
+        mock_rdata.return_value = pd.DataFrame(
+            {"date": [base], "NO2": [41.6], "O3": [29.1], "site": ["Marylebone Road"], "code": ["MY1"]}
+        )
+        start = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        end = datetime(2024, 1, 2, tzinfo=timezone.utc)
+        result = make_data_fetcher("aurn")(["MY1"], start, end)
+        values = dict(zip(result["measurand"], result["value"], strict=True))
+        assert values == {"NO2": pytest.approx(41.6), "O3": pytest.approx(29.1)}

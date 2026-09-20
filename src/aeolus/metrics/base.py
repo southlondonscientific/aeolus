@@ -29,6 +29,8 @@ from typing import TYPE_CHECKING, TypedDict
 
 import pandas as pd
 
+from ..units import canonical_unit
+
 if TYPE_CHECKING:
     import numpy as np
 
@@ -92,6 +94,8 @@ class AQIResult:
 #   CO:  28.0101 (NIST), rounded to 28.01
 MOLECULAR_WEIGHTS = {
     "NO2": 46.01,
+    "NOX": 46.01,  # NOx is conventionally expressed as NO2
+    "NOXASNO2": 46.01,
     "O3": 48.00,
     "SO2": 64.07,
     "CO": 28.01,
@@ -198,7 +202,7 @@ def ensure_ugm3(
     Returns:
         Concentration in µg/m³
     """
-    unit_lower = current_unit.lower().strip()
+    unit_lower = canonical_unit(current_unit).lower()
 
     # Already in µg/m³
     if unit_lower in ("ug/m3", "µg/m³", "ugm3", "µg/m3", "ug/m³"):
@@ -468,7 +472,7 @@ def ensure_ugm3_array(
         if pd.isna(unit):
             continue
 
-        unit_lower = str(unit).lower().strip()
+        unit_lower = canonical_unit(str(unit)).lower()
         mask = (units == unit).values
 
         # Already in µg/m³
@@ -480,21 +484,33 @@ def ensure_ugm3_array(
             result[mask] = concentrations[mask] * 1000
             continue
 
-        # ppb -> µg/m³
-        if unit_lower == "ppb":
+        # ppb / ppm -> µg/m³ (ppm = 1000 ppb)
+        if unit_lower in ("ppb", "ppm"):
             pollutant_upper = pollutant.upper()
             if pollutant_upper in MOLECULAR_WEIGHTS:
                 mw = MOLECULAR_WEIGHTS[pollutant_upper]
-                result[mask] = concentrations[mask] * (mw / MOLAR_VOLUME)
+                factor = mw / MOLAR_VOLUME
+                if unit_lower == "ppm":
+                    factor *= 1000
+                result[mask] = concentrations[mask] * factor
+            else:
+                # No molecular weight: cannot convert. Warn rather than leave a
+                # ppb/ppm value silently masquerading as µg/m³ (parity with the
+                # scalar ensure_ugm3, which never silently passes these through).
+                warnings.warn(
+                    f"Cannot convert {pollutant} from {unit_lower} to µg/m³ "
+                    f"(no molecular weight); leaving values unconverted.",
+                    UserWarning,
+                    stacklevel=2,
+                )
             continue
 
-        # ppm -> µg/m³ (ppm = 1000 ppb)
-        if unit_lower == "ppm":
-            pollutant_upper = pollutant.upper()
-            if pollutant_upper in MOLECULAR_WEIGHTS:
-                mw = MOLECULAR_WEIGHTS[pollutant_upper]
-                result[mask] = concentrations[mask] * 1000 * (mw / MOLAR_VOLUME)
-            continue
+        # Unknown unit - warn and assume µg/m³ (parity with scalar ensure_ugm3).
+        warnings.warn(
+            f"Unknown unit '{unit}' for {pollutant}. Assuming µg/m³.",
+            UserWarning,
+            stacklevel=2,
+        )
 
     return result
 
@@ -521,7 +537,7 @@ def to_index_unit(
         Concentration(s) in *target_unit*. Input is returned unchanged
         when *target_unit* is already µg/m³ or unrecognised.
     """
-    unit_lower = target_unit.lower().strip()
+    unit_lower = canonical_unit(target_unit).lower()
     if unit_lower in ("ug/m3", "µg/m³", "ugm3", "µg/m3", "ug/m³"):
         return concentrations
     if unit_lower in ("mg/m3", "mg/m³"):

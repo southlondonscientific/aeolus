@@ -10,6 +10,7 @@
 Tests for aeolus.metrics.stats — time_average, aq_stats, trend.
 """
 
+import warnings
 from datetime import datetime, timezone
 from unittest.mock import patch
 
@@ -512,3 +513,153 @@ class TestTrend:
             deseason=False, autocor=True,
         )
         assert isinstance(result, TrendResult)
+
+
+# =============================================================================
+# v0.4.6 WP3 — units-honouring, duplicate timestamps, calendar periods
+# =============================================================================
+
+
+class TestTimeAverageCalendarBins:
+    """Period bins are left-closed and start-labelled, with a per-bin denominator."""
+
+    @pytest.mark.parametrize("freq", ["ME", "MS"])
+    def test_complete_february_has_full_capture(self, freq):
+        df = _make_hourly_data(start="2023-01-01", end="2023-02-28 23:00", value=10.0)
+        result = time_average(df, freq=freq)
+        feb = result[result["date_time"].dt.month == 2].iloc[0]
+        assert feb["data_capture"] == pytest.approx(1.0)
+
+    @pytest.mark.parametrize("freq", ["ME", "QE", "YE"])
+    def test_end_anchored_freqs_are_start_labelled(self, freq):
+        df = _make_hourly_data(start="2023-01-01", end="2023-12-31 23:00", value=10.0)
+        result = time_average(df, freq=freq)
+        assert result["date_time"].iloc[0] == pd.Timestamp("2023-01-01", tz="UTC")
+        assert result["data_capture"].to_numpy() == pytest.approx(np.ones(len(result)))
+
+    def test_weekly_bins_are_whole_weeks_labelled_at_start(self):
+        # 2023-01-02 is a Monday; four complete Mon-Sun weeks.
+        df = _make_hourly_data(start="2023-01-02", end="2023-01-29 23:00", value=10.0)
+        result = time_average(df, freq="W")
+        assert len(result) == 4
+        assert result["date_time"].iloc[0] == pd.Timestamp("2023-01-02", tz="UTC")
+        assert result["data_capture"].to_numpy() == pytest.approx(np.ones(len(result)))
+
+
+class TestDuplicateTimestamps:
+    """Duplicate (site, date_time, measurand) rows are one observation, not two."""
+
+    def test_time_average_capture_not_inflated(self):
+        sparse = _make_hourly_data(start="2023-01-01", end="2023-01-01 05:00", value=10.0)
+        with pytest.warns(UserWarning, match="[Dd]uplicate"):
+            result = time_average(pd.concat([sparse, sparse]), freq="D", data_thresh=0)
+        assert result["data_capture"].iloc[0] == pytest.approx(6 / 24)
+
+    def test_time_average_conflicting_duplicates_are_averaged_once(self):
+        a = _make_hourly_data(start="2023-01-01", end="2023-01-01 23:00", value=10.0)
+        b = a.iloc[:1].assign(value=30.0)  # hour 0 reported twice: 10 and 30
+        with pytest.warns(UserWarning, match="[Dd]uplicate"):
+            result = time_average(pd.concat([a, b]), freq="D")
+        # hour 0 collapses to 20, so the daily mean is (20 + 23*10) / 24
+        assert result["value"].iloc[0] == pytest.approx((20 + 230) / 24)
+
+    def test_aq_stats_capture_not_inflated(self):
+        half = _make_hourly_data(start="2023-01-01", end="2023-04-01", value=10.0)
+        with pytest.warns(UserWarning, match="[Dd]uplicate"):
+            result = aq_stats(pd.concat([half, half]), data_thresh=0)
+        assert result["data_capture"].iloc[0] == pytest.approx(len(half) / 8760)
+
+
+class TestUnitsHonoured:
+    """The units column is authoritative: convert before thresholds and means."""
+
+    def test_aq_stats_converts_ppb_before_no2_threshold(self):
+        # 150 ppb NO2 is ~287 ug/m3: every hour exceeds the 200 ug/m3 limit.
+        df = _make_year_data(year=2023, value=150.0, units="ppb")
+        result = aq_stats(df)
+        assert result["exceedance_hours_200"].iloc[0] == 8760
+        assert result["annual_mean"].iloc[0] == pytest.approx(150.0 * 46.0055 / 24.45, rel=0.02)
+
+    def test_aq_stats_ugm3_unchanged(self):
+        df = _make_year_data(year=2023, value=150.0)
+        result = aq_stats(df)
+        assert result["exceedance_hours_200"].iloc[0] == 0
+        assert result["annual_mean"].iloc[0] == pytest.approx(150.0)
+
+    def test_time_average_mixed_units_converted_to_common_unit(self):
+        mg = _make_hourly_data(
+            measurand="CO", start="2023-01-01", end="2023-01-01 11:00", value=1.0, units="mg/m3"
+        )
+        ug = _make_hourly_data(
+            measurand="CO", start="2023-01-01 12:00", end="2023-01-01 23:00", value=1000.0
+        )
+        with pytest.warns(UserWarning, match="[Mm]ixed units"):
+            result = time_average(pd.concat([mg, ug]), freq="D")
+        assert len(result) == 1
+        assert result["units"].iloc[0] == "ug/m3"
+        assert result["value"].iloc[0] == pytest.approx(1000.0)
+
+    def test_time_average_single_unit_left_as_reported(self):
+        df = _make_hourly_data(
+            measurand="CO", start="2023-01-01", end="2023-01-01 23:00", value=1.0, units="mg/m3"
+        )
+        result = time_average(df, freq="D")
+        assert result["units"].iloc[0] == "mg/m3"
+        assert result["value"].iloc[0] == pytest.approx(1.0)
+
+
+class TestUnitsEdgeCases:
+    """Review findings on the WP3 units handling."""
+
+    def test_aq_stats_leaves_co_in_mg_and_reports_units(self):
+        # LAQM reports CO in mg/m3; no ug/m3 threshold applies to it.
+        df = _make_year_data(measurand="CO", year=2023, value=0.3, units="mg/m3")
+        result = aq_stats(df)
+        assert result["annual_mean"].iloc[0] == pytest.approx(0.3)
+        assert result["units"].iloc[0] == "mg/m3"
+
+    def test_aq_stats_reports_converted_units(self):
+        result = aq_stats(_make_year_data(year=2023, value=150.0, units="ppb"))
+        assert result["units"].iloc[0] == "ug/m3"
+
+    def test_categorical_units_column(self):
+        df = _make_year_data(year=2023, value=150.0, units="ppb")
+        df["units"] = df["units"].astype("category")
+        result = aq_stats(df)
+        assert result["exceedance_hours_200"].iloc[0] == 8760
+
+    def test_integer_values(self):
+        df = _make_year_data(year=2023, value=150.0, units="ppb")
+        df["value"] = df["value"].astype("int64")
+        result = aq_stats(df)
+        assert result["exceedance_hours_200"].iloc[0] == 8760
+
+    def test_unit_label_variants_are_not_mixed_units(self):
+        a = _make_hourly_data(start="2023-01-01", end="2023-01-01 11:00", value=10.0)
+        b = _make_hourly_data(
+            start="2023-01-01 12:00", end="2023-01-01 23:00", value=10.0, units="µg/m³"
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            result = time_average(pd.concat([a, b]), freq="D")
+        assert result["value"].iloc[0] == pytest.approx(10.0)
+
+    def test_unconvertible_rows_keep_their_label(self):
+        # Benzene has no molecular weight entry: ppb rows cannot become ug/m3.
+        ppb = _make_hourly_data(
+            measurand="BENZENE", start="2023-01-01", end="2023-01-01 11:00", value=10.0, units="ppb"
+        )
+        ug = _make_hourly_data(
+            measurand="BENZENE", start="2023-01-01 12:00", end="2023-01-01 23:00", value=10.0
+        )
+        from aeolus.metrics.stats import _unify_units
+
+        with pytest.warns(UserWarning):
+            out = _unify_units(pd.concat([ppb, ug], ignore_index=True))
+        assert set(out["units"]) == {"ppb", "ug/m3"}
+
+    def test_nox_in_ppb_converts_as_no2(self):
+        df = _make_year_data(measurand="NOXasNO2", year=2023, value=100.0, units="ppb")
+        result = aq_stats(df)
+        assert result["units"].iloc[0] == "ug/m3"
+        assert result["annual_mean"].iloc[0] == pytest.approx(100.0 * 46.01 / 24.45, rel=1e-3)

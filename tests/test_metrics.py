@@ -102,6 +102,31 @@ class TestUnitConversion:
         result = ensure_ugm3(1.0, "PM2.5", "mg/m3", warn=False)
         assert result == 1000.0
 
+    def test_ensure_ugm3_array_warns_on_unknown_unit(self):
+        """The vectorised path must warn on an unrecognised unit (parity with
+        the scalar ensure_ugm3), not silently assume µg/m³."""
+        import numpy as np
+
+        from aeolus.metrics.base import ensure_ugm3_array
+
+        conc = np.array([10.0, 20.0])
+        units = pd.Series(["bananas/m3", "bananas/m3"])
+        with pytest.warns(UserWarning, match="Unknown unit"):
+            out = ensure_ugm3_array(conc, "NO2", units)
+        assert list(out) == [10.0, 20.0]  # left unconverted, assumed µg/m³
+
+    def test_ensure_ugm3_array_warns_on_unconvertible_ppb(self):
+        """ppb/ppm with no molecular weight for the pollutant must warn rather
+        than silently leave a ppb value as if it were µg/m³."""
+        import numpy as np
+
+        from aeolus.metrics.base import ensure_ugm3_array
+
+        units = pd.Series(["ppb"])
+        with pytest.warns(UserWarning, match="[Cc]annot convert"):
+            out = ensure_ugm3_array(np.array([5.0]), "PM2.5", units)
+        assert list(out) == [5.0]
+
 
 # =============================================================================
 # Pollutant Standardisation Tests
@@ -143,6 +168,15 @@ class TestPollutantStandardisation:
 
 class TestUKDAQI:
     """Tests for UK Daily Air Quality Index calculations."""
+
+    def test_nan_returns_unknown_not_crash(self):
+        """A NaN reading must return unknown (value/category None), not raise
+        (round(nan)->int previously raised ValueError)."""
+        from aeolus.metrics.indices import uk_daqi
+
+        result = uk_daqi.calculate(float("nan"), "PM2.5")
+        assert result.value is None
+        assert result.category is None
 
     def test_pm25_band_1(self):
         """Test PM2.5 in band 1 (Low)."""
@@ -227,6 +261,15 @@ class TestUKDAQI:
 class TestUSEPA:
     """Tests for US EPA Air Quality Index calculations."""
 
+    def test_nan_returns_unknown_not_crash(self):
+        """A NaN reading must return unknown, not raise (truncate's int(nan)
+        previously raised ValueError)."""
+        from aeolus.metrics.indices import us_epa
+
+        result = us_epa.calculate(float("nan"), "PM2.5")
+        assert result.value is None
+        assert result.category is None
+
     def test_pm25_good(self):
         """Test PM2.5 in Good range (0-50)."""
         from aeolus.metrics.indices import us_epa
@@ -295,6 +338,14 @@ class TestUSEPA:
 class TestChinaAQI:
     """Tests for China Air Quality Index calculations."""
 
+    def test_nan_returns_unknown_not_worst(self):
+        """A NaN reading must return unknown, not the worst band (was 500)."""
+        from aeolus.metrics.indices import china
+
+        result = china.calculate(float("nan"), "PM2.5")
+        assert result.value is None
+        assert result.category is None
+
     def test_pm25_excellent(self):
         """Test PM2.5 in Excellent range (0-50)."""
         from aeolus.metrics.indices import china
@@ -342,6 +393,15 @@ class TestChinaAQI:
 
 class TestEUCAQI:
     """Tests for European Air Quality Index calculations."""
+
+    def test_nan_returns_unknown_not_worst(self):
+        """A NaN reading must return unknown, not 'Extremely Poor' (was value=6)."""
+        from aeolus.metrics.indices import eu_caqi
+
+        result = eu_caqi.calculate(float("nan"), "PM2.5")
+        assert result.value is None
+        assert result.category is None
+        assert result.category != "Extremely Poor"
 
     def test_no2_good(self):
         """Test NO2 in Good range (1)."""
@@ -409,6 +469,14 @@ class TestEUCAQI:
 
 class TestIndiaNAQI:
     """Tests for India National Air Quality Index calculations."""
+
+    def test_nan_returns_unknown_not_worst(self):
+        """A NaN reading must return unknown, not the worst band (was 500)."""
+        from aeolus.metrics.indices import india_naqi
+
+        result = india_naqi.calculate(float("nan"), "PM2.5")
+        assert result.value is None
+        assert result.category is None
 
     def test_pm25_good(self):
         """Test PM2.5 in Good range (0-50)."""
@@ -1535,3 +1603,77 @@ class TestWHOAdditional:
         # CO only has AQG, not interim targets
         with pytest.raises(ValueError, match="not available"):
             who.check_guideline(3.0, "CO", "24h", "IT-1")
+
+
+# =============================================================================
+# v0.4.6 WP3 — duplicate timestamps and calendar-aware coverage
+# =============================================================================
+
+
+def _no2_frame(dates, values=10.0, site="S1"):
+    return pd.DataFrame(
+        {
+            "site_code": site,
+            "date_time": dates,
+            "measurand": "NO2",
+            "value": values,
+            "units": "ug/m3",
+            "source_network": "T",
+        }
+    )
+
+
+class TestAQISummaryCoverage:
+    def test_complete_february_has_full_coverage(self):
+        dates = pd.date_range("2023-02-01", "2023-02-28 23:00", freq="h")
+        result = metrics.aqi_summary(_no2_frame(dates), index="UK_DAQI", freq="M")
+        feb = result[result["pollutant"] == "NO2"].iloc[0]
+        assert feb["coverage"] == pytest.approx(1.0)
+
+    def test_sparse_sub_hourly_data_is_not_full_coverage(self):
+        # 15-minute data for the first 6 hours of a day = 25% coverage, not 100%.
+        dates = pd.date_range("2023-01-01", periods=24, freq="15min")
+        result = metrics.aqi_summary(
+            _no2_frame(dates), index="UK_DAQI", freq="D", warn_low_coverage=False
+        )
+        day = result[result["pollutant"] == "NO2"].iloc[0]
+        assert day["coverage"] == pytest.approx(0.25)
+
+    def test_duplicate_timestamps_do_not_inflate_coverage(self):
+        dates = pd.date_range("2023-01-01", periods=6, freq="h")
+        df = pd.concat([_no2_frame(dates), _no2_frame(dates)])
+        with pytest.warns(UserWarning, match="[Dd]uplicate"):
+            result = metrics.aqi_summary(
+                df, index="UK_DAQI", freq="D", warn_low_coverage=False
+            )
+        day = result[result["pollutant"] == "NO2"].iloc[0]
+        assert day["coverage"] == pytest.approx(0.25)
+
+
+class TestAQITimeseriesDuplicates:
+    def test_duplicates_collapse_to_one_row_per_timestamp(self):
+        dates = pd.date_range("2023-01-01", periods=48, freq="h")
+        df = pd.concat([_no2_frame(dates, 10.0), _no2_frame(dates[:1], 30.0)])
+        with pytest.warns(UserWarning, match="[Dd]uplicate"):
+            result = metrics.aqi_timeseries(df, index="UK_DAQI")
+        assert len(result) == 48
+        assert result["date_time"].is_unique
+        assert result.sort_values("date_time")["value"].iloc[0] == pytest.approx(20.0)
+
+    def test_input_frame_is_not_mutated(self):
+        dates = pd.date_range("2023-01-01", periods=48, freq="h")
+        df = _no2_frame(dates)
+        before = df.copy()
+        metrics.aqi_timeseries(df, index="UK_DAQI")
+        pd.testing.assert_frame_equal(df, before)
+
+
+def test_aqi_summary_sparse_period_does_not_infer_its_own_cadence():
+    """A day with two readings 12 h apart must not be read as complete 12-hourly data."""
+    day1 = pd.date_range("2023-01-01", periods=24, freq="h")
+    day2 = pd.DatetimeIndex(["2023-01-02 00:00", "2023-01-02 12:00"])
+    df = _no2_frame(day1.append(day2))
+    result = metrics.aqi_summary(df, index="UK_DAQI", freq="D", warn_low_coverage=False)
+    no2 = result[result["pollutant"] == "NO2"].set_index("period")
+    assert no2.loc["2023-01-01", "coverage"] == pytest.approx(1.0)
+    assert no2.loc["2023-01-02", "coverage"] == pytest.approx(2 / 24)

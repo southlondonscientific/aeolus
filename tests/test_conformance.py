@@ -409,3 +409,22 @@ class TestCrossSource:
             assert (summary["data_capture"] >= 0).all(), (
                 "Negative data_capture in summarise output"
             )
+
+
+@pytest.mark.conformance
+class TestLAQNUnitsAgainstAURNTwin:
+    """Marylebone Road is in both networks. For a ratified year the londonair
+    file, converted, must reproduce Defra's file — an exact units oracle."""
+
+    def test_ratified_year_matches_aurn(self):
+        start = datetime(2023, 3, 6, tzinfo=timezone.utc)
+        end = datetime(2023, 3, 13, tzinfo=timezone.utc)
+        laqn = aeolus.download("LAQN", ["MY1"], start_date=start, end_date=end)
+        aurn = aeolus.download("AURN", ["MY1"], start_date=start, end_date=end)
+        key = ["date_time", "measurand"]
+        both = laqn.merge(aurn, on=key, suffixes=("_laqn", "_aurn"))
+        for measurand in ("NO2", "NOXasNO2", "O3"):
+            rows = both[(both["measurand"] == measurand) & (both["value_aurn"] > 2)]
+            assert len(rows) > 100, f"too few paired {measurand} hours: {len(rows)}"
+            ratio = (rows["value_laqn"] / rows["value_aurn"]).median()
+            assert ratio == pytest.approx(1.0, abs=0.005), f"{measurand}: LAQN/AURN = {ratio:.4f}"

@@ -55,13 +55,16 @@ Known quirks:
   backwards compatibility.
 """
 
+import os
 import struct
 import json
+import threading
 import warnings
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from logging import warning
 from pathlib import Path
 from typing import Callable
+from urllib.parse import urlsplit
 
 import pandas as pd
 import rdata
@@ -85,11 +88,14 @@ from ..transforms import (
     compose,
     convert_timestamps,
     drop_columns,
+    filter_rows,
     melt_measurands,
     rename_columns,
     reset_index,
+    select_columns,
 )
 from ..types import (
+    DATA_COLUMNS,
     AeolusDataWarning,
     DataFetcher,
     MetadataFetcher,
@@ -139,6 +145,28 @@ LAQN_COLUMN_MAP = {
     "FINE": "PM2.5",
 }
 
+# The londonair openair files store gases in volume units (ppb; CO in ppm),
+# unlike every Defra-family file, which is already in mass units. They are an
+# interchange format: openair's ``importImperial`` converts to mass on read,
+# and the network itself publishes ug/m3 (its API, LAQN-ERG here, and its
+# website). So this is the one place aeolus converts in an adapter rather than
+# labelling faithfully — leaving these as ppb would make LAQN disagree with
+# LAQN-ERG for the same site and hour.
+#
+# These are Defra's published 20 °C / 1013 mb factors, not openair's rounded
+# 1.91 / 2.00 / 2.66. They are exact: for ratified years the converted file
+# reproduces the AURN twin (MY1, KC1, BL0/CLL2) to 0.00 ug/m3 — verified
+# 2005-2026, and pinned by TestLAQNUnitsAgainstAURNTwin. Keys are post-rename
+# (AURN-style) column names. Particulates are already in ug/m3.
+LAQN_VOLUME_TO_MASS = {
+    "NO": 1.2474,
+    "NO2": 1.9125,
+    "NOXasNO2": 1.9125,  # NOx is expressed as NO2
+    "O3": 1.9957,
+    "SO2": 2.6609,
+    "CO": 1.1642,  # ppm -> mg/m3
+}
+
 # Pollutants/measurands available in regulatory network data
 REGULATORY_MEASURANDS = [
     "O3",
@@ -186,8 +214,88 @@ REGULATORY_MEASURANDS = [
 # ============================================================================
 
 
-# Low-level fetcher - downloads and parses RData files
 @retry_on_network_error
+def _get_rdata_bytes(url: str) -> bytes:
+    """GET raw RData bytes. Raises, so the retry decorator sees failures
+    (connection errors, timeouts, 5xx); 4xx such as a 404 for a site-year
+    that doesn't exist are raised once and not retried."""
+    response = requests.get(url, timeout=30)
+    response.raise_for_status()
+    return response.content
+
+
+# ----------------------------------------------------------------------------
+# Per-host circuit-breaker
+# ----------------------------------------------------------------------------
+#
+# A retried request to a dead host costs ~6 s of backoff before giving up —
+# ~96 s if the host black-holes and each attempt runs to its 30 s timeout — and a bulk
+# download asks for one file per site-year, so an outage at one RData host
+# would stall for minutes while returning nothing. After
+# ``AEOLUS_RDATA_BREAKER_FAILURES`` consecutive failed fetches to a host,
+# further requests to *that host* fail fast for
+# ``AEOLUS_RDATA_BREAKER_COOLDOWN_S`` seconds; the first call after the
+# cooldown probes it again. A 4xx (no file for that site-year) proves the
+# host is up and counts as a success. Mirrors the SOS breaker in ``sos.py``.
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.environ.get(name, default))
+    except ValueError:
+        return default
+
+
+_RDATA_BREAKER_FAILURES = _env_int("AEOLUS_RDATA_BREAKER_FAILURES", 3)
+_RDATA_BREAKER_COOLDOWN_S = _env_int("AEOLUS_RDATA_BREAKER_COOLDOWN_S", 60)
+
+_rdata_breaker_lock = threading.Lock()
+_rdata_failure_counts: dict[str, int] = {}
+_rdata_opened_until: dict[str, datetime] = {}
+
+
+def _rdata_breaker_is_open(host: str) -> bool:
+    with _rdata_breaker_lock:
+        opened_until = _rdata_opened_until.get(host)
+        if opened_until is None:
+            return False
+        if datetime.now(tz=timezone.utc) >= opened_until:
+            # Cooldown elapsed: half-open. This call probes the host; one more
+            # failure reopens the breaker at once, a success closes it.
+            del _rdata_opened_until[host]
+            _rdata_failure_counts[host] = _RDATA_BREAKER_FAILURES - 1
+            return False
+        return True
+
+
+def _record_rdata_success(host: str) -> None:
+    with _rdata_breaker_lock:
+        _rdata_failure_counts[host] = 0
+        _rdata_opened_until.pop(host, None)
+
+
+def _record_rdata_failure(host: str) -> None:
+    with _rdata_breaker_lock:
+        count = _rdata_failure_counts.get(host, 0) + 1
+        _rdata_failure_counts[host] = count
+        if count >= _RDATA_BREAKER_FAILURES and host not in _rdata_opened_until:
+            _rdata_opened_until[host] = datetime.now(tz=timezone.utc) + timedelta(
+                seconds=_RDATA_BREAKER_COOLDOWN_S
+            )
+            warning(
+                f"{host} failed {count} consecutive fetches; skipping further "
+                f"requests to it for {_RDATA_BREAKER_COOLDOWN_S}s"
+            )
+
+
+def reset_rdata_circuit() -> None:
+    """Clear circuit-breaker state. Intended for tests and ops use."""
+    with _rdata_breaker_lock:
+        _rdata_failure_counts.clear()
+        _rdata_opened_until.clear()
+
+
+# Low-level fetcher - downloads and parses RData files
 def fetch_rdata(url: str) -> pd.DataFrame | None:
     """
     Fetch and parse an RData file from a URL.
@@ -202,15 +310,24 @@ def fetch_rdata(url: str) -> pd.DataFrame | None:
         This is a low-level function. Use the higher-level fetch_* functions
         for specific networks instead.
     """
-    try:
-        response = requests.get(url, timeout=30)
-        response.raise_for_status()
-    except requests.exceptions.RequestException as e:
-        warning(f"Failed to fetch RData from {url}: {e}")
+    host = urlsplit(url).netloc
+    if _rdata_breaker_is_open(host):
         return None
 
     try:
-        parsed = rdata.parser.parse_data(response.content)
+        content = _get_rdata_bytes(url)
+    except requests.exceptions.RequestException as e:
+        status = getattr(getattr(e, "response", None), "status_code", None)
+        if status is not None and status < 500:
+            _record_rdata_success(host)  # the host answered; this file is absent
+        else:
+            _record_rdata_failure(host)
+        warning(f"Failed to fetch RData from {url}: {e}")
+        return None
+    _record_rdata_success(host)
+
+    try:
+        parsed = rdata.parser.parse_data(content)
         converted = rdata.conversion.convert(parsed)
         # RData returns a dict with one key - get the first (only) value
         data = converted[next(iter(converted))]
@@ -310,6 +427,10 @@ def normalise_regulatory_data(network_name: str) -> Normaliser:
                 id_vars=["site", "code", "date"],
                 measurands=measurands_present,
             ),
+            # RData feeds are dense wide tables: hours with no reading melt to
+            # value=NaN. Drop them (every other source drops NaN values) so they
+            # don't dominate the output and skew downstream means/data-capture.
+            filter_rows(lambda d: d["value"].notna()),
             rename_columns(
                 {
                     "site": "site_name",
@@ -328,6 +449,7 @@ def normalise_regulatory_data(network_name: str) -> Normaliser:
             ),
             add_column("created_at", lambda df: datetime.now(timezone.utc)),
             drop_columns("site_name"),
+            select_columns(*DATA_COLUMNS, require_all=True),
         )(df)
 
     return normalise
@@ -368,6 +490,7 @@ def make_data_fetcher(
     network_name: str,
     column_map: dict[str, str] | None = None,
     site_path: Callable[[str], str | None] | None = None,
+    value_factors: dict[str, float] | None = None,
 ) -> DataFetcher:
     """
     Create a data fetcher function for a specific regulatory network.
@@ -381,6 +504,11 @@ def make_data_fetcher(
             inserted between ``base_url`` and ``{SITE}_{YEAR}.RData`` (e.g.
             ``"sussex/"`` for LMAM). Returning ``None`` causes the site to be
             skipped with a warning. When ``None``, no fragment is inserted.
+
+        value_factors: Optional per-column multipliers applied after
+            ``column_map``, for files whose values are not in the units the
+            shared pipeline labels them with (LAQN only — see
+            ``LAQN_VOLUME_TO_MASS``).
 
     Returns:
         DataFetcher: Function that fetches and normalises data
@@ -418,6 +546,10 @@ def make_data_fetcher(
                 if df is not None and not df.empty:
                     if column_map:
                         df = df.rename(columns=column_map)
+                    if value_factors:
+                        for column, factor in value_factors.items():
+                            if column in df.columns:
+                                df[column] = pd.to_numeric(df[column], errors="coerce") * factor
                     # LAQN openair files have no separate `code` column —
                     # the `site` column contains the site code (not a
                     # human-readable name). Provide a `code` column so the

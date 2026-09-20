@@ -782,6 +782,23 @@ class TestNormalizeSensorData:
         assert all(result["ratification"] == "Unvalidated")
         assert all(result["site_code"] == "12345")
 
+    def test_normalise_drops_nat_timestamp_rows(self):
+        """pd.to_datetime(None, ...) returns NaT without raising, so a row with
+        a missing timestamp must be dropped explicitly or NaT date_time leaks
+        into the output and corrupts downstream time-binning."""
+        df = pd.DataFrame(
+            {
+                "sensor_id": [12345, 12345],
+                "timestamp": ["2024-01-15T10:00:00", None],  # second has no ts
+                "P1": [32.5, 30.1],
+                "P2": [22.3, 20.5],
+            }
+        )
+        result = _normalise_sensor_data(df, "SDS011", "12345")
+        assert result["date_time"].notna().all()
+        # Only the first row's two measurands (PM10, PM2.5) survive.
+        assert len(result) == 2
+
     def test_normalise_bme280_data(self):
         """Test normalization of BME280 environmental data."""
         df = pd.DataFrame(

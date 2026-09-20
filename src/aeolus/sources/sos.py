@@ -44,6 +44,7 @@ import requests
 from ..decorators import retry_on_network_error
 from ..geo import haversine_distance
 from ..registry import register_source
+from ..units import canonical_unit
 from ..types import AeolusDataWarning, empty_data_frame
 
 logger = logging.getLogger(__name__)
@@ -302,6 +303,10 @@ def _build_station_mapping(
 
     # Fetch all SOS timeseries
     all_ts = list(_get_all_timeseries_cached())
+    if not all_ts:
+        # Don't let lru_cache latch a transient empty listing.
+        _get_all_timeseries_cached.cache_clear()
+        return {}
 
     # Match each SOS timeseries to the nearest metadata site
     mapping: dict[str, list[dict]] = {}
@@ -338,7 +343,7 @@ def _build_station_mapping(
             ts_info = {
                 "ts_id": str(ts["id"]),
                 "measurand": measurand,
-                "uom": ts.get("uom", "ug.m-3").replace(".", "/"),
+                "uom": canonical_unit(ts.get("uom", "ug.m-3")),
             }
             mapping.setdefault(best_code, []).append(ts_info)
 
@@ -402,13 +407,17 @@ def _get_network_mapping(network: str) -> dict[str, list[dict]]:
 
     # Try static mapping
     static = _load_static_mapping()
-    if static is not None and network in static:
+    if static is not None and static.get(network):
         _network_mappings[network] = static[network]
         return _network_mappings[network]
 
-    # Fall back to live mapping
-    _network_mappings[network] = _build_station_mapping(network)
-    return _network_mappings[network]
+    # Fall back to live mapping. Only cache a non-empty build: an empty one
+    # means a transient upstream failure, and latching it would silence the
+    # network for the rest of the process.
+    mapping = _build_station_mapping(network)
+    if mapping:
+        _network_mappings[network] = mapping
+    return mapping
 
 
 def rebuild_sos_mapping() -> Path:
@@ -502,7 +511,10 @@ def make_sos_data_fetcher(network: str):
 
                 for v in values:
                     val = v.get("value")
-                    if val == _MISSING_SENTINEL:
+                    # A JSON null value yields None; the sentinel check alone
+                    # misses it, so float(None) would raise and abort the whole
+                    # timeseries fetch. Drop null / sentinel / NaN values.
+                    if val is None or val == _MISSING_SENTINEL or pd.isna(val):
                         continue
                     results.append(
                         {
@@ -512,7 +524,10 @@ def make_sos_data_fetcher(network: str):
                             ),
                             "measurand": ts_info["measurand"],
                             "value": float(val),
-                            "units": "ug/m3",
+                            # Use the per-timeseries unit of measure derived in
+                            # _build_station_mapping (e.g. CO -> mg/m3), not a
+                            # flat 'ug/m3' that mislabelled CO ~1000x.
+                            "units": canonical_unit(ts_info.get("uom", "ug/m3")),
                             "source_network": network.upper(),
                             "ratification": "None",
                             "created_at": pd.Timestamp.now(tz="UTC"),

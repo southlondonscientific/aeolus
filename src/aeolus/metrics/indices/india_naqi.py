@@ -335,6 +335,18 @@ def calculate(
             f"Supported: {list(AVERAGING_PERIODS.keys())}"
         )
 
+    # A missing (NaN) reading is "unknown" — not the worst band.
+    # (x != x is True only for NaN; avoids importing math here.)
+    if concentration != concentration:
+        return AQIResult(
+            value=None,
+            category=None,
+            color=None,
+            pollutant=pollutant_upper,
+            concentration=concentration,
+            unit="µg/m³",
+        )
+
     # Handle O3 specially - uses 8-hour for lower AQI, 1-hour for higher.
     # CPCB spec: 8-hour O3 covers categories up to AQI 200 (0-208 µg/m³);
     # for higher concentrations the 1-hour table takes over (209+ µg/m³).

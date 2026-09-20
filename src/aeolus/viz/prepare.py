@@ -24,6 +24,7 @@ formats suitable for plotting, including:
 - Extracting AQI band information for background shading
 """
 
+import math
 import warnings
 from dataclasses import dataclass
 from typing import Literal
@@ -211,7 +212,7 @@ def downsample_timeseries(
     df_valid = df[mask]
 
     if len(df_valid) <= target_points:
-        return df
+        return df_valid
 
     if method == "lttb":
         # Convert datetime to numeric for LTTB. astype(int64) yields integers in
@@ -247,14 +248,18 @@ def downsample_timeseries(
         return result
 
     elif method == "decimate":
-        step = len(df_valid) // target_points
+        # Ceiling, not floor: a floored step is 1 for any length in
+        # (target, 2 * target), which returns every point
+        step = max(1, math.ceil(len(df_valid) / target_points))
         return df_valid.iloc[::step].copy()
 
     elif method == "mean":
         # Resample to achieve target points
         duration = df_valid[datetime_col].max() - df_valid[datetime_col].min()
-        freq_seconds = duration.total_seconds() / target_points
-        freq = f"{int(freq_seconds)}s"
+        # Whole seconds, at least 1: a sub-second bucket truncates to "0s",
+        # which pandas rejects with ZeroDivisionError
+        freq_seconds = max(1, math.ceil(duration.total_seconds() / target_points))
+        freq = f"{freq_seconds}s"
 
         df_valid = df_valid.set_index(datetime_col)
         result = df_valid[[value_col]].resample(freq).mean().dropna().reset_index()
@@ -267,6 +272,22 @@ def downsample_timeseries(
 # =============================================================================
 # Data Preparation for Time Series
 # =============================================================================
+
+
+def _harmonise_units(data: pd.DataFrame, pollutants: list[str]) -> pd.DataFrame:
+    """
+    Convert any pollutant reported in more than one unit to ug/m3.
+
+    Plots pool across sites, so units are compared across the whole frame.
+    Single-unit pollutants are left exactly as the source reported them.
+    """
+    # Import here to avoid circular dependency
+    from ..metrics.stats import _unify_units
+
+    subset = data[data["measurand"].isin(pollutants)].reset_index(drop=True)
+    unified = _unify_units(subset, across_sites=True)
+    # Unchanged input comes back as the same object: keep the caller's frame
+    return data if unified is subset else unified
 
 
 def prepare_timeseries(
@@ -316,6 +337,10 @@ def prepare_timeseries(
 
     if not pollutants:
         raise ValueError("No valid pollutants to plot")
+
+    # Honour the units column: put mixed-unit pollutants on one scale before
+    # the pivot's mean pools them
+    data = _harmonise_units(data, pollutants)
 
     # Get units for each pollutant
     units = {}

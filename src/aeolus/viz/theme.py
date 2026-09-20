@@ -289,8 +289,16 @@ def get_official_colours(index: str) -> dict[str, str]:
     # Import here to avoid circular dependency
     from ..metrics.indices import china, eu_caqi, india_naqi, uk_daqi, us_epa
 
+    # UK DAQI has ten band colours but only four categories, so a plain
+    # {category: colour} comprehension keeps whichever band comes last. Pick
+    # the middle band of each category explicitly.
+    uk_daqi_representative_band = {"Low": 2, "Moderate": 5, "High": 8, "Very High": 10}
+
     official = {
-        "UK_DAQI": {cat: uk_daqi.COLORS[i] for i, cat in uk_daqi.CATEGORIES.items()},
+        "UK_DAQI": {
+            cat: uk_daqi.COLORS[band]
+            for cat, band in uk_daqi_representative_band.items()
+        },
         "US_EPA": us_epa.COLORS,
         "CHINA": china.COLORS,
         "EU_CAQI_ROADSIDE": {
@@ -300,6 +308,8 @@ def get_official_colours(index: str) -> dict[str, str]:
             cat: eu_caqi.COLORS[i] for i, cat in eu_caqi.CATEGORIES.items()
         },
         "INDIA_NAQI": india_naqi.COLORS,
+        # WHO publishes no colour scheme; degrade to the Aeolus compliance palette
+        "WHO": WHO_COMPLIANCE_COLOURS,
     }
 
     if index not in official:

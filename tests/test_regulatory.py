@@ -235,6 +235,27 @@ class TestNormaliseRegulatoryData:
         assert "O3" in measurands
         assert "PM2.5" in measurands
 
+    def test_normalise_data_drops_nan_values(self):
+        """Dense RData wide tables melt empty hours to value=NaN; those rows
+        must be dropped, not emitted — otherwise they dominate the output and
+        inflate downstream data-capture / skew means."""
+        raw = pd.DataFrame(
+            {
+                "site": ["London Marylebone Road", "London Marylebone Road"],
+                "code": ["MY1", "MY1"],
+                "date": [datetime(2024, 1, 1, 0, 0), datetime(2024, 1, 1, 1, 0)],
+                "NO2": [45.2, float("nan")],  # second hour missing NO2
+                "O3": [float("nan"), 28.3],   # first hour missing O3
+            }
+        )
+        result = normalise_regulatory_data("AURN")(raw)
+        assert result["value"].notna().all()
+        assert len(result) == 2
+        assert set(zip(result["measurand"], result["value"])) == {
+            ("NO2", 45.2),
+            ("O3", 28.3),
+        }
+
     def test_normalise_data_renames_columns(self, mock_data_df):
         """Should rename site, code, date columns."""
         normaliser = normalise_regulatory_data("AURN")
@@ -313,24 +334,11 @@ class TestNormaliseRegulatoryData:
             assert all(result["source_network"] == network)
 
     def test_normalise_data_standard_schema(self, mock_data_df):
-        """Should produce standard 8-column schema."""
-        normaliser = normalise_regulatory_data("AURN")
-        result = normaliser(mock_data_df)
+        """Should produce the strict 8-column schema in DATA_COLUMNS order."""
+        from aeolus.types import DATA_COLUMNS
 
-        expected_columns = {
-            "site_code", "date_time", "measurand", "value",
-            "units", "source_network", "ratification", "created_at",
-        }
-        assert set(result.columns) == expected_columns
-
-
-# ============================================================================
-# Tests for make_metadata_fetcher()
-# ============================================================================
-
-
-class TestMakeMetadataFetcher:
-    """Tests for metadata fetcher factory."""
+        result = normalise_regulatory_data("AURN")(mock_data_df)
+        assert list(result.columns) == DATA_COLUMNS
 
     def test_make_metadata_fetcher_returns_callable(self):
         """Should return a callable function."""

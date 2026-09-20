@@ -72,6 +72,19 @@ PARAMETER_MAP = {
 _client = None
 
 
+def _openaq_error_class():
+    """Return the SDK's base exception, wherever this SDK version keeps it.
+
+    1.0.0 final moved it from ``openaq.shared.exceptions`` (the release
+    candidates) to ``openaq.core.exceptions``.
+    """
+    try:
+        from openaq.core.exceptions import OpenAQError
+    except ImportError:
+        from openaq.shared.exceptions import OpenAQError
+    return OpenAQError
+
+
 def _get_client() -> "OpenAQ":
     """
     Get an OpenAQ client instance (reuses existing client).
@@ -301,7 +314,7 @@ def fetch_openaq_data(
         ...     end_date=datetime(2024, 1, 31)
         ... )
     """
-    from openaq.shared.exceptions import OpenAQError
+    OpenAQError = _openaq_error_class()
 
     client = _get_client()
     all_measurements = []

@@ -56,6 +56,7 @@ from ..transforms import (
     add_column,
     compose,
     convert_timestamps,
+    filter_rows,
     rename_columns,
     reset_index,
     select_columns,
@@ -221,11 +222,24 @@ def normalise_sonitus_data(site_code: str) -> callable:
                 "measurand",
                 lambda df: df["measurand_raw"].map(COLUMN_TO_MEASURAND),
             ),
-            add_column("units", "ug/m3"),
+            add_column(
+                "units",
+                # CO is conventionally reported in mg/m3; gases and PM in ug/m3.
+                # Label per-measurand (mirrors regulatory.normalise_regulatory_data)
+                # rather than a flat 'ug/m3' that mis-stated CO by ~1000x.
+                lambda df: df["measurand"].map(
+                    lambda m: "mg/m3" if m == "CO" else "ug/m3"
+                ),
+            ),
+            # Monitors report different column sets per 15-min row (gas vs PM),
+            # so missing cells melt to value=NaN. Drop them (matches every other
+            # source) rather than emit empty readings. Negative values are kept
+            # (genuine for some species near zero).
+            filter_rows(lambda d: d["value"].notna()),
             add_column("source_network", "SONITUS"),
             add_column("ratification", "Unvalidated"),
             add_column("created_at", lambda df: datetime.now(timezone.utc)),
-            select_columns(*DATA_COLUMNS),
+            select_columns(*DATA_COLUMNS, require_all=True),
             reset_index(),
         )
         return normaliser(melted)

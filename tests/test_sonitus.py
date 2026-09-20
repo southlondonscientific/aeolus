@@ -145,17 +145,39 @@ class TestNormaliseSonitusData:
         assert set(df["measurand"]) == {"PM1", "PM2.5", "PM10", "TSP"}
         assert all(df["site_code"] == "TNO4435")
 
-    def test_units_are_ug_m3(self):
+    def test_units_per_measurand_co_is_mg_m3(self):
+        """CO is conventionally reported in mg/m3; gases and PM in ug/m3. Units
+        must be labelled per-measurand, not a flat 'ug/m3' for everything — the
+        old flat label mis-stated CO by ~1000x and silently corrupted any
+        concat with regulatory CO (which is correctly mg/m3)."""
         from aeolus.sources.sonitus import normalise_sonitus_data
         normaliser = normalise_sonitus_data("DCC-AQ1")
         df = normaliser(pd.DataFrame(MOCK_GAS_DATA))
-        assert all(df["units"] == "ug/m3")
+        co = df[df["measurand"] == "CO"]
+        assert not co.empty
+        assert (co["units"] == "mg/m3").all()
+        non_co = df[df["measurand"] != "CO"]
+        assert (non_co["units"] == "ug/m3").all()
 
     def test_source_network_is_sonitus(self):
         from aeolus.sources.sonitus import normalise_sonitus_data
         normaliser = normalise_sonitus_data("DCC-AQ1")
         df = normaliser(pd.DataFrame(MOCK_GAS_DATA))
         assert all(df["source_network"] == "SONITUS")
+
+    def test_normalise_drops_nan_values(self):
+        """Monitors report different column sets per row (gas vs PM); missing
+        cells melt to value=NaN and must be dropped, not emitted as readings."""
+        from aeolus.sources.sonitus import normalise_sonitus_data
+        raw = pd.DataFrame({
+            "datetime": ["2024-01-01 00:00:00", "2024-01-01 00:15:00"],
+            "no2": [20.0, None],     # second NO2 missing
+            "pm2_5": [None, 8.0],    # first PM2.5 missing
+        })
+        df = normalise_sonitus_data("DCC-AQ1")(raw)
+        assert df["value"].notna().all()
+        assert len(df) == 2
+        assert set(zip(df["measurand"], df["value"])) == {("NO2", 20.0), ("PM2.5", 8.0)}
 
     def test_negative_values_passed_through(self):
         from aeolus.sources.sonitus import normalise_sonitus_data

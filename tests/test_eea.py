@@ -248,14 +248,52 @@ class TestNormaliseEeaData:
         assert all(df["units"] == "ug/m3")
 
     @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
+    def test_unit_notation_canonicalised(self, _mock_mapping):
+        """All EEA unit notations must canonicalise, not just 'ug.m-3':
+        'mg.m-3' -> 'mg/m3' (e.g. CO) and the micro sign 'µg/m3' -> 'ug/m3'.
+        Previously only 'ug.m-3' was rewritten, leaving CO as 'mg.m-3' and
+        µ-variants verbatim — inconsistent units across species from one source."""
+        from aeolus.sources.eea import normalise_eea_data
+
+        records = [
+            {**MOCK_PARQUET_RECORDS[0], "Unit": "mg.m-3", "Value": "0.3"},
+            {**MOCK_PARQUET_RECORDS[1], "Unit": "µg/m3"},
+        ]
+        df = normalise_eea_data()(self._raw_df(records))
+        assert set(df["units"]) == {"mg/m3", "ug/m3"}
+
+    @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
+    def test_drops_unparseable_values(self, _mock_mapping):
+        """convert_value coerces unparseable Values to NaN; those rows must be
+        dropped. Validity>=1 is a QA flag, not a value-presence check, so a
+        valid-but-null reading would otherwise reach the user as NaN."""
+        from aeolus.sources.eea import normalise_eea_data
+
+        records = [
+            {**MOCK_PARQUET_RECORDS[0], "Value": "25.0"},
+            {**MOCK_PARQUET_RECORDS[1], "Value": "n/a"},  # coerces to NaN
+        ]
+        df = normalise_eea_data()(self._raw_df(records))
+        assert df["value"].notna().all()
+        assert len(df) == 1
+        assert df.iloc[0]["value"] == 25.0
+
+    @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
     def test_verification_to_ratification(self, _mock_mapping):
         from aeolus.sources.eea import normalise_eea_data
 
         df = normalise_eea_data()(self._raw_df())
-        verified = df[df["measurand"] == "NO2"]
-        provisional = df[df["measurand"] == "PM10"]
-        assert all(verified["ratification"] == "Verified")
-        assert all(provisional["ratification"] == "Provisional")
+        # EIONET observationverification vocabulary: 1 = Verified,
+        # 2 = Preliminary verified, 3 = Not verified.
+        # https://dd.eionet.europa.eu/vocabulary/aq/observationverification
+        # Fixture: NO2 rows carry Verification=2, the PM10 row Verification=1.
+        by_measurand = dict(zip(df["measurand"], df["ratification"], strict=True))
+        assert by_measurand == {"PM10": "Verified", "NO2": "Provisional"}
+
+    def test_verification_map_matches_eionet_vocabulary(self):
+        from aeolus.sources.eea import VERIFICATION_MAP
+
+        assert VERIFICATION_MAP == {1: "Verified", 2: "Provisional", 3: "Provisional"}
 
 
 class TestFetchEeaData:

@@ -279,3 +279,26 @@ def assert_no_nulls(df: pd.DataFrame, columns: list[str] | None = None):
 pytest.assert_dataframes_equal = assert_dataframes_equal
 pytest.assert_has_columns = assert_has_columns
 pytest.assert_no_nulls = assert_no_nulls
+
+
+@pytest.fixture(autouse=True)
+def _no_retry_backoff(monkeypatch):
+    """Neutralise tenacity's backoff (2s + 4s per exhausted retry) without
+    touching the real ``time.sleep`` that rate-limiter tests measure."""
+    import types
+
+    import tenacity.nap
+
+    monkeypatch.setattr(
+        tenacity.nap, "time", types.SimpleNamespace(sleep=lambda _s: None)
+    )
+
+
+@pytest.fixture(autouse=True)
+def _reset_rdata_circuit():
+    """Failures in one test must not open the RData breaker for the next."""
+    from aeolus.sources.regulatory import reset_rdata_circuit
+
+    reset_rdata_circuit()
+    yield
+    reset_rdata_circuit()

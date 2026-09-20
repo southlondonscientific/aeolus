@@ -67,6 +67,8 @@ class TestNearToBboxProperties:
         """Bbox midpoint equals input point."""
         assume(abs(lat) < 89.9)
         min_lon, min_lat, max_lon, max_lat = near_to_bbox(lat, lon, radius)
+        # A box clamped at a pole or the antimeridian is no longer centred
+        assume(-90 < min_lat and max_lat < 90 and -180 < min_lon and max_lon < 180)
         mid_lat = (min_lat + max_lat) / 2
         mid_lon = (min_lon + max_lon) / 2
         assert math.isclose(mid_lat, lat, abs_tol=1e-9)
@@ -78,6 +80,7 @@ class TestNearToBboxProperties:
         assume(radius > 1.0)
         assume(abs(lat) < 89.0)
         _, min_lat, _, max_lat = near_to_bbox(lat, lon, radius)
+        assume(max_lat < 90)  # clamped at the pole
         north_edge_dist = haversine_distance(lat, lon, max_lat, lon)
         assert math.isclose(north_edge_dist, radius, rel_tol=0.02)
 

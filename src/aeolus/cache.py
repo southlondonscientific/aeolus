@@ -23,6 +23,13 @@ This avoids redundant API calls when re-running notebooks or analyses.
 Cache location defaults to ``~/.cache/aeolus/`` and can be overridden
 by setting the ``AEOLUS_CACHE_DIR`` environment variable.
 
+Complete results for an explicit date range never expire. Two kinds of entry
+are *volatile* and are re-fetched once older than ``AEOLUS_CACHE_VOLATILE_TTL_S``
+seconds (default 3600): rolling ``last=`` windows, which are keyed on the
+shorthand so a re-run hits the cache, and results missing a requested site,
+which may reflect a transient failure. A ``last=`` window no longer than the
+TTL is always fetched live.
+
 Usage::
 
     import aeolus
@@ -45,7 +52,8 @@ Usage::
 import hashlib
 import logging
 import os
-from datetime import datetime
+import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -54,6 +62,23 @@ logger = logging.getLogger(__name__)
 
 # Default cache directory
 _DEFAULT_CACHE_DIR = Path.home() / ".cache" / "aeolus"
+
+# Volatile entries — rolling (``last=``) windows, and results missing a
+# requested site — are served from cache for at most this many seconds before
+# being re-fetched. One hour matches the reporting resolution of the
+# regulatory networks. Complete results for explicit date ranges never expire.
+try:
+    _VOLATILE_TTL_S = int(os.environ.get("AEOLUS_CACHE_VOLATILE_TTL_S", "3600"))
+except ValueError:
+    # A malformed setting must not break ``import aeolus``
+    _VOLATILE_TTL_S = 3600
+
+# Entries live under a versioned subdirectory. Bump this whenever a release
+# changes what a cached frame *means* (values, units, labels, schema): files
+# written by earlier versions then stop being served, because the key alone
+# cannot tell a corrected result from a wrong one. v2 = the 0.5.0 correctness
+# scrub (LAQN ppb -> ug/m3, EEA labels, CO units, sentinel/NaN drops).
+_CACHE_VERSION = "v2"
 
 # Module-level state
 _cache_enabled = False
@@ -69,17 +94,68 @@ def _get_cache_dir() -> Path:
     return _cache_dir
 
 
-def _cache_key(source: str, site: str, start_date: datetime, end_date: datetime) -> str:
+def _entries_dir() -> Path:
+    """Directory holding entries written by this cache version."""
+    return _get_cache_dir() / _CACHE_VERSION
+
+
+def _volatile_ttl_s(start_date: datetime, end_date: datetime, last: str | None) -> float:
+    """TTL for a volatile entry. A rolling window's TTL scales with its length,
+    so ``last="2h"`` is never served mostly stale; long windows cap at the default."""
+    if last is None:
+        return _VOLATILE_TTL_S
+    window_s = abs((end_date - start_date).total_seconds())
+    return min(_VOLATILE_TTL_S, window_s / 10)
+
+
+def _as_utc_timestamp(dt: datetime) -> float:
+    """POSIX timestamp of *dt*; naive datetimes are UTC by library convention."""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.timestamp()
+
+
+def _key_instant(dt: datetime) -> str:
+    """Normalise a datetime for keying: the same instant always keys the same.
+
+    Naive datetimes are UTC by library convention, so aware datetimes are
+    converted to naive UTC (which also keeps pre-0.4.6 naive keys valid).
+    """
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt.isoformat()
+
+
+def _cache_key(
+    source: str,
+    site: str,
+    start_date: datetime,
+    end_date: datetime,
+    last: str | None = None,
+) -> str:
     """
     Generate a deterministic cache key for a download request.
 
+    Rolling windows (``last=``) are keyed on the shorthand itself, not on
+    the resolved timestamps, which differ on every call.
+
     Returns a hex string identifying this specific request.
     """
-    parts = f"{source.upper()}|{site}|{start_date.isoformat()}|{end_date.isoformat()}"
+    if last is not None:
+        window = f"last={''.join(last.split()).lower()}"
+    else:
+        window = f"{_key_instant(start_date)}|{_key_instant(end_date)}"
+    parts = f"{source.upper()}|{site}|{window}"
     return hashlib.sha256(parts.encode()).hexdigest()[:16]
 
 
-def _cache_path(source: str, site: str, start_date: datetime, end_date: datetime) -> Path:
+def _cache_path(
+    source: str,
+    site: str,
+    start_date: datetime,
+    end_date: datetime,
+    last: str | None = None,
+) -> Path:
     """Get the filesystem path for a cached dataset.
 
     Keeps the filename human-readable for single sites, but truncates
@@ -88,8 +164,8 @@ def _cache_path(source: str, site: str, start_date: datetime, end_date: datetime
     """
     import re
 
-    cache_dir = _get_cache_dir()
-    key = _cache_key(source, site, start_date, end_date)
+    cache_dir = _entries_dir()
+    key = _cache_key(source, site, start_date, end_date, last)
     safe_site = re.sub(r"[^\w\-]", "_", site)
 
     # Truncate long site strings (e.g. 321 AURN sites joined with commas).
@@ -102,10 +178,19 @@ def _cache_path(source: str, site: str, start_date: datetime, end_date: datetime
 
 
 def get(
-    source: str, site: str, start_date: datetime, end_date: datetime
+    source: str,
+    site: str,
+    start_date: datetime,
+    end_date: datetime,
+    last: str | None = None,
+    sites: list[str] | None = None,
 ) -> pd.DataFrame | None:
     """
     Retrieve cached data if available.
+
+    Rolling (``last=``) entries expire after the volatile TTL. When *sites* is
+    given, an entry missing any of them expires the same way, so a transient
+    per-site failure is retried rather than latched.
 
     Args:
         source: Data source name (e.g., "AURN")
@@ -119,12 +204,31 @@ def get(
     if not _cache_enabled:
         return None
 
-    path = _cache_path(source, site, start_date, end_date)
-    if path.exists():
-        logger.debug("Cache hit: %s/%s", source, site)
-        return pd.read_parquet(path)
+    path = _cache_path(source, site, start_date, end_date, last)
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return None
 
-    return None
+    expired = time.time() - mtime > _volatile_ttl_s(start_date, end_date, last)
+    # A range that ended after it was fetched held only what had been published
+    # by then, so it is as volatile as a rolling window.
+    open_ended = _as_utc_timestamp(end_date) > mtime
+    if expired and (last is not None or open_ended):
+        logger.debug("Cache expired: %s/%s (rolling or open-ended window)", source, site)
+        return None
+
+    try:
+        data = pd.read_parquet(path)
+    except Exception as e:  # noqa: BLE001 - a half-written or corrupt file is a miss
+        logger.debug("Cache entry unreadable, refetching: %s/%s (%s)", source, site, type(e).__name__)
+        return None
+    if expired and sites is not None and not _covers_all_sites(data, sites):
+        logger.debug("Cache expired: %s/%s (incomplete result)", source, site)
+        return None
+
+    logger.debug("Cache hit: %s/%s", source, site)
+    return data
 
 
 def put(
@@ -133,6 +237,7 @@ def put(
     start_date: datetime,
     end_date: datetime,
     data: pd.DataFrame,
+    last: str | None = None,
 ) -> None:
     """
     Store data in the cache.
@@ -150,9 +255,16 @@ def put(
     if data.empty:
         return
 
-    path = _cache_path(source, site, start_date, end_date)
+    path = _cache_path(source, site, start_date, end_date, last)
     path.parent.mkdir(parents=True, exist_ok=True)
-    data.to_parquet(path, index=False)
+    # Write beside the target and rename: volatile entries are rewritten every
+    # TTL, and a concurrent reader must never see a half-written file.
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        data.to_parquet(tmp, index=False)
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
     logger.debug("Cached: %s/%s (%d rows)", source, site, len(data))
 
 
@@ -215,21 +327,22 @@ def clear_cache(source: str | None = None) -> int:
     count = 0
 
     if source:
-        target = cache_dir / source.upper()
-        if target.exists():
-            for f in target.glob("*.parquet"):
-                f.unlink()
-                count += 1
-            # Remove empty directory
-            if not any(target.iterdir()):
-                target.rmdir()
+        # Current entries, plus any written by an earlier cache version
+        for target in (_entries_dir() / source.upper(), cache_dir / source.upper()):
+            if target.exists():
+                for f in target.glob("*.parquet"):
+                    f.unlink(missing_ok=True)
+                    count += 1
+                # Remove empty directory
+                if not any(target.iterdir()):
+                    target.rmdir()
     else:
         for f in cache_dir.rglob("*.parquet"):
-            f.unlink()
+            f.unlink(missing_ok=True)
             count += 1
-        # Remove empty subdirectories
-        for d in sorted(cache_dir.glob("*/"), reverse=True):
-            if d.is_dir() and not any(d.iterdir()):
+        # Remove empty subdirectories, deepest first
+        for d in sorted((p for p in cache_dir.rglob("*") if p.is_dir()), reverse=True):
+            if not any(d.iterdir()):
                 d.rmdir()
 
     logger.info("Cleared %d cached files", count)
@@ -242,6 +355,7 @@ def fetch_with_cache(
     start_date: datetime,
     end_date: datetime,
     fetcher,
+    last: str | None = None,
 ) -> pd.DataFrame:
     """Fetch via *fetcher*, transparently caching the result.
 
@@ -263,14 +377,32 @@ def fetch_with_cache(
     if not _cache_enabled:
         return fetcher(sites, start_date, end_date)
 
+    # A rolling window of an hour or less is a request for live data.
+    if last is not None and end_date - start_date <= timedelta(hours=1):
+        return fetcher(sites, start_date, end_date)
+
     site_key = ",".join(sorted(sites))
-    cached = get(source, site_key, start_date, end_date)
+    cached = get(source, site_key, start_date, end_date, last, sites)
     if cached is not None:
         return cached
 
     data = fetcher(sites, start_date, end_date)
-    put(source, site_key, start_date, end_date, data)
+    put(source, site_key, start_date, end_date, data, last)
     return data
+
+
+def _covers_all_sites(data: pd.DataFrame, sites: list[str]) -> bool:
+    """Whether *data* has at least one row for every requested site.
+
+    Fetchers swallow per-site errors and return whatever succeeded, so a
+    missing site may be a transient failure — or a site with genuinely no
+    data in the range. The two are indistinguishable here, so an incomplete
+    result is cached but treated as volatile rather than authoritative.
+    """
+    if data.empty or "site_code" not in data.columns:
+        return False
+    returned = {str(s).upper() for s in data["site_code"].dropna().unique()}
+    return all(str(s).upper() in returned for s in sites)
 
 
 def cache_info() -> dict:
@@ -287,16 +419,27 @@ def cache_info() -> dict:
         >>> print(f"Cache: {info['total_files']} files, {info['total_size_mb']:.1f} MB")
     """
     cache_dir = _get_cache_dir()
-    files = list(cache_dir.rglob("*.parquet"))
-    total_size = sum(f.stat().st_size for f in files)
-    sources = sorted({f.parent.name for f in files})
+    # A file may be removed (clear_cache, another process) between listing
+    # and stat; skip it rather than crash a read-only introspection call.
+    sizes = {}
+    for f in cache_dir.rglob("*.parquet"):
+        try:
+            sizes[f] = f.stat().st_size
+        except OSError:
+            continue
+    total_size = sum(sizes.values())
+    entries = _entries_dir()
+    current = {f: size for f, size in sizes.items() if entries in f.parents}
+    sources = sorted({f.parent.name for f in current})
 
     return {
         "enabled": _cache_enabled,
         "directory": str(cache_dir),
         "sources": sources,
-        "total_files": len(files),
-        "total_size_mb": total_size / (1024 * 1024),
+        "total_files": len(current),
+        "total_size_mb": sum(current.values()) / (1024 * 1024),
+        # Written by an earlier cache version: never served; clear_cache() removes them
+        "legacy_files": len(sizes) - len(current),
     }
 
 

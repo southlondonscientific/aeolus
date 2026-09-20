@@ -91,7 +91,7 @@ DATA_PROVIDER_CODES = frozenset({
 
 def _normalise_lmam_metadata(raw: pd.DataFrame) -> pd.DataFrame:
     """Aggregate the (site, parameter) row structure into one row per site
-    with measurands as a comma-separated list, then conform to the standard
+    with measurands as a sorted list, then conform to the standard
     metadata schema.
     """
     if raw.empty:
@@ -111,7 +111,7 @@ def _normalise_lmam_metadata(raw: pd.DataFrame) -> pd.DataFrame:
             "longitude": "first",
             "provider": "first",
             "pcode": "first",
-            "parameter": lambda s: ",".join(sorted(set(s.dropna()))),
+            "parameter": lambda s: sorted(set(s.dropna())) or None,
         })
         .rename(columns={"parameter": "measurands"})
     )

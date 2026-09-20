@@ -201,11 +201,6 @@ class TestGetPut:
 
 
 class TestEnableDisable:
-    def test_disabled_by_default(self):
-        """Cache starts disabled (we enable in fixture, so test via fresh module state)."""
-        disable_cache()
-        assert not is_enabled()
-
     def test_enable(self):
         enable_cache()
         assert is_enabled()
