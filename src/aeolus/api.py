@@ -86,6 +86,20 @@ def _warn_if_experimental(source_name: str, spec: dict) -> None:
     )
 
 
+def _as_utc(dt: datetime) -> pd.Timestamp:
+    """Timestamp of *dt* in UTC; naive datetimes are UTC by library convention."""
+    ts = pd.Timestamp(dt)
+    return ts.tz_localize("UTC") if ts.tzinfo is None else ts.tz_convert("UTC")
+
+
+def _with_requested_range(data: pd.DataFrame, requested_range: tuple) -> pd.DataFrame:
+    """Record what was asked for, so ``summarise`` can measure data capture
+    against it: sources drop missing values, so the frame alone cannot say
+    whether an analyser was silent for most of the period."""
+    data.attrs["aeolus_requested_range"] = requested_range
+    return data
+
+
 def _fetch_single_source(
     source_name: str,
     source_sites: list[str],
@@ -228,6 +242,7 @@ def download(
     # The submodules re-resolve ``last`` themselves so the cache can key on
     # the shorthand; resolving here validates the arguments up front.
     start_date, end_date = _resolve_dates(start_date, end_date, last)
+    requested_range = (_as_utc(start_date), _as_utc(end_date))
     if last is not None:
         start_date = end_date = None
 
@@ -245,7 +260,10 @@ def download(
         if not source_spec:
             raise ValueError(_unknown_source_message(sources))
 
-        return _fetch_single_source(sources, sites, start_date, end_date, last)
+        return _with_requested_range(
+            _fetch_single_source(sources, sites, start_date, end_date, last),
+            requested_range,
+        )
 
     # Case 2: Multiple sources (dict) - explicit mapping
     elif isinstance(sources, dict):
@@ -287,7 +305,9 @@ def download(
         if combine:
             non_empty = [df for df in all_data.values() if not df.empty]
             if non_empty:
-                return pd.concat(non_empty, ignore_index=True)
+                return _with_requested_range(
+                    pd.concat(non_empty, ignore_index=True), requested_range
+                )
             else:
                 return pd.DataFrame(columns=_STANDARD_COLUMNS)
         else:
@@ -767,6 +787,7 @@ def summarise(data: pd.DataFrame) -> pd.DataFrame:
 
     df = data.copy()
     df["date_time"] = pd.to_datetime(df["date_time"])
+    requested = data.attrs.get("aeolus_requested_range")
 
     rows = []
     for (site, network, measurand), g in df.groupby(
@@ -785,8 +806,16 @@ def summarise(data: pd.DataFrame) -> pd.DataFrame:
             freq_hours = max(median_gap, 1 / 60)  # floor at 1 minute
         else:
             freq_hours = 1.0
-        span_hours = (end - start).total_seconds() / 3600
-        expected = (span_hours / freq_hours) + 1 if span_hours > 0 else 1
+        if requested is not None:
+            # Measure against the requested range (capped at now): the frame
+            # only spans first-to-last *valid* reading.
+            req_start, req_end = requested
+            req_end = min(req_end, pd.Timestamp.now(tz="UTC"))
+            span_hours = max((req_end - req_start).total_seconds() / 3600, 0)
+            expected = max(span_hours / freq_hours, 1)
+        else:
+            span_hours = (end - start).total_seconds() / 3600
+            expected = (span_hours / freq_hours) + 1 if span_hours > 0 else 1
         dc = min(valid / expected, 1.0)
 
         rows.append({

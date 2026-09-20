@@ -1666,3 +1666,14 @@ class TestAQITimeseriesDuplicates:
         before = df.copy()
         metrics.aqi_timeseries(df, index="UK_DAQI")
         pd.testing.assert_frame_equal(df, before)
+
+
+def test_aqi_summary_sparse_period_does_not_infer_its_own_cadence():
+    """A day with two readings 12 h apart must not be read as complete 12-hourly data."""
+    day1 = pd.date_range("2023-01-01", periods=24, freq="h")
+    day2 = pd.DatetimeIndex(["2023-01-02 00:00", "2023-01-02 12:00"])
+    df = _no2_frame(day1.append(day2))
+    result = metrics.aqi_summary(df, index="UK_DAQI", freq="D", warn_low_coverage=False)
+    no2 = result[result["pollutant"] == "NO2"].set_index("period")
+    assert no2.loc["2023-01-01", "coverage"] == pytest.approx(1.0)
+    assert no2.loc["2023-01-02", "coverage"] == pytest.approx(2 / 24)

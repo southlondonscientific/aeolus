@@ -248,6 +248,18 @@ install from `main`.
 test workflow. **AirNow assumptions verified live:** a single-hour query returns exactly that hour, and a three-hour range
 returns three hours — both bounds inclusive, as the chunk loop assumes.
 
+### PR review (2026-09-20, whole PR, high effort)  ✅ FIXED
+Fifteen findings; three reproduced by the reviewer. Fixed, test-first: **SOS emitted `ug/m-3`** (WP1a's half-right
+replace; 1,345 entries in the shipped mapping) → one `aeolus.units.canonical_unit` for all adapters and metrics;
+`aqi_summary` cadence inferred per period (a WP3 regression) → per series; **cache served pre-scrub values forever** →
+versioned directory `v2` (spec §17.2 pulled forward), plus open-ended ranges volatile, rolling TTL ∝ window, atomic
+writes, unreadable entry = miss; `summarise()` capture inflated by WP2's NaN drop → `download()` records the requested
+range in `df.attrs`; AirQo token in warnings, paging by page_size, coordinates overwritten; RData breaker now half-open;
+`setuptools>=77` (PEP 639); `_unify_units` fast path for single-unit frames (3.5 s saved on 8.8 M rows).
+**Deferred, deliberately:** per-(site, year) cache entries — the real fix for a failed site-year inside a "covered"
+site, and for bulk pulls with a closed site re-fetching hourly (needs fetchers to report failures → v0.5.0 contract);
+one shared `CircuitBreaker` for SOS and RData; the copy-pasted NaN guard across the five AQI index modules.
+
 ## Before release
 1. Live conformance run (`pytest -m conformance`) — see the PR for the 2026-09-20 result.
 2. Re-execute the notebooks against live APIs (02 uses `freq="ME"`: labels move to period start).

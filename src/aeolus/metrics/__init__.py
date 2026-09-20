@@ -259,6 +259,7 @@ def aqi_summary(
     # value within that period — this matches how the regulators report it.
     df = df.sort_values(["site_code", "pollutant_std", "date_time"])
     rolling_chunks: list[pd.DataFrame] = []
+    cadences: dict[tuple, pd.Timedelta] = {}
     duplicates_found = False
     for (site, pollutant), g in df.groupby(
         ["site_code", "pollutant_std"], observed=True
@@ -271,6 +272,9 @@ def aqi_summary(
         )
         gi, had_duplicates = _collapse_duplicate_timestamps(gi)
         duplicates_found = duplicates_found or had_duplicates
+        # Cadence is a property of the whole series: inferred per period, a
+        # sparse period would pass itself off as complete coarse-cadence data.
+        cadences[(site, pollutant)] = _infer_data_frequency(gi.index.to_series())
         gi["rolling_avg"] = (
             gi["value_ugm3"]
             .rolling(
@@ -326,7 +330,7 @@ def aqi_summary(
         # coverage in mixed-pollutant inputs.
         # Expected count uses the period's real calendar length and the data's
         # own cadence, so February, leap years and sub-hourly feeds are right.
-        data_freq = _infer_data_frequency(group["date_time"])
+        data_freq = cadences[(site, pollutant)]
         if periods is not None:
             span = _period_span(periods[period])
             expected = span / data_freq

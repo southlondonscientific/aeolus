@@ -228,7 +228,8 @@ def _get_rdata_bytes(url: str) -> bytes:
 # Per-host circuit-breaker
 # ----------------------------------------------------------------------------
 #
-# A retried request to a dead host costs ~6 s before giving up, and a bulk
+# A retried request to a dead host costs ~6 s of backoff before giving up —
+# ~96 s if the host black-holes and each attempt runs to its 30 s timeout — and a bulk
 # download asks for one file per site-year, so an outage at one RData host
 # would stall for minutes while returning nothing. After
 # ``AEOLUS_RDATA_BREAKER_FAILURES`` consecutive failed fetches to a host,
@@ -259,9 +260,10 @@ def _rdata_breaker_is_open(host: str) -> bool:
         if opened_until is None:
             return False
         if datetime.now(tz=timezone.utc) >= opened_until:
-            # Cooldown elapsed: close, so this call probes the host again
+            # Cooldown elapsed: half-open. This call probes the host; one more
+            # failure reopens the breaker at once, a success closes it.
             del _rdata_opened_until[host]
-            _rdata_failure_counts[host] = 0
+            _rdata_failure_counts[host] = _RDATA_BREAKER_FAILURES - 1
             return False
         return True
 

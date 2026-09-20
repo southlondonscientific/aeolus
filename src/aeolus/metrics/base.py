@@ -29,6 +29,8 @@ from typing import TYPE_CHECKING, TypedDict
 
 import pandas as pd
 
+from ..units import canonical_unit
+
 if TYPE_CHECKING:
     import numpy as np
 
@@ -200,7 +202,7 @@ def ensure_ugm3(
     Returns:
         Concentration in µg/m³
     """
-    unit_lower = current_unit.lower().strip()
+    unit_lower = canonical_unit(current_unit).lower()
 
     # Already in µg/m³
     if unit_lower in ("ug/m3", "µg/m³", "ugm3", "µg/m3", "ug/m³"):
@@ -470,7 +472,7 @@ def ensure_ugm3_array(
         if pd.isna(unit):
             continue
 
-        unit_lower = str(unit).lower().strip()
+        unit_lower = canonical_unit(str(unit)).lower()
         mask = (units == unit).values
 
         # Already in µg/m³
@@ -535,7 +537,7 @@ def to_index_unit(
         Concentration(s) in *target_unit*. Input is returned unchanged
         when *target_unit* is already µg/m³ or unrecognised.
     """
-    unit_lower = target_unit.lower().strip()
+    unit_lower = canonical_unit(target_unit).lower()
     if unit_lower in ("ug/m3", "µg/m³", "ugm3", "µg/m3", "ug/m³"):
         return concentrations
     if unit_lower in ("mg/m3", "mg/m³"):

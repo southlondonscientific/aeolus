@@ -862,3 +862,37 @@ def test_summarise_data_capture():
     assert len(result) == 1
     dc = result["data_capture"].iloc[0]
     assert 0.9 < dc <= 1.0  # ~100% — all expected 2-hourly readings present
+
+
+def test_summarise_measures_capture_over_the_requested_range():
+    """Sources drop missing values, so a dead analyser leaves a short frame —
+    capture must be measured against what was asked for, not what came back."""
+    import aeolus
+
+    idx = pd.date_range("2023-01-01", periods=168, freq="h", tz="UTC")  # first week only
+    df = pd.DataFrame({
+        "site_code": "MY1", "date_time": idx, "measurand": "NO2", "value": 10.0, "units": "ug/m3",
+        "source_network": "AURN", "ratification": "None", "created_at": pd.Timestamp.now(tz="UTC"),
+    })
+    assert aeolus.summarise(df)["data_capture"].iloc[0] == pytest.approx(1.0)  # no range known
+
+    df.attrs["aeolus_requested_range"] = (
+        pd.Timestamp("2023-01-01", tz="UTC"), pd.Timestamp("2023-12-31 23:00", tz="UTC"),
+    )
+    assert aeolus.summarise(df)["data_capture"].iloc[0] == pytest.approx(168 / 8760, abs=0.001)
+
+
+def test_download_records_the_requested_range(monkeypatch):
+    import aeolus
+    from aeolus import api
+
+    frame = pd.DataFrame({
+        "site_code": ["MY1"], "date_time": [pd.Timestamp("2023-01-01", tz="UTC")], "measurand": ["NO2"],
+        "value": [10.0], "units": ["ug/m3"], "source_network": ["AURN"], "ratification": ["None"],
+        "created_at": [pd.Timestamp.now(tz="UTC")],
+    })
+    monkeypatch.setattr(api, "get_source", lambda name: {"type": "network", "name": name})
+    monkeypatch.setattr(api, "_fetch_single_source", lambda *a, **k: frame.copy())
+    out = aeolus.download("AURN", ["MY1"], datetime(2023, 1, 1), datetime(2023, 12, 31))
+    start, end = out.attrs["aeolus_requested_range"]
+    assert (start, end) == (pd.Timestamp("2023-01-01", tz="UTC"), pd.Timestamp("2023-12-31", tz="UTC"))

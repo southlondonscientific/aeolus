@@ -34,6 +34,7 @@ import numpy as np
 import pandas as pd
 
 from ..types import AeolusDataWarning
+from ..units import canonical_unit, canonical_units
 from .base import MOLECULAR_WEIGHTS, ensure_ugm3_array, validate_data
 
 
@@ -92,8 +93,7 @@ def _infer_data_frequency(series: pd.Series) -> pd.Timedelta:
     return diffs.mode().iloc[0]
 
 
-_UGM3_UNITS = ("ug/m3", "µg/m³", "ugm3", "µg/m3", "ug/m³", "μg/m³", "μg/m3")
-_MASS_UNITS = ("mg/m3", "mg/m³", "mgm3")
+_MASS_UNITS = ("mg/m3",)  # canonical spellings; see aeolus.units
 _MIXING_RATIO_UNITS = ("ppb", "ppm")
 
 
@@ -119,9 +119,14 @@ def _unify_units(
         return df
 
     raw = df["units"]
-    lower = raw.astype(object).where(raw.notna()).str.lower().str.strip()
-    # Spelling variants of µg/m³ are one unit, not a mix
-    lower = lower.where(~lower.isin(_UGM3_UNITS), "ug/m3")
+    # The usual frame has one unit: nothing can be mixed, and unless the caller
+    # needs ug/m3 and has something else, there is nothing to convert.
+    distinct = {canonical_unit(u) for u in pd.unique(raw.astype(object)) if isinstance(u, str)}
+    if len(distinct) <= 1 and (not to_ugm3 or distinct <= {"ug/m3"} or not distinct & set(_MIXING_RATIO_UNITS)):
+        return df
+
+    # Spelling variants (ug.m-3, µg/m³, ...) are one unit, not a mix
+    lower = canonical_units(raw).where(raw.notna())
 
     keys = ["measurand"] if across_sites else ["site_code", "measurand"]
     labels = df[keys].astype(object).assign(_unit=lower)

@@ -73,6 +73,13 @@ except ValueError:
     # A malformed setting must not break ``import aeolus``
     _VOLATILE_TTL_S = 3600
 
+# Entries live under a versioned subdirectory. Bump this whenever a release
+# changes what a cached frame *means* (values, units, labels, schema): files
+# written by earlier versions then stop being served, because the key alone
+# cannot tell a corrected result from a wrong one. v2 = the 0.5.0 correctness
+# scrub (LAQN ppb -> ug/m3, EEA labels, CO units, sentinel/NaN drops).
+_CACHE_VERSION = "v2"
+
 # Module-level state
 _cache_enabled = False
 _cache_dir: Path | None = None
@@ -85,6 +92,27 @@ def _get_cache_dir() -> Path:
         _cache_dir = Path(os.environ.get("AEOLUS_CACHE_DIR", _DEFAULT_CACHE_DIR))
     _cache_dir.mkdir(parents=True, exist_ok=True)
     return _cache_dir
+
+
+def _entries_dir() -> Path:
+    """Directory holding entries written by this cache version."""
+    return _get_cache_dir() / _CACHE_VERSION
+
+
+def _volatile_ttl_s(start_date: datetime, end_date: datetime, last: str | None) -> float:
+    """TTL for a volatile entry. A rolling window's TTL scales with its length,
+    so ``last="2h"`` is never served mostly stale; long windows cap at the default."""
+    if last is None:
+        return _VOLATILE_TTL_S
+    window_s = abs((end_date - start_date).total_seconds())
+    return min(_VOLATILE_TTL_S, window_s / 10)
+
+
+def _as_utc_timestamp(dt: datetime) -> float:
+    """POSIX timestamp of *dt*; naive datetimes are UTC by library convention."""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.timestamp()
 
 
 def _key_instant(dt: datetime) -> str:
@@ -136,7 +164,7 @@ def _cache_path(
     """
     import re
 
-    cache_dir = _get_cache_dir()
+    cache_dir = _entries_dir()
     key = _cache_key(source, site, start_date, end_date, last)
     safe_site = re.sub(r"[^\w\-]", "_", site)
 
@@ -178,16 +206,23 @@ def get(
 
     path = _cache_path(source, site, start_date, end_date, last)
     try:
-        age_s = time.time() - path.stat().st_mtime
+        mtime = path.stat().st_mtime
     except OSError:
         return None
 
-    expired = age_s > _VOLATILE_TTL_S
-    if last is not None and expired:
-        logger.debug("Cache expired: %s/%s (last=%s)", source, site, last)
+    expired = time.time() - mtime > _volatile_ttl_s(start_date, end_date, last)
+    # A range that ended after it was fetched held only what had been published
+    # by then, so it is as volatile as a rolling window.
+    open_ended = _as_utc_timestamp(end_date) > mtime
+    if expired and (last is not None or open_ended):
+        logger.debug("Cache expired: %s/%s (rolling or open-ended window)", source, site)
         return None
 
-    data = pd.read_parquet(path)
+    try:
+        data = pd.read_parquet(path)
+    except Exception as e:  # noqa: BLE001 - a half-written or corrupt file is a miss
+        logger.debug("Cache entry unreadable, refetching: %s/%s (%s)", source, site, type(e).__name__)
+        return None
     if expired and sites is not None and not _covers_all_sites(data, sites):
         logger.debug("Cache expired: %s/%s (incomplete result)", source, site)
         return None
@@ -222,7 +257,14 @@ def put(
 
     path = _cache_path(source, site, start_date, end_date, last)
     path.parent.mkdir(parents=True, exist_ok=True)
-    data.to_parquet(path, index=False)
+    # Write beside the target and rename: volatile entries are rewritten every
+    # TTL, and a concurrent reader must never see a half-written file.
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        data.to_parquet(tmp, index=False)
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
     logger.debug("Cached: %s/%s (%d rows)", source, site, len(data))
 
 
@@ -285,21 +327,22 @@ def clear_cache(source: str | None = None) -> int:
     count = 0
 
     if source:
-        target = cache_dir / source.upper()
-        if target.exists():
-            for f in target.glob("*.parquet"):
-                f.unlink(missing_ok=True)
-                count += 1
-            # Remove empty directory
-            if not any(target.iterdir()):
-                target.rmdir()
+        # Current entries, plus any written by an earlier cache version
+        for target in (_entries_dir() / source.upper(), cache_dir / source.upper()):
+            if target.exists():
+                for f in target.glob("*.parquet"):
+                    f.unlink(missing_ok=True)
+                    count += 1
+                # Remove empty directory
+                if not any(target.iterdir()):
+                    target.rmdir()
     else:
         for f in cache_dir.rglob("*.parquet"):
             f.unlink(missing_ok=True)
             count += 1
-        # Remove empty subdirectories
-        for d in sorted(cache_dir.glob("*/"), reverse=True):
-            if d.is_dir() and not any(d.iterdir()):
+        # Remove empty subdirectories, deepest first
+        for d in sorted((p for p in cache_dir.rglob("*") if p.is_dir()), reverse=True):
+            if not any(d.iterdir()):
                 d.rmdir()
 
     logger.info("Cleared %d cached files", count)
@@ -334,8 +377,8 @@ def fetch_with_cache(
     if not _cache_enabled:
         return fetcher(sites, start_date, end_date)
 
-    # A rolling window no longer than the TTL is a request for live data.
-    if last is not None and end_date - start_date <= timedelta(seconds=_VOLATILE_TTL_S):
+    # A rolling window of an hour or less is a request for live data.
+    if last is not None and end_date - start_date <= timedelta(hours=1):
         return fetcher(sites, start_date, end_date)
 
     site_key = ",".join(sorted(sites))
@@ -385,14 +428,18 @@ def cache_info() -> dict:
         except OSError:
             continue
     total_size = sum(sizes.values())
-    sources = sorted({f.parent.name for f in sizes})
+    entries = _entries_dir()
+    current = {f: size for f, size in sizes.items() if entries in f.parents}
+    sources = sorted({f.parent.name for f in current})
 
     return {
         "enabled": _cache_enabled,
         "directory": str(cache_dir),
         "sources": sources,
-        "total_files": len(sizes),
-        "total_size_mb": total_size / (1024 * 1024),
+        "total_files": len(current),
+        "total_size_mb": sum(current.values()) / (1024 * 1024),
+        # Written by an earlier cache version: never served; clear_cache() removes them
+        "legacy_files": len(sizes) - len(current),
     }
 
 

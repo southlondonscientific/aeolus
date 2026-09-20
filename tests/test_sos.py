@@ -421,6 +421,21 @@ class TestDataFetching:
         assert all(df["units"] == "mg/m3")
 
     @responses.activate
+    @pytest.mark.parametrize("shipped, expected", [("ug/m-3", "ug/m3"), ("mg/m-3", "mg/m3")])
+    def test_units_are_canonical_for_the_shipped_mapping_spelling(self, shipped, expected):
+        """_sos_mapping.json holds 'ug/m-3' / 'mg/m-3' (a half-done replace)."""
+        responses.add(
+            responses.GET, f"{sos.SOS_BASE_URL}/timeseries/3/getData",
+            json=MOCK_GETDATA_RESPONSE, status=200,
+        )
+        _register_mock_aurn_and_sos()
+        sos._network_mappings["aurn"] = {"CLL2": [{"ts_id": "3", "measurand": "CO", "uom": shipped}]}
+        df = sos.make_sos_data_fetcher("aurn")(
+            ["CLL2"], datetime(2026, 3, 18, tzinfo=timezone.utc), datetime(2026, 3, 19, tzinfo=timezone.utc)
+        )
+        assert set(df["units"]) == {expected}
+
+    @responses.activate
     def test_null_value_dropped_not_crash(self):
         """A JSON null value must be dropped, not crash the whole timeseries
         fetch — float(None) previously raised TypeError and aborted everything."""

@@ -9,6 +9,8 @@ from datetime import datetime
 
 import pandas as pd
 import pytest
+import re
+
 import responses
 
 from aeolus.sources.airqo import (
@@ -1801,3 +1803,46 @@ class TestLiveIntegration:
         # Verify structure even if empty
         expected_cols = {"site_code", "date_time", "measurand", "value", "units"}
         assert expected_cols.issubset(set(df.columns))
+
+
+class TestTokenNeverLeaks:
+    @responses.activate
+    def test_metadata_failure_warning_has_no_token(self, monkeypatch):
+        import warnings as _w
+
+        monkeypatch.setenv("AIRQO_API_KEY", "CANARY_TOKEN_123")
+        responses.add(responses.GET, re.compile(r"https://api\.airqo\.net/.*"), status=500)
+        with _w.catch_warnings(record=True) as caught:
+            _w.simplefilter("always")
+            fetch_airqo_metadata()
+        text = " ".join(str(w.message) for w in caught)
+        assert caught, "expected a failure warning"
+        assert "CANARY_TOKEN_123" not in text
+
+
+class TestPaginationRobustness:
+    def test_skip_advances_by_sites_returned_not_requested(self, monkeypatch):
+        """If AirQo lowers its page cap below what we ask for, no sites may be skipped."""
+        from aeolus.sources import airqo
+
+        sites = [{"_id": f"s{i}"} for i in range(120)]
+        calls = []
+
+        def fake(endpoint, params):
+            calls.append(params["skip"])
+            page = sites[params["skip"]: params["skip"] + 50]  # server caps at 50, we ask for 80
+            more = params["skip"] + 50 < len(sites)
+            return {"success": True, "sites": page, "meta": {"total": 120, "nextPage": more or None}}
+
+        monkeypatch.setattr(airqo, "_call_airqo_api", fake)
+        _, got = airqo._fetch_sites_paginated("devices/sites")
+        assert [s["_id"] for s in got] == [s["_id"] for s in sites]
+        assert calls == [0, 50, 100]
+
+    def test_existing_coordinates_are_not_overwritten(self):
+        from aeolus.sources.airqo import _create_metadata_normaliser
+
+        raw = pd.DataFrame([{"_id": "s1", "name": "A", "latitude": 0.31, "longitude": 32.58}])
+        out = _create_metadata_normaliser()(raw)
+        assert out["latitude"].iloc[0] == pytest.approx(0.31)
+        assert out["longitude"].iloc[0] == pytest.approx(32.58)

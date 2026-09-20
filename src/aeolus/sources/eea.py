@@ -73,6 +73,7 @@ from ..transforms import (
     reset_index,
     select_columns,
 )
+from ..units import canonical_units
 from ..types import (
     DATA_COLUMNS,
     METADATA_COLUMNS,
@@ -505,12 +506,7 @@ def normalise_eea_data():
         # suffix to '/m3'. This turns 'mg.m-3' -> 'mg/m3' (e.g. CO), 'ng.m-3' ->
         # 'ng/m3', and 'µg/m3' -> 'ug/m3', so units are consistent across all
         # species from the source rather than CO being left as 'mg.m-3'.
-        df["units"] = (
-            df["units"]
-            .str.replace("µ", "u", regex=False)
-            .str.replace("μ", "u", regex=False)
-            .str.replace(".m-3", "/m3", regex=False)
-        )
+        df["units"] = canonical_units(df["units"])
         return df
 
     def map_verification(df: pd.DataFrame) -> pd.DataFrame:

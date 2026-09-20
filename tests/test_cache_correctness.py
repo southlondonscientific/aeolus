@@ -292,3 +292,54 @@ def test_invalid_ttl_env_var_does_not_break_import():
     )
     assert out.returncode == 0, out.stderr
     assert out.stdout.strip() == "3600"
+
+
+class TestCacheVersioning:
+    def test_entries_live_under_a_versioned_directory(self, isolated_cache):
+        """Files written by earlier versions hold values later declared wrong."""
+        start, end = datetime(2024, 1, 1), datetime(2024, 1, 31)
+        legacy = isolated_cache / "AURN" / "MY1_100812a6ff04675c.parquet"
+        legacy.parent.mkdir(parents=True)
+        _frame(["MY1"]).assign(value=-1.0).to_parquet(legacy)
+
+        fetcher = MagicMock(return_value=_frame(["MY1"]))
+        out = fetch_with_cache("AURN", ["MY1"], start, end, fetcher)
+        assert fetcher.call_count == 1, "a pre-versioning cache file must not be served"
+        assert out["value"].iloc[0] != -1.0
+        assert cache_info()["legacy_files"] == 1
+
+
+class TestOpenEndedRangesAreVolatile:
+    def test_range_ending_after_the_fetch_expires(self, isolated_cache):
+        start, end = datetime(2024, 1, 1), datetime.now() + timedelta(days=1)
+        fetcher = MagicMock(return_value=_frame(["MY1"]))
+        fetch_with_cache("TEST_NET", ["MY1"], start, end, fetcher)
+        (path,) = isolated_cache.rglob("*.parquet")
+        old = time.time() - 7200
+        os.utime(path, (old, old))
+        fetch_with_cache("TEST_NET", ["MY1"], start, end, fetcher)
+        assert fetcher.call_count == 2
+
+
+class TestRollingTtlScalesWithWindow:
+    def test_short_rolling_window_is_not_served_mostly_stale(self, isolated_cache):
+        """last='2h' refreshed hourly would be up to half stale; its TTL is 12 minutes."""
+        fetcher = MagicMock(return_value=_frame(["MY1"]))
+        end = datetime.now(timezone.utc); start = end - timedelta(hours=2)
+        fetch_with_cache("TEST_NET", ["MY1"], start, end, fetcher, last="2h")
+        (path,) = isolated_cache.rglob("*.parquet")
+        old = time.time() - 20 * 60
+        os.utime(path, (old, old))
+        fetch_with_cache("TEST_NET", ["MY1"], start, end, fetcher, last="2h")
+        assert fetcher.call_count == 2
+
+
+class TestCorruptEntryIsAMiss:
+    def test_unreadable_file_is_refetched_not_raised(self, isolated_cache):
+        start, end = datetime(2024, 1, 1), datetime(2024, 1, 31)
+        fetcher = MagicMock(return_value=_frame(["MY1"]))
+        fetch_with_cache("TEST_NET", ["MY1"], start, end, fetcher)
+        (path,) = isolated_cache.rglob("*.parquet")
+        path.write_bytes(b"half-written")
+        out = fetch_with_cache("TEST_NET", ["MY1"], start, end, fetcher)
+        assert fetcher.call_count == 2 and not out.empty

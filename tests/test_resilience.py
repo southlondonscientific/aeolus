@@ -430,3 +430,24 @@ class TestRdataCircuitBreaker:
         url = f"{self.DEAD}MY1_2023.RData"
         responses.add(responses.GET, url, body=rdata_bytes, status=200)
         assert regulatory.fetch_rdata(url) is not None
+
+
+class TestRdataBreakerHalfOpen:
+    @responses.activate
+    def test_one_failure_after_cooldown_reopens_it(self, monkeypatch):
+        from aeolus.sources import regulatory
+
+        dead = "https://dead.example.com/openair/R_data/"
+        for year in range(2000, 2012):
+            responses.add(responses.GET, f"{dead}MY1_{year}.RData", body=requests.exceptions.ConnectionError("refused"))
+        for year in range(2000, 2003):
+            regulatory.fetch_rdata(f"{dead}MY1_{year}.RData")
+        opened = len(responses.calls)
+        # cooldown elapses
+        with regulatory._rdata_breaker_lock:
+            for host in regulatory._rdata_opened_until:
+                regulatory._rdata_opened_until[host] = datetime.now(timezone.utc)
+        for year in range(2003, 2012):
+            regulatory.fetch_rdata(f"{dead}MY1_{year}.RData")
+        # exactly one probe (3 attempts), then closed again — not three more full failures
+        assert len(responses.calls) - opened == 3

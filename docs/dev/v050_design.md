@@ -297,7 +297,7 @@ scripts and pytest runs, and stays hidden when aeolus is called from deep inside
 opt-out doubles as the migration test for Hermes/RHEA/Clara/Argus: run their suites with it set, and anything still
 reading a mirror fails loudly. aeolus's own metrics/viz/cache/summarise code must read `network`, never the mirror.
 
-### 17.2 The Parquet cache holds v0.4 frames  — *PROPOSED*
+### 17.2 The Parquet cache holds v0.4 frames  — *DONE in PR #13 (versioned directory `v2`); bump to `v3` with the schema break*
 **Found:** `aeolus.cache` keys on source/sites/window only. After upgrading, a cached 8-column frame would be served as if
 it were a v0.5.0 result. The spec versions only the ARGUS backend's cache key (§11).
 **Proposal:** a schema version in the cache *path* (`~/.cache/aeolus/v2/<SOURCE>/…`), so old and new entries can never be

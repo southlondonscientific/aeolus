@@ -140,6 +140,19 @@ def _call_airqo_api(endpoint: str, params: dict | None = None) -> dict:
 # ============================================================================
 
 
+def _safe_error(e: Exception) -> str:
+    """Describe *e* without leaking the API token.
+
+    AirQo authenticates with ``?token=`` in the query string, and ``requests``
+    embeds the full URL in its exception messages. Our own errors (a missing
+    key, a bad argument) carry no URL and keep their actionable text.
+    """
+    if isinstance(e, requests.exceptions.RequestException):
+        status = getattr(getattr(e, "response", None), "status_code", None)
+        return f"{type(e).__name__}" + (f" (HTTP {status})" if status else "")
+    return str(e)
+
+
 def _fetch_sites_paginated(
     endpoint: str = AIRQO_SITES_ENDPOINT,
     page_size: int = AIRQO_SITES_PAGE_SIZE,
@@ -167,9 +180,13 @@ def _fetch_sites_paginated(
     all_sites = list(first.get("sites") or [])
     meta = first.get("meta") or {}
     total = meta.get("total")
-    # totalPages reflects the page_size we asked for; pad it as a runaway guard.
-    page_cap = (meta.get("totalPages") or 1) + 2
-    skip = page_size
+    # Runaway guard: enough pages for `total` even if the server returns fewer
+    # sites per page than requested (totalPages is not always present).
+    per_page = max(len(all_sites), 1)
+    page_cap = (meta.get("totalPages") or -(-(total or 0) // per_page) or 1) + 2
+    # Advance by what was actually returned: if AirQo lowers its page cap
+    # below page_size, skipping by page_size would silently drop sites.
+    skip = len(all_sites)
     pages = 1
 
     while meta.get("nextPage"):
@@ -183,9 +200,15 @@ def _fetch_sites_paginated(
             break
         all_sites.extend(page_sites)
         meta = page.get("meta") or {}
-        skip += page_size
+        skip += len(page_sites)
         pages += 1
 
+    if total is not None and len(all_sites) < total:
+        warnings.warn(
+            f"AirQo site listing is incomplete: {len(all_sites)} of {total} sites retrieved",
+            AeolusDataWarning,
+            stacklevel=2,
+        )
     return first, all_sites
 
 
@@ -220,7 +243,7 @@ def fetch_airqo_metadata(**filters) -> pd.DataFrame:
     except (requests.RequestException, ValueError, KeyError, TypeError) as e:
         warning(f"Failed to fetch AirQo metadata: {type(e).__name__}")
         warnings.warn(
-            f"Failed to fetch AirQo metadata: {e}",
+            f"Failed to fetch AirQo metadata: {_safe_error(e)}",
             AeolusDataWarning,
             stacklevel=2,
         )
@@ -314,7 +337,7 @@ def fetch_airqo_grids() -> pd.DataFrame:
     except (requests.RequestException, ValueError, KeyError, TypeError) as e:
         warning(f"Failed to fetch AirQo grids: {type(e).__name__}")
         warnings.warn(
-            f"Failed to fetch AirQo grids: {e}",
+            f"Failed to fetch AirQo grids: {_safe_error(e)}",
             AeolusDataWarning,
             stacklevel=2,
         )
@@ -356,16 +379,11 @@ def _create_metadata_normaliser():
         create NaN columns so downstream consumers like ``find_sites`` never
         KeyError on a missing ``latitude``/``longitude``.
         """
-        df["latitude"] = (
-            df["approximate_latitude"]
-            if "approximate_latitude" in df.columns
-            else float("nan")
-        )
-        df["longitude"] = (
-            df["approximate_longitude"]
-            if "approximate_longitude" in df.columns
-            else float("nan")
-        )
+        for column in ("latitude", "longitude"):
+            if f"approximate_{column}" in df.columns:
+                df[column] = df[f"approximate_{column}"]
+            elif column not in df.columns:
+                df[column] = float("nan")
         return df
 
     return compose(

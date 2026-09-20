@@ -31,7 +31,6 @@ from typing import Callable, TypeVar
 import requests
 from tenacity import (
     after_log,
-    before_sleep_log,
     retry,
     retry_if_exception,
     retry_if_exception_type,

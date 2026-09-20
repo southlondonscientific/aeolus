@@ -44,6 +44,7 @@ import requests
 from ..decorators import retry_on_network_error
 from ..geo import haversine_distance
 from ..registry import register_source
+from ..units import canonical_unit
 from ..types import AeolusDataWarning, empty_data_frame
 
 logger = logging.getLogger(__name__)
@@ -342,7 +343,7 @@ def _build_station_mapping(
             ts_info = {
                 "ts_id": str(ts["id"]),
                 "measurand": measurand,
-                "uom": ts.get("uom", "ug.m-3").replace(".", "/"),
+                "uom": canonical_unit(ts.get("uom", "ug.m-3")),
             }
             mapping.setdefault(best_code, []).append(ts_info)
 
@@ -526,7 +527,7 @@ def make_sos_data_fetcher(network: str):
                             # Use the per-timeseries unit of measure derived in
                             # _build_station_mapping (e.g. CO -> mg/m3), not a
                             # flat 'ug/m3' that mislabelled CO ~1000x.
-                            "units": ts_info.get("uom", "ug/m3"),
+                            "units": canonical_unit(ts_info.get("uom", "ug/m3")),
                             "source_network": network.upper(),
                             "ratification": "None",
                             "created_at": pd.Timestamp.now(tz="UTC"),
