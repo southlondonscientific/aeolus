@@ -30,6 +30,6 @@ jobs:
       # keys and real networks, and are run by hand before a release.
       - name: Run tests
         run: >
-          uv run --python ${{ matrix.python-version }} pytest
+          uv run --extra dev --python ${{ matrix.python-version }} pytest
           -m "not live and not integration and not conformance"
           --no-cov -q
