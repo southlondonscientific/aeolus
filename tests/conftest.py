@@ -292,3 +292,13 @@ def _no_retry_backoff(monkeypatch):
     monkeypatch.setattr(
         tenacity.nap, "time", types.SimpleNamespace(sleep=lambda _s: None)
     )
+
+
+@pytest.fixture(autouse=True)
+def _reset_rdata_circuit():
+    """Failures in one test must not open the RData breaker for the next."""
+    from aeolus.sources.regulatory import reset_rdata_circuit
+
+    reset_rdata_circuit()
+    yield
+    reset_rdata_circuit()

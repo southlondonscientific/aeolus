@@ -55,13 +55,16 @@ Known quirks:
   backwards compatibility.
 """
 
+import os
 import struct
 import json
+import threading
 import warnings
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from logging import warning
 from pathlib import Path
 from typing import Callable
+from urllib.parse import urlsplit
 
 import pandas as pd
 import rdata
@@ -199,6 +202,75 @@ def _get_rdata_bytes(url: str) -> bytes:
     return response.content
 
 
+# ----------------------------------------------------------------------------
+# Per-host circuit-breaker
+# ----------------------------------------------------------------------------
+#
+# A retried request to a dead host costs ~6 s before giving up, and a bulk
+# download asks for one file per site-year, so an outage at one RData host
+# would stall for minutes while returning nothing. After
+# ``AEOLUS_RDATA_BREAKER_FAILURES`` consecutive failed fetches to a host,
+# further requests to *that host* fail fast for
+# ``AEOLUS_RDATA_BREAKER_COOLDOWN_S`` seconds; the first call after the
+# cooldown probes it again. A 4xx (no file for that site-year) proves the
+# host is up and counts as a success. Mirrors the SOS breaker in ``sos.py``.
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.environ.get(name, default))
+    except ValueError:
+        return default
+
+
+_RDATA_BREAKER_FAILURES = _env_int("AEOLUS_RDATA_BREAKER_FAILURES", 3)
+_RDATA_BREAKER_COOLDOWN_S = _env_int("AEOLUS_RDATA_BREAKER_COOLDOWN_S", 60)
+
+_rdata_breaker_lock = threading.Lock()
+_rdata_failure_counts: dict[str, int] = {}
+_rdata_opened_until: dict[str, datetime] = {}
+
+
+def _rdata_breaker_is_open(host: str) -> bool:
+    with _rdata_breaker_lock:
+        opened_until = _rdata_opened_until.get(host)
+        if opened_until is None:
+            return False
+        if datetime.now(tz=timezone.utc) >= opened_until:
+            # Cooldown elapsed: close, so this call probes the host again
+            del _rdata_opened_until[host]
+            _rdata_failure_counts[host] = 0
+            return False
+        return True
+
+
+def _record_rdata_success(host: str) -> None:
+    with _rdata_breaker_lock:
+        _rdata_failure_counts[host] = 0
+        _rdata_opened_until.pop(host, None)
+
+
+def _record_rdata_failure(host: str) -> None:
+    with _rdata_breaker_lock:
+        count = _rdata_failure_counts.get(host, 0) + 1
+        _rdata_failure_counts[host] = count
+        if count >= _RDATA_BREAKER_FAILURES and host not in _rdata_opened_until:
+            _rdata_opened_until[host] = datetime.now(tz=timezone.utc) + timedelta(
+                seconds=_RDATA_BREAKER_COOLDOWN_S
+            )
+            warning(
+                f"{host} failed {count} consecutive fetches; skipping further "
+                f"requests to it for {_RDATA_BREAKER_COOLDOWN_S}s"
+            )
+
+
+def reset_rdata_circuit() -> None:
+    """Clear circuit-breaker state. Intended for tests and ops use."""
+    with _rdata_breaker_lock:
+        _rdata_failure_counts.clear()
+        _rdata_opened_until.clear()
+
+
 # Low-level fetcher - downloads and parses RData files
 def fetch_rdata(url: str) -> pd.DataFrame | None:
     """
@@ -214,11 +286,21 @@ def fetch_rdata(url: str) -> pd.DataFrame | None:
         This is a low-level function. Use the higher-level fetch_* functions
         for specific networks instead.
     """
+    host = urlsplit(url).netloc
+    if _rdata_breaker_is_open(host):
+        return None
+
     try:
         content = _get_rdata_bytes(url)
     except requests.exceptions.RequestException as e:
+        status = getattr(getattr(e, "response", None), "status_code", None)
+        if status is not None and status < 500:
+            _record_rdata_success(host)  # the host answered; this file is absent
+        else:
+            _record_rdata_failure(host)
         warning(f"Failed to fetch RData from {url}: {e}")
         return None
+    _record_rdata_success(host)
 
     try:
         parsed = rdata.parser.parse_data(content)

@@ -5,9 +5,9 @@ All notable changes to Aeolus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — v0.4.6 correctness scrub
+## [Unreleased] — targeting v0.5.0
 
-Work packages from `docs/dev/v046_fix_plan.md`. Many of these change emitted values; consumers (Hermes, RHEA, Clara, Argus) should re-baseline.
+The correctness scrub planned as v0.4.6, held to ship as part of v0.5.0 (one re-baseline event). Work packages from `docs/dev/v046_fix_plan.md`. Many of these change emitted values; consumers (Hermes, RHEA, Clara, Argus) should re-baseline.
 
 ### Fixed (silent wrong numbers — please re-baseline)
 
@@ -53,7 +53,8 @@ Work packages from `docs/dev/v046_fix_plan.md`. Many of these change emitted val
 
 ### Added
 
-- GitHub Actions workflow running the offline test suite on pushes to `main` and on pull requests.
+- GitHub Actions workflow running the offline test suite on pushes to `main` and on pull requests; the release workflow now requires it to pass before publishing.
+- **Per-host circuit-breaker for the openair RData hosts** (`sources/regulatory.py`). Now that retries work, a dead host costs ~6 s per site-year file; after `AEOLUS_RDATA_BREAKER_FAILURES` (default 3) consecutive failed fetches, requests to that host fail fast for `AEOLUS_RDATA_BREAKER_COOLDOWN_S` (default 60) seconds. Other hosts are unaffected, and a 404 for a missing site-year counts as the host being up. `reset_rdata_circuit()` clears it.
 
 ## [0.4.5.4] - 2026-06-08
 

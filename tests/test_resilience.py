@@ -348,3 +348,70 @@ def test_retry_log_does_not_leak_query_string_secrets(caplog):
         with pytest.raises(requests.exceptions.HTTPError):
             boom()
     assert "CANARY_KEY" not in caplog.text
+
+
+# ---- RData circuit-breaker --------------------------------------------------
+
+
+class TestRdataCircuitBreaker:
+    """Retry makes a dead host cost ~6 s per site-year URL; fail fast instead."""
+
+    DEAD = "https://dead.example.com/openair/R_data/"
+    LIVE = "https://live.example.com/openair/R_data/"
+
+    @responses.activate
+    def test_opens_after_consecutive_failures_and_stops_calling(self):
+        from aeolus.sources import regulatory
+
+        for year in range(2015, 2025):
+            responses.add(
+                responses.GET, f"{self.DEAD}MY1_{year}.RData", body=requests.exceptions.ConnectionError("refused")
+            )
+        for year in range(2015, 2025):
+            assert regulatory.fetch_rdata(f"{self.DEAD}MY1_{year}.RData") is None
+
+        # 3 URLs x 3 attempts, then the breaker opens and nothing more is sent
+        threshold = regulatory._RDATA_BREAKER_FAILURES
+        assert len(responses.calls) == threshold * 3
+
+    @responses.activate
+    def test_is_per_host(self, my1_rdata_path):
+        from aeolus.sources import regulatory
+
+        for year in range(2015, 2020):
+            responses.add(
+                responses.GET, f"{self.DEAD}MY1_{year}.RData", body=requests.exceptions.ConnectionError("refused")
+            )
+            regulatory.fetch_rdata(f"{self.DEAD}MY1_{year}.RData")
+
+        url = f"{self.LIVE}MY1_2023.RData"
+        responses.add(responses.GET, url, body=Path(my1_rdata_path).read_bytes(), status=200)
+        df = regulatory.fetch_rdata(url)
+        assert df is not None and not df.empty
+
+    @responses.activate
+    def test_missing_site_years_do_not_open_the_breaker(self, my1_rdata_path):
+        from aeolus.sources import regulatory
+
+        for year in range(1990, 2000):
+            responses.add(responses.GET, f"{self.LIVE}MY1_{year}.RData", status=404)
+            assert regulatory.fetch_rdata(f"{self.LIVE}MY1_{year}.RData") is None
+
+        url = f"{self.LIVE}MY1_2023.RData"
+        responses.add(responses.GET, url, body=Path(my1_rdata_path).read_bytes(), status=200)
+        assert regulatory.fetch_rdata(url) is not None
+
+    @responses.activate
+    def test_probes_again_after_cooldown(self, monkeypatch, my1_rdata_path):
+        from aeolus.sources import regulatory
+
+        monkeypatch.setattr(regulatory, "_RDATA_BREAKER_COOLDOWN_S", 0)
+        for year in range(2015, 2020):
+            responses.add(
+                responses.GET, f"{self.DEAD}MY1_{year}.RData", body=requests.exceptions.ConnectionError("refused")
+            )
+            regulatory.fetch_rdata(f"{self.DEAD}MY1_{year}.RData")
+
+        url = f"{self.DEAD}MY1_2023.RData"
+        responses.add(responses.GET, url, body=Path(my1_rdata_path).read_bytes(), status=200)
+        assert regulatory.fetch_rdata(url) is not None

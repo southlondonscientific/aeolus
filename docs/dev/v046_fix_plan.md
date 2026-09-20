@@ -238,8 +238,18 @@ strict-schema warning; a malformed `AEOLUS_CACHE_VOLATILE_TTL_S` broke `import a
 are inclusive at hour resolution — the new chunk loop assumes both. Check with one live AirNow call before release.
 **Left:** `downsample_timeseries(method="mean")` can exceed the cap by one point when the span divides exactly.
 
+## Release decision — DECIDED 2026-09-20: hold for v0.5.0
+The scrub does **not** ship as a standalone v0.4.6; it lands on `main` and releases as part of v0.5.0 (D2 in
+`v050_design.md` stands — one re-baseline event, and a bigger release worth announcing). Consequence: the known
+wrong-number bugs stay live on PyPI (v0.4.5.4) until v0.5.0. Internal consumers that need the fixes sooner can
+install from `main`.
+
+**Post-review additions (same day):** per-host RData circuit-breaker (the WP7 follow-up); release workflow gated on the
+test workflow. **AirNow assumptions verified live:** a single-hour query returns exactly that hour, and a three-hour range
+returns three hours — both bounds inclusive, as the chunk loop assumes.
+
 ## Before release
-1. Live conformance run (`pytest -m conformance`) — not run this session — including the AirNow check above.
+1. Live conformance run (`pytest -m conformance`) — see the PR for the 2026-09-20 result.
 2. Re-execute the notebooks against live APIs (02 uses `freq="ME"`: labels move to period start).
 3. Bump version + date the CHANGELOG `[Unreleased]` section.
 4. Argus: write-path upsert (`feat/readings-upsert-history`) must be live *before* Argus moves to this version, or the
