@@ -15,6 +15,22 @@ import responses
 
 
 
+@pytest.fixture
+def rdata_bytes(monkeypatch):
+    """Bytes that ``fetch_rdata`` will parse into a one-row frame.
+
+    The real ``*.RData`` fixtures are gitignored, so CI does not have them;
+    these tests are about HTTP behaviour, not parsing.
+    """
+    from aeolus.sources import regulatory
+
+    monkeypatch.setattr(regulatory.rdata.parser, "parse_data", lambda content: content)
+    monkeypatch.setattr(
+        regulatory.rdata.conversion, "convert", lambda parsed: {"x": {"code": ["MY1"]}}
+    )
+    return b"stand-in for an RData payload"
+
+
 # ---- 1. EEA ---------------------------------------------------------------
 class TestSpoMappingCacheEmpty:
     @pytest.fixture(autouse=True)
@@ -258,13 +274,12 @@ class TestRetryEffective:
         assert len(responses.calls) == 1
 
     @responses.activate
-    def test_fetch_rdata_recovers_after_transient_503(self, my1_rdata_path):
+    def test_fetch_rdata_recovers_after_transient_503(self, rdata_bytes):
         from aeolus.sources.regulatory import fetch_rdata
 
-        fixture = Path(my1_rdata_path)
         url = "https://example.com/MY1_2023.RData"
         responses.add(responses.GET, url, status=503)
-        responses.add(responses.GET, url, body=fixture.read_bytes(), status=200)
+        responses.add(responses.GET, url, body=rdata_bytes, status=200)
         df = fetch_rdata(url)
         assert df is not None and not df.empty
         assert len(responses.calls) == 2
@@ -375,7 +390,7 @@ class TestRdataCircuitBreaker:
         assert len(responses.calls) == threshold * 3
 
     @responses.activate
-    def test_is_per_host(self, my1_rdata_path):
+    def test_is_per_host(self, rdata_bytes):
         from aeolus.sources import regulatory
 
         for year in range(2015, 2020):
@@ -385,12 +400,12 @@ class TestRdataCircuitBreaker:
             regulatory.fetch_rdata(f"{self.DEAD}MY1_{year}.RData")
 
         url = f"{self.LIVE}MY1_2023.RData"
-        responses.add(responses.GET, url, body=Path(my1_rdata_path).read_bytes(), status=200)
+        responses.add(responses.GET, url, body=rdata_bytes, status=200)
         df = regulatory.fetch_rdata(url)
         assert df is not None and not df.empty
 
     @responses.activate
-    def test_missing_site_years_do_not_open_the_breaker(self, my1_rdata_path):
+    def test_missing_site_years_do_not_open_the_breaker(self, rdata_bytes):
         from aeolus.sources import regulatory
 
         for year in range(1990, 2000):
@@ -398,11 +413,11 @@ class TestRdataCircuitBreaker:
             assert regulatory.fetch_rdata(f"{self.LIVE}MY1_{year}.RData") is None
 
         url = f"{self.LIVE}MY1_2023.RData"
-        responses.add(responses.GET, url, body=Path(my1_rdata_path).read_bytes(), status=200)
+        responses.add(responses.GET, url, body=rdata_bytes, status=200)
         assert regulatory.fetch_rdata(url) is not None
 
     @responses.activate
-    def test_probes_again_after_cooldown(self, monkeypatch, my1_rdata_path):
+    def test_probes_again_after_cooldown(self, monkeypatch, rdata_bytes):
         from aeolus.sources import regulatory
 
         monkeypatch.setattr(regulatory, "_RDATA_BREAKER_COOLDOWN_S", 0)
@@ -413,5 +428,5 @@ class TestRdataCircuitBreaker:
             regulatory.fetch_rdata(f"{self.DEAD}MY1_{year}.RData")
 
         url = f"{self.DEAD}MY1_2023.RData"
-        responses.add(responses.GET, url, body=Path(my1_rdata_path).read_bytes(), status=200)
+        responses.add(responses.GET, url, body=rdata_bytes, status=200)
         assert regulatory.fetch_rdata(url) is not None

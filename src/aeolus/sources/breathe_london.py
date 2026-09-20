@@ -158,6 +158,14 @@ def fetch_breathe_london_metadata(**filters) -> pd.DataFrame:
         ...     latitude=51.5074, longitude=-0.1278, radius_km=5,
         ... )
     """
+    # A partial location filter is a programming error: report it before any
+    # network or API-key work, which would otherwise mask it as "no sites".
+    location_args = [filters.get(k) for k in ("latitude", "longitude", "radius_km")]
+    if any(a is not None for a in location_args) and any(a is None for a in location_args):
+        raise ValueError(
+            "latitude, longitude, and radius_km must all be provided together"
+        )
+
     # ListSensors rejects all query parameters; always call bare and
     # filter the response client-side.
     try:
@@ -203,11 +211,7 @@ def _apply_metadata_filters(df: pd.DataFrame, filters: dict) -> pd.DataFrame:
     lat = filters.get("latitude")
     lon = filters.get("longitude")
     radius_km = filters.get("radius_km")
-    if lat is not None or lon is not None or radius_km is not None:
-        if lat is None or lon is None or radius_km is None:
-            raise ValueError(
-                "latitude, longitude, and radius_km must all be provided together"
-            )
+    if lat is not None:
         from ..geo import haversine_distance
 
         has_coords = df["latitude"].notna() & df["longitude"].notna()
