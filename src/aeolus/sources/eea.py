@@ -220,8 +220,11 @@ def _get_spo_mapping() -> dict[str, str]:
         # Fallback: the CSV may have severe issues. Parse line-by-line.
         logger.warning("EEA metadata CSV parsing failed; building mapping line-by-line")
         mapping = _parse_csv_fallback(csv_text, spo_col, eoi_col)
-        _spo_to_eoi = mapping
-        return _spo_to_eoi
+        if mapping:
+            _spo_to_eoi = mapping
+        else:
+            logger.warning("EEA metadata CSV yielded no mappings; not caching")
+        return mapping
 
     mapping: dict[str, str] = {}
     for _, row in df.drop_duplicates().iterrows():
@@ -229,6 +232,13 @@ def _get_spo_mapping() -> dict[str, str]:
         eoi = str(row[eoi_col]).strip('"')
         if spo and eoi and spo != "nan" and eoi != "nan":
             mapping[spo] = eoi
+
+    if not mapping:
+        # An empty mapping is never legitimate (the real CSV has tens of
+        # thousands of rows). Don't latch it — leave the cache None so the
+        # next call retries.
+        logger.warning("EEA metadata CSV yielded no mappings; not caching")
+        return {}
 
     _spo_to_eoi = mapping
     logger.info("Built EEA Samplingpoint mapping: %d entries", len(mapping))
@@ -261,13 +271,16 @@ def _parse_csv_fallback(csv_text: str, spo_col: str, eoi_col: str) -> dict[str, 
     return mapping
 
 
-def _samplingpoint_to_eoi(samplingpoint: str) -> str:
+def _samplingpoint_to_eoi(
+    samplingpoint: str, mapping: dict[str, str] | None = None
+) -> str:
     """Convert a Samplingpoint identifier to an EoI station code.
 
     Looks up the EEA metadata CSV mapping. Falls back to returning
     the raw Samplingpoint if no mapping is found.
     """
-    mapping = _get_spo_mapping()
+    if mapping is None:
+        mapping = _get_spo_mapping()
 
     # Strip country prefix: "IE/SPO.IE.IE0131A..." -> "SPO.IE.IE0131A..."
     if "/" in samplingpoint:
@@ -458,7 +471,12 @@ def normalise_eea_data():
 
     def extract_site_codes(df: pd.DataFrame) -> pd.DataFrame:
         df = df.copy()
-        df["site_code"] = df["Samplingpoint"].apply(_samplingpoint_to_eoi)
+        # Resolve the mapping once per frame, not once per row: while the
+        # cache is unpopulated every _get_spo_mapping() call re-downloads.
+        mapping = _get_spo_mapping()
+        df["site_code"] = df["Samplingpoint"].apply(
+            _samplingpoint_to_eoi, mapping=mapping
+        )
         return df
 
     def map_pollutants(df: pd.DataFrame) -> pd.DataFrame:

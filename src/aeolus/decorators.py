@@ -83,6 +83,19 @@ def with_retry(
     """
 
     def decorator(func: F) -> F:
+        def log_before_sleep(retry_state):
+            """Log the retry WITHOUT str(exception): requests embeds the full
+            URL (incl. ?API_KEY=/token= query params) in its messages."""
+            exc = retry_state.outcome.exception()
+            logger.warning(
+                "Retrying %s in %.1f seconds after %s (attempt %d of %d)",
+                func.__name__,
+                retry_state.next_action.sleep,
+                type(exc).__name__,
+                retry_state.attempt_number,
+                max_attempts,
+            )
+
         # Define which exceptions to retry on
         def should_retry_http_error(exception):
             """Only retry on HTTP 5xx server errors, not 4xx client errors."""
@@ -104,7 +117,7 @@ def with_retry(
             # Exponential backoff between attempts
             wait=wait_exponential(multiplier=multiplier, min=min_wait, max=max_wait),
             # Log before sleeping
-            before_sleep=before_sleep_log(logger, logging.WARNING),
+            before_sleep=log_before_sleep,
             # Log after all attempts
             after=after_log(logger, logging.DEBUG),
             # Re-raise the last exception if all attempts fail

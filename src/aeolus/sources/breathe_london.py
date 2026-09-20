@@ -237,6 +237,10 @@ def _coerce_lat_lng(df: pd.DataFrame) -> pd.DataFrame:
     for col in ("latitude", "longitude"):
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
+        else:
+            # Upstream drift / partial response: keep the metadata schema
+            # intact (NaN coords) so spatial filters degrade, not KeyError.
+            df[col] = float("nan")
     return df
 
 

@@ -137,6 +137,15 @@ def _get_purpleair_client():
 
 
 @retry_on_network_error
+def _sdk_call(method, **kwargs):
+    """Invoke one PurpleAir SDK method with retry on connection errors.
+
+    Retry is scoped to a single request so a transient failure never re-runs
+    (and re-bills API points for) a whole multi-sensor download.
+    """
+    return method(**kwargs)
+
+
 def fetch_purpleair_metadata(**filters) -> pd.DataFrame:
     """
     Fetch sensor metadata from PurpleAir API.
@@ -218,7 +227,7 @@ def fetch_purpleair_metadata(**filters) -> pd.DataFrame:
             params[api_key] = filters[key]
 
     try:
-        response = client.request_multiple_sensors_data(**params)
+        response = _sdk_call(client.request_multiple_sensors_data, **params)
     except (PurpleAirAPIError, requests.RequestException, ValueError, KeyError) as e:
         warning(f"Failed to fetch PurpleAir metadata: {e}")
         warnings.warn(
@@ -295,7 +304,6 @@ def _create_metadata_normaliser():
 # ============================================================================
 
 
-@retry_on_network_error
 def fetch_purpleair_data(
     sites: list[str],
     start_date: datetime,
@@ -419,7 +427,8 @@ def fetch_purpleair_data(
             chunk_end = min(chunk_start + chunk_window, end_date)
 
             try:
-                response = client.request_sensor_historic_data(
+                response = _sdk_call(
+                    client.request_sensor_historic_data,
                     sensor_index=sensor_idx,
                     fields=DEFAULT_HISTORY_FIELDS,
                     start_timestamp=int(chunk_start.timestamp()),

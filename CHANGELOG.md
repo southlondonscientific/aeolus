@@ -20,10 +20,19 @@ Work packages from `docs/dev/v046_fix_plan.md`. Many of these change emitted val
 - **`time_average()` period bins were end-labelled with the wrong denominator** — for `ME`/`QE`/`YE` (and legacy `M`/`Q`/`Y`) each bin's expected count was taken from the *next* period, so a complete February reported 90 % capture and marginal months crossed the 75 % threshold the wrong way. Bins are now left-closed and **labelled at the period start** (`2023-02-01`, not `2023-02-28`), matching the documented convention; `W` bins are whole Mon–Sun weeks labelled on the Monday.
 - **`aqi_summary()` coverage used 720/2160/8760 hours** regardless of the actual month, quarter or leap year, and counted sub-hourly readings as hours (15-minute data always read as 100 %). Coverage now uses the real period span and the data's own cadence.
 - **A single month or weekday was drawn across every bar** — `plot_monthly(style="bar")` and `plot_weekly()` broadcast a one-row aggregate across the whole axis, so any download within one calendar month drew twelve identical bars.
+- **AirNow silently skipped most of the final day** — daily chunks were formatted as `T00`, so a window such as `last="1d"` (14:30 → 14:30) never requested the second day's hours, returned unrequested hours from the first, and fetched each boundary hour twice. Chunks are now non-overlapping 24-hour windows that honour the hour.
+- **AirQo dropped genuine 0 µg/m³ readings** — the filter was `> 0`; every other source keeps zeros.
 - **UK DAQI official colours used the last band of each category** — ten band colours were collapsed onto four category keys, so "Low" was band 3's colour and "High" band 9's. Each category now uses its middle band.
 
 ### Fixed
 
+- **Network retries never happened for AURN-family, AirNow, PurpleAir and Sensor.Community downloads** — `@retry_on_network_error` only retries exceptions that propagate, and these fetchers caught them internally, so one dropped connection silently lost a site-year. Retries now work (3 attempts; a 404 is still never retried) and each function's return contract is unchanged. PurpleAir retries a single request, never a whole download.
+- **Retry log lines could contain API keys** — tenacity's default logger prints the exception message, which includes the request URL and its `?API_KEY=`/`token=` query string. This already affected AirQo. Retry logs now name only the exception type.
+- **Empty lookups were cached for the life of the process** — a transient failure building the EEA sampling-point mapping or an SOS network mapping latched `{}`, silencing that source until restart.
+- `find_sites(near=...)` near the poles or the antimeridian built an invalid bounding box (latitude > 90, longitude > 180), which upstreams rejected and Aeolus reported as zero sites.
+- `networks.list_networks()` listed hidden backends (`AURN-SOS`, `LAQN-ERG`, …); pass `include_all=True` to see them.
+- Breathe London `find_sites` with a location filter raised `KeyError` when the API omitted coordinates.
+- Sensor.Community re-probed every candidate sensor type on every day of a download, even after learning the type.
 - **`last=` downloads never hit the cache and grew it without bound** — the window was keyed on `datetime.now()` to the microsecond. Rolling windows are now keyed on the shorthand and refreshed after `AEOLUS_CACHE_VOLATILE_TTL_S` seconds (default 3600); windows of an hour or less are always fetched live. Parquet files written by earlier versions for `last=` calls are orphaned — `clear_cache()` removes them.
 - **A transient per-site failure was cached permanently** — a result missing a requested site now expires after the same TTL instead of being served forever.
 - **Cache keys depended on timezone-awareness** — the same instant as a naive and a UTC-aware datetime keyed differently. Existing naive-keyed entries remain valid.

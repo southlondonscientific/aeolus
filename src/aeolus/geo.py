@@ -46,5 +46,20 @@ def near_to_bbox(
         ``(min_lon, min_lat, max_lon, max_lat)`` — GeoJSON/shapely convention.
     """
     lat_delta = radius_km / 111.0
-    lon_delta = radius_km / (111.0 * math.cos(math.radians(lat)))
-    return (lon - lon_delta, lat - lat_delta, lon + lon_delta, lat + lat_delta)
+    min_lat = max(lat - lat_delta, -90.0)
+    max_lat = min(lat + lat_delta, 90.0)
+
+    # If the circle reaches a pole it spans every longitude; likewise when the
+    # longitude half-width exceeds a hemisphere. cos() is evaluated at the
+    # poleward edge so the box still over-estimates at high latitudes.
+    edge_lat = max(abs(min_lat), abs(max_lat))
+    cos_edge = math.cos(math.radians(edge_lat))
+    lon_delta = radius_km / (111.0 * cos_edge) if cos_edge > 1e-9 else math.inf
+    if edge_lat >= 90.0 or lon_delta >= 180.0:
+        return (-180.0, min_lat, 180.0, max_lat)
+
+    # Clamp rather than wrap: a box crossing the antimeridian cannot be
+    # expressed as a single (min_lon, ..., max_lon) tuple.
+    min_lon = max(lon - lon_delta, -180.0)
+    max_lon = min(lon + lon_delta, 180.0)
+    return (min_lon, min_lat, max_lon, max_lat)

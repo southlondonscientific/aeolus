@@ -187,8 +187,17 @@ REGULATORY_MEASURANDS = [
 # ============================================================================
 
 
-# Low-level fetcher - downloads and parses RData files
 @retry_on_network_error
+def _get_rdata_bytes(url: str) -> bytes:
+    """GET raw RData bytes. Raises, so the retry decorator sees failures
+    (connection errors, timeouts, 5xx); 4xx such as a 404 for a site-year
+    that doesn't exist are raised once and not retried."""
+    response = requests.get(url, timeout=30)
+    response.raise_for_status()
+    return response.content
+
+
+# Low-level fetcher - downloads and parses RData files
 def fetch_rdata(url: str) -> pd.DataFrame | None:
     """
     Fetch and parse an RData file from a URL.
@@ -204,14 +213,13 @@ def fetch_rdata(url: str) -> pd.DataFrame | None:
         for specific networks instead.
     """
     try:
-        response = requests.get(url, timeout=30)
-        response.raise_for_status()
+        content = _get_rdata_bytes(url)
     except requests.exceptions.RequestException as e:
         warning(f"Failed to fetch RData from {url}: {e}")
         return None
 
     try:
-        parsed = rdata.parser.parse_data(response.content)
+        parsed = rdata.parser.parse_data(content)
         converted = rdata.conversion.convert(parsed)
         # RData returns a dict with one key - get the first (only) value
         data = converted[next(iter(converted))]

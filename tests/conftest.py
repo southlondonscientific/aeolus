@@ -279,3 +279,16 @@ def assert_no_nulls(df: pd.DataFrame, columns: list[str] | None = None):
 pytest.assert_dataframes_equal = assert_dataframes_equal
 pytest.assert_has_columns = assert_has_columns
 pytest.assert_no_nulls = assert_no_nulls
+
+
+@pytest.fixture(autouse=True)
+def _no_retry_backoff(monkeypatch):
+    """Neutralise tenacity's backoff (2s + 4s per exhausted retry) without
+    touching the real ``time.sleep`` that rate-limiter tests measure."""
+    import types
+
+    import tenacity.nap
+
+    monkeypatch.setattr(
+        tenacity.nap, "time", types.SimpleNamespace(sleep=lambda _s: None)
+    )

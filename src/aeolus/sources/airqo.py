@@ -695,9 +695,10 @@ def create_airqo_normaliser():
             if col in df.columns:
                 df = df.dropna(subset=[col])
 
-        # Filter out zero/negative values (invalid readings)
+        # Filter out negative values (invalid readings). Zero is a genuine
+        # reading (clean air / below detection) and must be kept.
         if "value" in df.columns:
-            df = df[df["value"] > 0]
+            df = df[df["value"] >= 0]
 
         return df
 

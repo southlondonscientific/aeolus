@@ -302,6 +302,10 @@ def _build_station_mapping(
 
     # Fetch all SOS timeseries
     all_ts = list(_get_all_timeseries_cached())
+    if not all_ts:
+        # Don't let lru_cache latch a transient empty listing.
+        _get_all_timeseries_cached.cache_clear()
+        return {}
 
     # Match each SOS timeseries to the nearest metadata site
     mapping: dict[str, list[dict]] = {}
@@ -402,13 +406,17 @@ def _get_network_mapping(network: str) -> dict[str, list[dict]]:
 
     # Try static mapping
     static = _load_static_mapping()
-    if static is not None and network in static:
+    if static is not None and static.get(network):
         _network_mappings[network] = static[network]
         return _network_mappings[network]
 
-    # Fall back to live mapping
-    _network_mappings[network] = _build_station_mapping(network)
-    return _network_mappings[network]
+    # Fall back to live mapping. Only cache a non-empty build: an empty one
+    # means a transient upstream failure, and latching it would silence the
+    # network for the rest of the process.
+    mapping = _build_station_mapping(network)
+    if mapping:
+        _network_mappings[network] = mapping
+    return mapping
 
 
 def rebuild_sos_mapping() -> Path:

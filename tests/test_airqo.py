@@ -1374,7 +1374,7 @@ class TestAirQoNormalizer:
         assert (result["created_at"] >= marker).all()
 
     def test_filters_invalid_values(self):
-        """Test that zero/negative values are filtered out."""
+        """Negative values are filtered out; zero is a genuine reading."""
         normaliser = create_airqo_normaliser()
 
         df = pd.DataFrame(
@@ -1386,7 +1386,7 @@ class TestAirQoNormalizer:
                 },
                 {
                     "time": "2024-01-01T01:00:00.000Z",
-                    "pm2_5": {"value": 0},  # Invalid
+                    "pm2_5": {"value": 0},  # Valid: clean air
                     "siteDetails": {"_id": "site_001", "name": "Test"},
                 },
                 {
@@ -1399,9 +1399,7 @@ class TestAirQoNormalizer:
 
         result = normaliser(df)
 
-        # Only first row should remain
-        assert len(result) == 1
-        assert result["value"].iloc[0] == 35.5
+        assert sorted(result["value"].tolist()) == [0.0, 35.5]
 
     def test_filters_null_timestamps(self):
         """Test that rows with null timestamps are filtered."""

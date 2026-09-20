@@ -241,6 +241,14 @@ def _apply_rate_limit() -> None:
 
 
 @retry_on_network_error
+def _get_with_retry(url: str, headers: dict, timeout: int) -> requests.Response:
+    """Rate-limited GET that raises, so the retry decorator sees failures."""
+    _apply_rate_limit()
+    response = requests.get(url, headers=headers, timeout=timeout)
+    response.raise_for_status()
+    return response
+
+
 def _make_request(url: str, timeout: int = 30) -> requests.Response | None:
     """
     Make an HTTP GET request with appropriate headers and error handling.
@@ -252,14 +260,10 @@ def _make_request(url: str, timeout: int = 30) -> requests.Response | None:
     Returns:
         Response object if successful, None otherwise
     """
-    _apply_rate_limit()
-
     headers = {"User-Agent": USER_AGENT}
 
     try:
-        response = requests.get(url, headers=headers, timeout=timeout)
-        response.raise_for_status()
-        return response
+        return _get_with_retry(url, headers, timeout)
     except requests.exceptions.Timeout:
         warning(f"Request timed out: {url}")
         return None
@@ -595,13 +599,17 @@ def fetch_sensor_community_data(
 
         # For unknown sensors, try common PM sensor types
         if unknown_sites:
-            for site_id in unknown_sites:
+            for site_id in list(unknown_sites):
                 # Try SDS011 first (most common), then BME280
                 for try_type in ["SDS011", "BME280", "PMS5003", "PMS7003"]:
                     df = _fetch_sensor_archive(current_date, try_type, site_id)
                     if not df.empty:
-                        # Cache the successful type for future requests
+                        # Cache the successful type for future requests, and
+                        # promote the site so later days fetch it directly
+                        # instead of re-probing every candidate type.
                         _sensor_type_cache[site_id] = try_type
+                        unknown_sites.remove(site_id)
+                        sites_by_type.setdefault(try_type, []).append(site_id)
                         all_data.append(df)
                         break
 

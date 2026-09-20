@@ -108,6 +108,15 @@ def _get_api_key() -> str:
 
 
 @retry_on_network_error
+def _airnow_get(url: str, params: dict, timeout: int) -> requests.Response:
+    """GET with retry. Connection errors, timeouts and 5xx propagate so the
+    retry decorator sees them; other statuses are returned for the caller."""
+    response = requests.get(url, params=params, timeout=timeout)
+    if response.status_code >= 500:
+        response.raise_for_status()
+    return response
+
+
 def _call_airnow_api(
     endpoint: str, params: dict | None = None, timeout: int = 60
 ) -> list[dict] | None:
@@ -131,7 +140,7 @@ def _call_airnow_api(
     url = f"{API_BASE}/{endpoint}"
 
     try:
-        response = requests.get(url, params=params, timeout=timeout)
+        response = _airnow_get(url, params, timeout)
 
         if response.status_code == 401:
             raise ValueError(
@@ -371,14 +380,21 @@ def _fetch_site_historical(
     buffer = 0.01  # ~1km
     bbox = f"{lon - buffer},{lat - buffer},{lon + buffer},{lat + buffer}"
 
-    # Query in daily chunks to stay within API limits
-    current_date = start_date
-    while current_date <= end_date:
-        next_date = min(current_date + timedelta(days=1), end_date + timedelta(hours=1))
+    # Query in daily chunks to stay within API limits. AirNow's startDate and
+    # endDate are both inclusive at hour resolution, so chunks are 24 hours
+    # long (HH..HH+23) and never share a boundary hour.
+    if start_date.tzinfo is not None:
+        start_date = start_date.astimezone(timezone.utc)
+    if end_date.tzinfo is not None:
+        end_date = end_date.astimezone(timezone.utc)
+    current_date = start_date.replace(minute=0, second=0, microsecond=0)
+    last_hour = end_date.replace(minute=0, second=0, microsecond=0)
+    while current_date <= last_hour:
+        chunk_end = min(current_date + timedelta(hours=23), last_hour)
 
         params = {
-            "startDate": current_date.strftime("%Y-%m-%dT00"),
-            "endDate": next_date.strftime("%Y-%m-%dT00"),
+            "startDate": current_date.strftime("%Y-%m-%dT%H"),
+            "endDate": chunk_end.strftime("%Y-%m-%dT%H"),
             "parameters": "OZONE,PM25,PM10,CO,NO2,SO2",
             "BBOX": bbox,
             "dataType": "C",  # Concentrations only
@@ -449,12 +465,14 @@ def _fetch_site_historical(
                     }
                 )
 
-        current_date = next_date
+        current_date = chunk_end + timedelta(hours=1)
 
     if not records:
         return empty_data_frame()
 
-    return pd.DataFrame(records)
+    return pd.DataFrame(records).drop_duplicates(
+        subset=["site_code", "date_time", "measurand", "value"], ignore_index=True
+    )
 
 
 # ============================================================================

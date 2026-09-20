@@ -169,7 +169,34 @@ and `step=ceil(...)`; pivot on `(measurand, units)`; WHO colour entry; fix the c
 data (`ax.lines[0].get_ydata()` peaks/dips); the `downsample` NaN early-return test gap.
 **Severity: Important/Medium (crashes on real sparse data).**
 
-### WP7 — Latching caches & resilience tail
+### WP7 — Latching caches & resilience tail  ✅ DONE
+**Landed 2026-09-20.** Scout confirmed all eight findings plus one new one; several were wider than the audit said.
+- **NEW — `@retry_on_network_error` was a no-op on five functions.** tenacity only retries exceptions that propagate;
+  `fetch_rdata` (AURN/SAQN/WAQN/NI/AQE/LMAM/LAQN RData), `_call_airnow_api`, `_make_request` (Sensor.Community) and both
+  PurpleAir fetchers caught `RequestException` internally. Retry now wraps an inner function that raises; public
+  contracts unchanged (still `None`/empty + warning after exhaustion; 404 never retried). Two hazards handled: tenacity's
+  `before_sleep_log` logs `str(exception)`, which carries `?API_KEY=` — replaced with a logger that names only the
+  exception type (this was **already leaking AirQo keys** to the WARNING log); PurpleAir retry is scoped to one SDK call
+  so a blip cannot re-run and re-bill a whole download. Structural AST guard in `tests/test_resilience.py`.
+  **Cost:** a full outage is now ~6 s per RData site-year URL with no circuit breaker (SOS has one; RData does not) —
+  candidate follow-up.
+- Latching caches: EEA `_get_spo_mapping` never caches an empty mapping (and the per-row lookup is hoisted, or a `None`
+  cache would re-download the CSV per row); SOS `_get_network_mapping` likewise, **plus** the `lru_cache` on the
+  timeseries listing, which would otherwise re-latch `{}` from a cached empty tuple.
+- `near_to_bbox` clamps latitude *and* longitude (antimeridian centres overflowed too, not just poles); polar circles
+  span all longitudes. Known limit: sites just across the dateline are dropped.
+- `list_networks()` hides non-primary backends (`*-SOS`, `LAQN-ERG`, `SAQD`); `include_all=True` shows them.
+- Breathe London metadata always carries `latitude`/`longitude` (NaN if upstream omits them) — fixed at the normaliser,
+  not by returning unfiltered sites as the audit suggested.
+- AirQo keeps genuine 0 µg/m³ (`>= 0`). **Judgement call:** an exact 0 from a Plantower-class sensor can be a fault
+  code; kept for consistency with every other source.
+- AirNow chunks are non-overlapping 24 h windows honouring the hour. **Worse than the audit said:** a `last="1d"`-shaped
+  window silently never requested most of the second day, as well as double-counting boundary hours.
+- Sensor.Community promotes a sensor once its type is learned (9 archive calls → 5 for a PMS5003 over 3 days).
+- Tests: new `tests/test_resilience.py`; `conftest.py` neutralises tenacity backoff only (a global `time.sleep` patch
+  breaks the rate-limiter tests).
+
+_Original scope:_
 **Findings:** EEA `_get_spo_mapping` CSV-fallback latches `{}`; SOS `_get_network_mapping` latches `{}`
 (both NEW beyond v0.4.5); `near_to_bbox` unclamped latitudes near poles → HTTP 400 → silent zero sites;
 `list_networks()` leaks hidden `*-SOS` backends (ignores `primary=False`); Breathe London spatial filter
