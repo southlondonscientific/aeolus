@@ -141,7 +141,24 @@ don't cache partial-success (or cache per-site); normalise tz in the key; guard 
 **Tests folded:** `test_cache` multi-site key + sorted-order independence; `disabled_by_default` default.
 **Severity: Important (the `last=` growth bug).**
 
-### WP6 — viz robustness
+### WP6 — viz robustness  ✅ DONE
+**Landed 2026-09-20.** Scout reproduced six of seven findings; red tests assert on drawn data.
+- Sparse time axes: `plot_diurnal/weekly/monthly`, `_plot_diurnal_panel` and `plot_distribution(group_by="weekday"|"month")`
+  reindex to the fixed axis. **Worse than the audit said:** a single month (any ≤31-day download) or single weekday did
+  not crash — it silently drew the one value across all 12 / 7 bars.
+- Downsampling: `decimate` and `mean` use a ceiling so the point cap is honoured; sub-second `mean` no longer divides by
+  zero; the below-target early return now drops NaNs like every other path.
+- Mixed units: `_harmonise_units` converts only pollutants reported in more than one unit, in `prepare_timeseries` and
+  all temporal plots. The plan's "pivot on `(measurand, units)`" was rejected — it breaks `TimeSeriesSpec`, which is
+  keyed by pollutant. `plot_trend` labels the axis with the trended pollutant's units.
+- Official colours: WHO degrades to the Aeolus compliance palette; UK_DAQI uses each category's mid band (the
+  comprehension kept whichever of ten bands came last).
+- **Multi-site pooling kept, not guarded** (reverses the plan): notebooks 01, 06 and 07 pass multi-site frames on
+  purpose and `_get_site_label` titles them "N sites". Documented in each docstring + characterisation tests.
+- Tests: new `tests/test_viz_robustness.py`. The existing `isinstance(fig, Figure)`-only tests in `test_viz.py` are
+  untouched — still a gap.
+
+_Original scope:_
 **Findings:** `plot_diurnal/weekly/monthly/_plot_diurnal_panel/distribution` crash on incomplete time
 axes; `plot_diurnal/calendar` silently pool multiple sites; `downsample(method="mean")` ZeroDivision on
 short spans; `decimate` step floors to 1 (cap not honoured); `prepare_timeseries` averages mixed units;
