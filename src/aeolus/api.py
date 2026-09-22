@@ -62,9 +62,10 @@ from .registry import (
 )
 from .registry import list_sources as _list_sources
 from .types import AeolusDataWarning, AeolusExperimentalWarning
-from .types import DATA_COLUMNS as _STANDARD_COLUMNS
-from .types import METADATA_COLUMNS as _METADATA_COLUMNS
-from .types import empty_metadata_frame as _empty_metadata_frame
+from .schema import DATA_COLUMNS as _STANDARD_COLUMNS
+from .schema import finalise_data_frame
+from .schema import METADATA_COLUMNS as _METADATA_COLUMNS
+from .schema import empty_public_metadata_frame, finalise_metadata_frame, with_network_column
 
 
 _warned_experimental: set[str] = set()
@@ -152,12 +153,13 @@ def list_sources(include_all: bool = False) -> list[str]:
 
 
 def download(
-    sources: str | dict[str, list[str]],
+    sources: str | dict[str, list[str]] | None = None,
     sites: list[str] | None = None,
     start_date: datetime = None,
     end_date: datetime = None,
     last: str | None = None,
     combine: bool = True,
+    network: str | None = None,
 ) -> pd.DataFrame | dict[str, pd.DataFrame]:
     """
     Download air quality data with smart routing to networks/portals.
@@ -242,6 +244,13 @@ def download(
         ...     combine=False
         ... )
     """
+    # ``network=`` is an alias for the first argument (v0.5.0); choosing a
+    # backend for a network is the v0.6.0 routing engine.
+    if network is not None:
+        if sources is not None:
+            raise TypeError("pass either `network=` or `sources`, not both")
+        sources = network
+
     # Resolve last= shorthand and validate that we have a date range.
     # The submodules re-resolve ``last`` themselves so the cache can key on
     # the shorthand; resolving here validates the arguments up front.
@@ -383,7 +392,7 @@ def get_source_info(source: str) -> dict[str, Any]:
 
 # Convenience function aliases for backward compatibility
 def fetch(
-    sources: str | dict[str, list[str]],
+    sources: str | dict[str, list[str]] | None = None,
     sites: list[str] | None = None,
     start_date: datetime = None,
     end_date: datetime = None,
@@ -466,6 +475,7 @@ def find_sites(
     bbox: tuple[float, float, float, float] | None = None,
     measurand: str | list[str] | None = None,
     include_all: bool = False,
+    network: str | list[str] | None = None,
     **filters: Any,
 ) -> pd.DataFrame:
     """
@@ -533,6 +543,11 @@ def find_sites(
         ...     bbox=(-0.5, 51.3, 0.3, 51.7),
         ... )
     """
+    if network is not None:
+        if source is not None:
+            raise TypeError("pass either `network=` or `source`, not both")
+        source = network
+
     # --- validate inputs ---
     if near is not None and bbox is not None:
         raise ValueError(
@@ -583,7 +598,7 @@ def find_sites(
             else:
                 df = _fetch_network_sites(name, spec, search_bbox, filters)
             if df is not None and not df.empty:
-                results.append(df)
+                results.append(finalise_metadata_frame(df, name))
         except Exception as e:
             warnings.warn(
                 f"Failed to fetch sites from {name}: {e}",
@@ -591,14 +606,16 @@ def find_sites(
             )
 
     if not results:
-        return _empty_metadata_frame()
+        return empty_public_metadata_frame()
 
     combined = pd.concat(results, ignore_index=True)
 
     # Guarantee the core metadata schema: a source that omits a column
     # (e.g. no per-site measurands) degrades to None/NaN rather than
     # raising a KeyError below.
-    for col in _METADATA_COLUMNS:
+    from .schema import public_metadata_columns
+
+    for col in public_metadata_columns():
         if col not in combined.columns:
             combined[col] = None
 
@@ -638,7 +655,7 @@ def find_sites(
 
         # Cache the per-source default_measurands lookup once.
         source_defaults: dict[str, set[str]] = {}
-        for src_name in combined["source_network"].unique():
+        for src_name in combined["network"].unique():
             spec = get_source(src_name)
             defaults = (spec or {}).get("default_measurands")
             if defaults:
@@ -661,7 +678,7 @@ def find_sites(
             [
                 _matches(m, n)
                 for m, n in zip(
-                    combined["measurands"], combined["source_network"], strict=True
+                    combined["measurands"], combined["network"], strict=True
                 )
             ],
             index=combined.index,
@@ -687,8 +704,9 @@ def find_sites(
 
 
 def get_current(
-    source: str,
-    sites: list[str],
+    source: str | None = None,
+    sites: list[str] | None = None,
+    network: str | None = None,
 ) -> pd.DataFrame:
     """
     Get the most recent readings for the given sites.
@@ -714,6 +732,12 @@ def get_current(
         >>> latest = aeolus.get_current("AURN", sites=["MY1", "KC1"])
         >>> print(latest[["site_code", "date_time", "measurand", "value"]])
     """
+    if network is not None:
+        if source is not None:
+            raise TypeError("pass either `network=` or `source`, not both")
+        source = network
+    if source is None or sites is None:
+        raise ValueError("get_current() needs a source (or network=) and a list of sites")
     source_upper = source.upper()
 
     # Route to SOS backend declared by the primary source, if any.
@@ -728,7 +752,7 @@ def get_current(
     # with a short window
     fetch_latest = spec.get("fetch_latest")
     if fetch_latest is not None:
-        return fetch_latest(sites)
+        return finalise_data_frame(fetch_latest(sites), backend)
 
     # Fallback: fetch last 4 hours and keep the latest reading.
     # Bypass the cache here — "current" data must always be live.
@@ -742,7 +766,7 @@ def get_current(
         raise ValueError(f"Source {backend} has no fetch_data implementation")
     df = fetch_data(sites, start, now)
     if df.empty:
-        return df
+        return finalise_data_frame(df, backend)
 
     # Keep only the most recent *valid* reading per site + measurand. Drop
     # NaN-value rows first: near-real-time feeds often publish the newest hour
@@ -751,9 +775,9 @@ def get_current(
     # row. (Also sidesteps idxmax on an all-NaT group for the dropped rows.)
     valid = df[df["value"].notna()]
     if valid.empty:
-        return valid.reset_index(drop=True)
+        return finalise_data_frame(valid.reset_index(drop=True), backend)
     idx = valid.groupby(["site_code", "measurand"])["date_time"].idxmax()
-    return valid.loc[idx].reset_index(drop=True)
+    return finalise_data_frame(valid.loc[idx].reset_index(drop=True), backend)
 
 
 # ============================================================================
@@ -774,28 +798,27 @@ def summarise(data: pd.DataFrame) -> pd.DataFrame:
 
     Returns:
         DataFrame with one row per site+pollutant, columns:
-        ``site_code``, ``source_network``, ``measurand``, ``start``,
+        ``site_code``, ``network``, ``measurand``, ``start``,
         ``end``, ``records``, ``valid``, ``data_capture``.
 
     Example:
         >>> data = aeolus.download("AURN", ["MY1", "KC1"], start, end)
         >>> aeolus.summarise(data)
     """
-    if data.empty:
-        return pd.DataFrame(
-            columns=[
-                "site_code", "source_network", "measurand",
-                "start", "end", "records", "valid", "data_capture",
-            ]
-        )
+    from . import options
 
-    df = data.copy()
+    mirror = ["source_network"] if options.legacy_columns else []
+    columns = ["site_code", "network", *mirror, "measurand", "start", "end", "records", "valid", "data_capture"]
+    if data.empty:
+        return pd.DataFrame(columns=columns)
+
+    df = with_network_column(data.copy())
     df["date_time"] = pd.to_datetime(df["date_time"])
     requested = data.attrs.get("aeolus_requested_range")
 
     rows = []
     for (site, network, measurand), g in df.groupby(
-        ["site_code", "source_network", "measurand"], observed=True
+        ["site_code", "network", "measurand"], observed=True
     ):
         dt = g["date_time"]
         total = len(g)
@@ -824,6 +847,7 @@ def summarise(data: pd.DataFrame) -> pd.DataFrame:
 
         rows.append({
             "site_code": site,
+            "network": network,
             "source_network": network,
             "measurand": measurand,
             "start": start,
@@ -833,4 +857,4 @@ def summarise(data: pd.DataFrame) -> pd.DataFrame:
             "data_capture": round(dc, 3),
         })
 
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows)[columns]

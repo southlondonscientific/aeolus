@@ -1,0 +1,34 @@
+# src/aeolus/data/qa_vocabularies/WAQN.yaml
+code: WAQN
+name: Welsh Air Quality Network
+country: GB
+regulatory: true
+operators:
+- Ricardo
+- Welsh Government
+instrument_class: mixed
+qa_model: regulatory_temporal_ratification
+default_ratification_stage: null
+qa_code_vocabulary:
+  "Ratified":
+    description: Ratified
+    qa_tier: reference_full_qc
+    ratification_stage: ratified
+    source_url: https://airquality.gov.wales
+  "Provisional":
+    description: Provisional, not yet ratified
+    qa_tier: reference_provisional
+    ratification_stage: unratified
+    source_url: https://airquality.gov.wales
+  "Supplied":
+    description: Supplied by the operator; not centrally ratified
+    qa_tier: unknown
+    ratification_stage: supplied
+    source_url: https://airquality.gov.wales
+ratification_cadence_months: 6
+first_ratification_latency_months: null
+full_year_ratified_by: null
+ratification_overrides: AURN-affiliated sites 3 months; supplied sites never ratify
+data_licence: Crown Copyright (personal or in-house use)
+homepage_url: https://airquality.gov.wales
+notes: ''

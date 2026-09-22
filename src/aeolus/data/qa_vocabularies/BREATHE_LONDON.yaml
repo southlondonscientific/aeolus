@@ -1,0 +1,24 @@
+# src/aeolus/data/qa_vocabularies/BREATHE_LONDON.yaml
+code: BREATHE_LONDON
+name: Breathe London
+country: GB
+regulatory: false
+operators:
+- Imperial College London (ERG)
+- Bloomberg Philanthropies
+instrument_class: LCS
+qa_model: staged_calibration
+default_ratification_stage: not_applicable
+qa_code_vocabulary:
+  "P":
+    description: Provisional (network-calibrated)
+    qa_tier: lcs_calibrated
+    ratification_stage: unratified
+    source_url: https://www.breathelondon.org/developers
+ratification_cadence_months: null
+first_ratification_latency_months: null
+full_year_ratified_by: null
+ratification_overrides: ''
+data_licence: OGL-UK-3.0
+homepage_url: https://www.breathelondon.org
+notes: ''

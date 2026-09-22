@@ -95,7 +95,7 @@ from ..transforms import (
     select_columns,
 )
 from ..types import (
-    DATA_COLUMNS,
+    ADAPTER_DATA_COLUMNS,
     AeolusDataWarning,
     DataFetcher,
     MetadataFetcher,
@@ -449,7 +449,7 @@ def normalise_regulatory_data(network_name: str) -> Normaliser:
             ),
             add_column("created_at", lambda df: datetime.now(timezone.utc)),
             drop_columns("site_name"),
-            select_columns(*DATA_COLUMNS, require_all=True),
+            select_columns(*ADAPTER_DATA_COLUMNS, require_all=True),
         )(df)
 
     return normalise

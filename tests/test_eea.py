@@ -11,7 +11,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from aeolus.types import DATA_COLUMNS, METADATA_COLUMNS
+from aeolus.types import ADAPTER_DATA_COLUMNS, METADATA_COLUMNS
 
 
 @pytest.fixture(autouse=True)
@@ -215,9 +215,9 @@ class TestNormaliseEeaData:
         from aeolus.sources.eea import normalise_eea_data
 
         df = normalise_eea_data()(self._raw_df())
-        for col in DATA_COLUMNS:
+        for col in ADAPTER_DATA_COLUMNS:
             assert col in df.columns, f"Missing column: {col}"
-        assert len(df.columns) == len(DATA_COLUMNS)
+        assert len(df.columns) == len(ADAPTER_DATA_COLUMNS)
 
     @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
     def test_site_code_extraction(self, _mock_mapping):
@@ -311,7 +311,7 @@ class TestFetchEeaData:
             end_date=datetime(2024, 1, 2, tzinfo=timezone.utc),
             country="IE",
         )
-        for col in DATA_COLUMNS:
+        for col in ADAPTER_DATA_COLUMNS:
             assert col in df.columns, f"Missing column: {col}"
         assert len(df) > 0
 
@@ -360,7 +360,7 @@ class TestFetchEeaData:
             country="IE",
         )
         assert len(df) == 0
-        for col in DATA_COLUMNS:
+        for col in ADAPTER_DATA_COLUMNS:
             assert col in df.columns
 
 

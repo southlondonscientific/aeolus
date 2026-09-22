@@ -198,7 +198,9 @@ SITE_COLUMNS = [
     "updated_at",
 ]
 
-DATA_COLUMNS = [
+# What an ADAPTER emits. The public schema (aeolus.schema.DATA_COLUMNS) is
+# built from this by aeolus.schema.finalise_data_frame.
+ADAPTER_DATA_COLUMNS = [
     "site_code",
     "date_time",
     "measurand",
@@ -208,6 +210,14 @@ DATA_COLUMNS = [
     "ratification",
     "created_at",
 ]
+
+
+def __getattr__(name):  # `from aeolus.types import DATA_COLUMNS` = the public schema
+    if name == "DATA_COLUMNS":
+        from .schema import DATA_COLUMNS
+
+        return DATA_COLUMNS
+    raise AttributeError(name)
 
 
 # =============================================================================
@@ -234,12 +244,12 @@ class AeolusDataWarning(UserWarning):
 
 
 def empty_data_frame() -> pd.DataFrame:
-    """Return an empty DataFrame with the standard 8-column data schema.
+    """Empty frame in the ADAPTER schema — what a fetcher returns for no data.
 
     Use this instead of bare ``pd.DataFrame()`` so that concatenation
     with valid data never fails due to missing columns.
     """
-    return pd.DataFrame(columns=DATA_COLUMNS)
+    return pd.DataFrame(columns=ADAPTER_DATA_COLUMNS)
 
 
 METADATA_COLUMNS = ["site_code", "site_name", "latitude", "longitude", "source_network", "measurands"]

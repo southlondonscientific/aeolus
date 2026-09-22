@@ -71,7 +71,7 @@ For more details, see: https://github.com/southlondonscientific/aeolus
 __version__ = "0.4.5.4"
 
 # Import submodules for networks, portals, metrics, cache
-from . import cache, metrics, networks, portals, transforms
+from . import cache, metrics, networks, options, portals, transforms
 
 # Import the clean public API
 from .api import (
@@ -86,6 +86,7 @@ from .api import (
 
 # Define what gets exported with "from aeolus import *"
 __all__ = [
+    "options",
     # Version
     "__version__",
     # Submodules

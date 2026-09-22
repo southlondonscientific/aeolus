@@ -176,8 +176,8 @@ class TestFetchData:
 
         result = fetch_laqn_data(["MY1"], start, end)
 
-        from aeolus.types import DATA_COLUMNS
-        assert list(result.columns) == DATA_COLUMNS
+        from aeolus.types import ADAPTER_DATA_COLUMNS
+        assert list(result.columns) == ADAPTER_DATA_COLUMNS
 
     @patch("aeolus.sources.regulatory.fetch_rdata")
     def test_source_network_is_laqn(self, mock_rdata, mock_laqn_rdata_df):
@@ -343,8 +343,8 @@ class TestFetchERGData:
 
         result = fetch_laqn_erg_data(["MY1"], start, end)
 
-        from aeolus.types import DATA_COLUMNS
-        assert list(result.columns) == DATA_COLUMNS
+        from aeolus.types import ADAPTER_DATA_COLUMNS
+        assert list(result.columns) == ADAPTER_DATA_COLUMNS
 
     @patch("aeolus.sources.laqn._get_json")
     def test_source_network_is_laqn(self, mock_get, mock_erg_data_response):

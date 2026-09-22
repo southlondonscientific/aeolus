@@ -11,7 +11,7 @@ import pytest
 
 from aeolus import api
 from aeolus.registry import clear_registry, register_source
-from aeolus.types import METADATA_COLUMNS
+from aeolus.schema import METADATA_COLUMNS
 
 
 # ============================================================================

@@ -1,0 +1,26 @@
+code: AURN
+name: Automatic Urban and Rural Network
+country: GB
+regulatory: true
+operators: [Defra, Bureau Veritas (CMCU), Ricardo (QA/QC), NPL (ALN)]
+instrument_class: reference
+qa_model: regulatory_temporal_ratification
+default_ratification_stage: null     # has a ratification concept; per-row status not yet surfaced
+qa_code_vocabulary:
+  verified:
+    description: Ratified by the QA/QC unit
+    qa_tier: reference_full_qc
+    ratification_stage: ratified
+    source_url: https://uk-air.defra.gov.uk/networks/network-info?view=aurn
+  unverified:
+    description: Provisional, not yet ratified
+    qa_tier: reference_provisional
+    ratification_stage: unratified
+    source_url: https://uk-air.defra.gov.uk/networks/network-info?view=aurn
+ratification_cadence_months: 3
+first_ratification_latency_months: 3
+full_year_ratified_by: "~1 June of year+1"
+ratification_overrides: "openair treats data younger than ~6 months as provisional"
+data_licence: OGL-UK-3.0
+homepage_url: https://uk-air.defra.gov.uk/networks/network-info?view=aurn
+notes: ""

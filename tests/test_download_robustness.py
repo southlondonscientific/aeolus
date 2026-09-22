@@ -25,7 +25,7 @@ from aeolus.transforms import (
     categorise_columns,
 )
 from aeolus.api import summarise, _parse_last
-from aeolus.types import DATA_COLUMNS
+from aeolus.types import ADAPTER_DATA_COLUMNS
 from conftest_strategies import aeolus_dataframes
 
 pytestmark = pytest.mark.property
@@ -63,11 +63,11 @@ class TestNormalisationPipelineRobustness:
         """After dedup and select_columns, all 8 standard columns are present."""
         pipeline = compose(
             drop_duplicates(subset=_DEDUP_COLS),
-            select_columns(*DATA_COLUMNS),
+            select_columns(*ADAPTER_DATA_COLUMNS),
         )
         result = pipeline(df)
 
-        for col in DATA_COLUMNS:
+        for col in ADAPTER_DATA_COLUMNS:
             assert col in result.columns, f"Missing column: {col}"
 
     @given(df=aeolus_dataframes(messy=True))

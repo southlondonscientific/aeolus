@@ -264,8 +264,13 @@ All data sources return pandas DataFrames with a consistent schema:
 | `date_time` | Measurement timestamp |
 | `measurand` | Pollutant (NO2, PM2.5, PM10, O3, etc.) |
 | `value` | Measured concentration |
-| `units` | Units (typically µg/m³) |
-| `source_network` | Data source |
+| `units` | Units as the network reports them (µg/m³; mg/m³ for CO; ppb for AirNow gases) |
+| `network` | Which network produced the data (`AURN`, `LAQN`, `EEA`, ...) |
+| `qa_code` | The upstream's own quality token, verbatim (null where the upstream is silent) |
+| `qa_tier` | Cross-network quality tier: `reference_full_qc`, `reference_provisional`, `lcs_calibrated`, `lcs_factory_only`, `flagged`, `unknown` |
+| `ratification_stage` | `unratified`, `ratified`, `supplied`, `not_applicable` or null |
+| `backend` | Which fetcher served the row (`RDATA`, `SOS`, `ERG_REST`, ...) |
+| `source_network`, `ratification` | Deprecated mirrors, removed in 1.0 (`AEOLUS_LEGACY_COLUMNS=0` drops them) |
 
 ### Data Transformations
 
@@ -298,8 +303,8 @@ data = aeolus.download(
     end_date=datetime(2024, 1, 31)
 )
 
-# All data in one DataFrame with source_network column
-data.groupby("source_network").size()
+# All data in one DataFrame with a network column
+data.groupby("network").size()
 ```
 
 ## Configuration
@@ -461,7 +466,7 @@ data.to_csv("marylebone_road_2024.csv", index=False)
 ```python
 # Find all free-source sites within 10km of central London
 sites = aeolus.find_sites(near=(51.5074, -0.1278), radius_km=10)
-print(sites[["site_code", "site_name", "source_network", "distance_km"]])
+print(sites[["site_code", "site_name", "network", "distance_km"]])
 
 # Download from the nearest site
 nearest = sites.iloc[0]["site_code"]

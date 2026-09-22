@@ -77,8 +77,9 @@ except ValueError:
 # changes what a cached frame *means* (values, units, labels, schema): files
 # written by earlier versions then stop being served, because the key alone
 # cannot tell a corrected result from a wrong one. v2 = the 0.5.0 correctness
-# scrub (LAQN ppb -> ug/m3, EEA labels, CO units, sentinel/NaN drops).
-_CACHE_VERSION = "v2"
+# scrub (LAQN ppb -> ug/m3, EEA labels, CO units, sentinel/NaN drops);
+# v3 = the 0.5.0 public schema.
+_CACHE_VERSION = "v3"
 
 # Module-level state
 _cache_enabled = False

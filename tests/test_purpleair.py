@@ -1683,7 +1683,7 @@ def test_normaliser_all_null_channels_is_quietly_empty():
     import warnings
 
     from aeolus.sources.purpleair import create_purpleair_normaliser
-    from aeolus.types import DATA_COLUMNS
+    from aeolus.types import ADAPTER_DATA_COLUMNS
 
     raw = pd.DataFrame(
         {"sensor_index": [1], "time_stamp": [1704067200], "pm2.5_atm_a": [None], "pm2.5_atm_b": [None]}
@@ -1692,4 +1692,4 @@ def test_normaliser_all_null_channels_is_quietly_empty():
         warnings.simplefilter("error")
         result = create_purpleair_normaliser()(raw)
     assert result.empty
-    assert list(result.columns) == DATA_COLUMNS
+    assert list(result.columns) == ADAPTER_DATA_COLUMNS

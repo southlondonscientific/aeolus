@@ -1,0 +1,18 @@
+# src/aeolus/data/qa_vocabularies/OPENAQ.yaml
+code: OPENAQ
+name: OpenAQ
+country: "*"
+regulatory: false
+operators:
+- OpenAQ (aggregator)
+instrument_class: mixed
+qa_model: mixed
+default_ratification_stage: null
+qa_code_vocabulary: {}
+ratification_cadence_months: null
+first_ratification_latency_months: null
+full_year_ratified_by: null
+ratification_overrides: ''
+data_licence: per-provider (see OpenAQ)
+homepage_url: https://openaq.org
+notes: ''

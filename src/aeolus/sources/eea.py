@@ -76,7 +76,7 @@ from ..transforms import (
 )
 from ..units import canonical_units
 from ..types import (
-    DATA_COLUMNS,
+    ADAPTER_DATA_COLUMNS,
     METADATA_COLUMNS,
     AeolusDataWarning,
     empty_data_frame,
@@ -556,7 +556,7 @@ def normalise_eea_data():
         add_column("source_network", "EEA"),
         map_verification,
         add_column("created_at", lambda df: datetime.now(timezone.utc)),
-        select_columns(*DATA_COLUMNS, require_all=True),
+        select_columns(*ADAPTER_DATA_COLUMNS, require_all=True),
         reset_index(),
     )
 

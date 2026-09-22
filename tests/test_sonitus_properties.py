@@ -20,7 +20,7 @@ from aeolus.sources.sonitus import (
     normalise_sonitus_metadata,
     _is_air_quality_monitor,
 )
-from aeolus.types import DATA_COLUMNS, METADATA_COLUMNS
+from aeolus.types import ADAPTER_DATA_COLUMNS, METADATA_COLUMNS
 
 pytestmark = pytest.mark.property
 
@@ -115,7 +115,7 @@ class TestSonitusDataNormalisationProperties:
         normaliser = normalise_sonitus_data("TEST01")
         result = normaliser(df)
 
-        for col in DATA_COLUMNS:
+        for col in ADAPTER_DATA_COLUMNS:
             assert col in result.columns
 
     @given(df=sonitus_data_rows(min_rows=1, max_rows=50))

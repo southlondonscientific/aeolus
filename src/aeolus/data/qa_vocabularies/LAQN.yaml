@@ -1,0 +1,18 @@
+# src/aeolus/data/qa_vocabularies/LAQN.yaml
+code: LAQN
+name: London Air Quality Network
+country: GB
+regulatory: true
+operators:
+- Imperial College London (ERG)
+instrument_class: reference
+qa_model: regulatory_temporal_ratification
+default_ratification_stage: null
+qa_code_vocabulary: {}
+ratification_cadence_months: null
+first_ratification_latency_months: null
+full_year_ratified_by: null
+ratification_overrides: revision window ~12 months
+data_licence: OGL-UK-3.0
+homepage_url: https://www.londonair.org.uk
+notes: ''

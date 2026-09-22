@@ -174,9 +174,14 @@ def download(
     start_date, end_date = resolve_dates(start_date, end_date, last)
 
     from .. import cache as _cache
+    from ..schema import finalise_data_frame
+
+    # Finalise BEFORE caching, so the cache only ever holds public frames.
+    def fetch_public(sites_, start_, end_):
+        return finalise_data_frame(fetcher(sites_, start_, end_), portal)
 
     return _cache.fetch_with_cache(
-        portal, sites, start_date, end_date, fetcher, last=last
+        portal, sites, start_date, end_date, fetch_public, last=last
     )
 
 

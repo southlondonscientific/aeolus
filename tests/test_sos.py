@@ -18,7 +18,8 @@ import responses
 from aeolus import api
 from aeolus.registry import clear_registry, get_source, register_source
 from aeolus.sources import sos
-from aeolus.types import DATA_COLUMNS
+from aeolus.schema import DATA_COLUMNS as PUBLIC_DATA_COLUMNS
+from aeolus.types import ADAPTER_DATA_COLUMNS
 
 
 # ============================================================================
@@ -386,7 +387,7 @@ class TestDataFetching:
         )
 
         assert not df.empty
-        assert list(df.columns) == DATA_COLUMNS
+        assert list(df.columns) == ADAPTER_DATA_COLUMNS
         assert all(df["site_code"] == "CLL2")
         assert all(df["measurand"] == "NO2")
         assert all(df["source_network"] == "AURN")
@@ -512,7 +513,7 @@ class TestDataFetching:
         )
 
         assert df.empty
-        assert list(df.columns) == DATA_COLUMNS
+        assert list(df.columns) == ADAPTER_DATA_COLUMNS
 
     def test_unmapped_site_returns_empty(self):
         """Requesting a site with no SOS mapping returns empty frame."""
@@ -804,7 +805,7 @@ class TestGetCurrent:
         }
 
         df = api.get_current("AURN", sites=["CLL2"])
-        assert list(df.columns) == DATA_COLUMNS
+        assert list(df.columns) == PUBLIC_DATA_COLUMNS
 
     def test_fallback_skips_nan_value_latest_row(self):
         """The fetch_data fallback must return the latest VALID reading, not a
@@ -862,7 +863,7 @@ class TestGetCurrent:
 
         df = api.get_current("FAKE", sites=["S1"])
         assert df.empty
-        assert list(df.columns) == DATA_COLUMNS
+        assert list(df.columns) == PUBLIC_DATA_COLUMNS
 
 
 # ============================================================================

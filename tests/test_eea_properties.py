@@ -18,7 +18,7 @@ from aeolus.sources.eea import (
     VERIFICATION_MAP,
     normalise_eea_data,
 )
-from aeolus.types import DATA_COLUMNS
+from aeolus.types import ADAPTER_DATA_COLUMNS
 
 pytestmark = pytest.mark.property
 
@@ -86,7 +86,7 @@ class TestEEANormalisationProperties:
         normaliser = normalise_eea_data()
         result = normaliser(df)
 
-        for col in DATA_COLUMNS:
+        for col in ADAPTER_DATA_COLUMNS:
             assert col in result.columns
 
     @given(df=eea_raw_dataframes(min_rows=1, max_rows=50))

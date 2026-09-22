@@ -79,10 +79,14 @@ fig = viz.plot_time_variation(data, pollutant="NO2")
 All sources return data in a consistent format:
 
 ```
-site_code | date_time           | measurand | value | units | source_network | ratification | created_at
-----------|---------------------|-----------|-------|-------|----------------|--------------|--------------------
-MY1       | 2024-01-01 00:00:00 | NO2       | 45.2  | ug/m3 | AURN           | None         | 2026-02-16 12:00:00
+site_code | network | date_time                 | measurand | value | units | qa_code | qa_tier | ratification_stage | backend | source_network | ratification | created_at
+----------|---------|---------------------------|-----------|-------|-------|---------|---------|--------------------|---------|----------------|--------------|---------------------------
+MY1       | AURN    | 2024-01-01 00:00:00+00:00 | NO2       | 45.2  | ug/m3 | null    | unknown | null               | RDATA   | AURN           | None         | 2026-02-16 12:00:00+00:00
 ```
+
+- `network` is who produced the data; `backend` is which of Aeolus's fetchers served it (`AURN` via `RDATA` or `SOS`).
+- `qa_code` is the upstream's own quality token, verbatim. `qa_tier` (`reference_full_qc`, `reference_provisional`, `lcs_calibrated`, `lcs_factory_only`, `flagged`, `unknown`) and `ratification_stage` (`unratified`, `ratified`, `supplied`, `not_applicable`, or null) are derived from it through the network's vocabulary, so they mean the same thing across networks.
+- `source_network` and `ratification` are deprecated mirrors of the columns above, kept until 1.0. Set `AEOLUS_LEGACY_COLUMNS=0` to drop them and confirm your code no longer reads them.
 
 This makes it easy to combine and compare data from different sources.
 
@@ -91,10 +95,12 @@ This makes it easy to combine and compare data from different sources.
 Site metadata (from `find_sites()`) uses a consistent format:
 
 ```
-site_code | site_name          | latitude | longitude | source_network
-----------|--------------------|---------:|----------:|--------------
-MY1       | London Marylebone  | 51.5225  | -0.1546   | AURN
+site_code | site_name          | latitude | longitude | network | country | instrument_class | provider | backend | measurands | source_network
+----------|--------------------|---------:|----------:|---------|---------|------------------|----------|---------|------------|---------------
+MY1       | London Marylebone  | 51.5225  | -0.1546   | AURN    | GB      | reference        | null     | RDATA   | [NO2, ...] | AURN
 ```
+
+`provider` is the operating council for LMAM sites and null elsewhere; `instrument_class` is the network's default until per-site values are wired.
 
 When using `near`, an additional `distance_km` column is included, sorted nearest-first.
 

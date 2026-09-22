@@ -302,3 +302,11 @@ def _reset_rdata_circuit():
     reset_rdata_circuit()
     yield
     reset_rdata_circuit()
+
+
+@pytest.fixture(autouse=True)
+def _legacy_warning_already_given(monkeypatch):
+    """The once-per-process DeprecationWarning is tested explicitly; elsewhere it is noise."""
+    from aeolus import schema
+
+    monkeypatch.setattr(schema, "_warned_legacy", True)

@@ -47,6 +47,11 @@ def assert_data_schema(df: pd.DataFrame, source: str) -> None:
     """Assert all 8 DATA_COLUMNS are present."""
     missing = set(DATA_COLUMNS) - set(df.columns)
     assert not missing, f"[{source}] data missing columns: {sorted(missing)}"
+    from aeolus.qa import QA_TIERS, RATIFICATION_STAGES
+
+    assert set(df["qa_tier"].unique()) <= set(QA_TIERS)
+    assert set(df["ratification_stage"].dropna().unique()) <= set(RATIFICATION_STAGES)
+    assert (df["network"] == df["source_network"]).all()
 
 
 def assert_metadata_schema(df: pd.DataFrame, source: str) -> None:

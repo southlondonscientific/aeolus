@@ -196,7 +196,7 @@ class TestTimeAverage:
         result = time_average(data, freq="D")
         expected_cols = {
             "site_code", "date_time", "measurand", "value",
-            "units", "source_network", "data_capture",
+            "units", "network", "source_network", "data_capture",
         }
         assert set(result.columns) == expected_cols
 
@@ -663,3 +663,9 @@ class TestUnitsEdgeCases:
         result = aq_stats(df)
         assert result["units"].iloc[0] == "ug/m3"
         assert result["annual_mean"].iloc[0] == pytest.approx(100.0 * 46.01 / 24.45, rel=1e-3)
+
+
+def test_time_average_carries_network():
+    df = _make_hourly_data(start="2023-01-01", end="2023-01-01 23:00", value=10.0)
+    df = df.rename(columns={"source_network": "network"})
+    assert time_average(df, freq="D")["network"].tolist() == ["TEST"]

@@ -56,7 +56,7 @@ from ..transforms import (
     select_columns,
 )
 from ..types import (
-    DATA_COLUMNS,
+    ADAPTER_DATA_COLUMNS,
     METADATA_COLUMNS,
     AeolusDataWarning,
     empty_data_frame,
@@ -321,7 +321,7 @@ def fetch_laqn_erg_data(
             add_column("source_network", "LAQN"),
             add_column("ratification", "None"),
             add_column("created_at", lambda df: datetime.now(timezone.utc)),
-            select_columns(*DATA_COLUMNS, require_all=True),
+            select_columns(*ADAPTER_DATA_COLUMNS, require_all=True),
             reset_index(),
         )
 
