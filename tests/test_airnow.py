@@ -8,6 +8,7 @@ with mocked responses.
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
+import pandas as pd
 import pytest
 
 from aeolus.registry import _SOURCES
@@ -866,3 +867,18 @@ class TestLiveIntegration:
         # Verify structure even if empty
         expected_cols = {"site_code", "date_time", "measurand", "value", "units"}
         assert expected_cols.issubset(set(df.columns))
+
+
+def _fake_airnow_hours(endpoint, params):
+    hours = pd.date_range(datetime.strptime(params["startDate"], "%Y-%m-%dT%H"),
+                          datetime.strptime(params["endDate"], "%Y-%m-%dT%H"), freq="h")
+    return [{"Parameter": "PM2.5", "Value": 10.0, "Unit": "UG/M3", "UTC": ts.strftime("%Y-%m-%dT%H:%M")} for ts in hours]
+
+
+@patch("aeolus.sources.airnow._call_airnow_api", side_effect=_fake_airnow_hours)
+def test_qa_code_is_provisional(mock_api):
+    from aeolus.types import ADAPTER_DATA_COLUMNS_QA
+
+    df = fetch_airnow_data(sites=["34d0522_m118d2437"], start_date=datetime(2024, 1, 15), end_date=datetime(2024, 1, 15, 3))
+    assert list(df.columns) == ADAPTER_DATA_COLUMNS_QA
+    assert set(df["qa_code"]) == {"Provisional"}

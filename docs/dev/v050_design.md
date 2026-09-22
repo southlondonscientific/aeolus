@@ -145,6 +145,14 @@ quarterly while LA sites are six-monthly).
 | LAQN, LMAM, Sensor.Community, Sonitus, OpenAQ | Honest `unknown` (no surfaced per-row flag); OpenAQ best-effort coarse tier from its monitor/sensor flag. | None (passthrough) |
 | Breathe London | Map `P`→`lcs_calibrated`/`unratified`. **Do not freeze `R`** (auth-gated, never observed). Stop synthesising `'Indicative'` for missing status → `unknown`. | Low |
 
+**Status (2026-09-22, plan 2 implemented):** AURN/SAQN/WAQN/NI/AQE — wired via the `ratified_to` join keyed on
+`(site, measurand)` (§17.7); tokens `verified`/`unverified` (AURN) and `Ratified`/`Provisional` (others); **`Supplied`
+not emitted** — the metadata has no observable signal for it (`ratified_to == "Never"` cannot be told from "not yet").
+SOS sources — wired, always the unratified token. EEA — wired on `Verification` only; the `Validity`/`dataset` → tier
+refinement is not done (invalid rows are dropped per §17.3). PurpleAir — wired (channel/confidence label). Breathe London
+— wired (`RatificationStatus` verbatim; `R` passes through unmapped → `unknown`). AirNow — wired (`Provisional`). AirQo —
+**not wired** (§17.4, expired key). LAQN, LMAM, Sensor.Community, Sonitus, OpenAQ — passthrough, `unknown`.
+
 ---
 
 ## 8. Grounded network table (the 15 v0.5.0 network codes)
@@ -257,6 +265,7 @@ do **not** silently pick:
 - **WAQN/NI** confirm Ricardo-as-contractor and exact cadence (Argus seed TODOs); **WAQN licence** is confirmed narrower-than-OGL.
 - **EEA** ratification scalar is a range (min ~9mo, typical ~15mo); `dataset=3` Airbase legacy may be `supplied` not `ratified`;
   `Validity=1..4`→`reference_full_qc` may over-claim — confirm against the EIONET vocabulary.
+- **`Supplied`** (AQE/SAQN/WAQN/NI) is in the vocabularies but unwired: find an operator/site-type field that marks LA-supplied sites, or accept that it stays a documented-but-unobserved token.
 - **LMAM** per-provider QA facts (Sussex `Approved`/`Provisional`, Kent `ratified`/`provisional`, etc.) are recorded in the
   appendix for a possible v0.6 decomposition but are **not** minted as networks now; the LMAM feed emits `unknown` for all.
 

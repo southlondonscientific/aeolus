@@ -632,6 +632,7 @@ class TestFetchPurpleairData:
             "source_network",
             "ratification",
             "created_at",
+            "qa_code",
         ]
         assert list(result.columns) == expected_columns
 
@@ -736,7 +737,7 @@ class TestFetchPurpleairData:
         )
 
         # Should have channel disagreement flag
-        assert "Channel Disagreement" in result["ratification"].values
+        assert "Channel Disagreement" in result["qa_code"].values
 
     def test_returns_empty_raw_without_api_key(self, monkeypatch):
         """Test that missing API key returns empty raw DataFrame."""
@@ -781,7 +782,7 @@ class TestQAQCEdgeCases:
         )
 
         # First row has below detection values
-        below_detection = result[result["ratification"] == "Below Detection Limit"]
+        below_detection = result[result["qa_code"] == "Below Detection Limit"]
         assert len(below_detection) > 0
 
     @patch("aeolus.sources.purpleair._get_purpleair_client")
@@ -802,7 +803,7 @@ class TestQAQCEdgeCases:
         )
 
         # Second row has saturation values
-        saturation = result[result["ratification"] == "Sensor Saturation"]
+        saturation = result[result["qa_code"] == "Sensor Saturation"]
         assert len(saturation) > 0
 
     @patch("aeolus.sources.purpleair._get_purpleair_client")
@@ -826,7 +827,7 @@ class TestQAQCEdgeCases:
 
         # First row: good agreement (5% diff) should be Validated
         # Second row: poor agreement (33% diff) should be Channel Disagreement
-        ratifications = pm25_results["ratification"].tolist()
+        ratifications = pm25_results["qa_code"].tolist()
         assert "Validated" in ratifications
         assert "Channel Disagreement" in ratifications
 
@@ -1178,7 +1179,7 @@ class TestPurpleairNormalizer:
         pm25_third = result[
             (result["measurand"] == "PM2.5") & (result["date_time"].dt.hour == 2)
         ]
-        assert pm25_third["ratification"].iloc[0] == "Single Channel (A)"
+        assert pm25_third["qa_code"].iloc[0] == "Single Channel (A)"
 
     def test_flags_channel_disagreement(self, mock_historic_response_with_disagreement):
         """Test that channel disagreement is flagged."""
@@ -1190,7 +1191,7 @@ class TestPurpleairNormalizer:
         result = normaliser(df)
 
         pm25_row = result[result["measurand"] == "PM2.5"]
-        assert pm25_row["ratification"].iloc[0] == "Channel Disagreement"
+        assert pm25_row["qa_code"].iloc[0] == "Channel Disagreement"
 
     def test_adds_source_network(self, mock_historic_response):
         """Test that source_network column is added."""
@@ -1244,6 +1245,7 @@ class TestPurpleairNormalizer:
             "source_network",
             "ratification",
             "created_at",
+            "qa_code",
         ]
         assert list(result.columns) == expected_columns
 
@@ -1477,7 +1479,7 @@ class TestPurpleairIntegration:
         )
 
         # Check that we have different ratification statuses
-        ratifications = result["ratification"].unique()
+        ratifications = result["qa_code"].unique()
         assert "Validated" in ratifications
         assert "Single Channel (A)" in ratifications
 
@@ -1683,7 +1685,7 @@ def test_normaliser_all_null_channels_is_quietly_empty():
     import warnings
 
     from aeolus.sources.purpleair import create_purpleair_normaliser
-    from aeolus.types import ADAPTER_DATA_COLUMNS
+    from aeolus.types import ADAPTER_DATA_COLUMNS_QA
 
     raw = pd.DataFrame(
         {"sensor_index": [1], "time_stamp": [1704067200], "pm2.5_atm_a": [None], "pm2.5_atm_b": [None]}
@@ -1692,4 +1694,47 @@ def test_normaliser_all_null_channels_is_quietly_empty():
         warnings.simplefilter("error")
         result = create_purpleair_normaliser()(raw)
     assert result.empty
-    assert list(result.columns) == ADAPTER_DATA_COLUMNS
+    assert list(result.columns) == ADAPTER_DATA_COLUMNS_QA
+
+
+def test_qa_code_is_the_channel_token():
+    from aeolus.sources.purpleair import create_purpleair_normaliser
+    from aeolus.types import ADAPTER_DATA_COLUMNS_QA
+
+    raw = pd.DataFrame({"sensor_index": [1, 1], "time_stamp": [1704067200, 1704070800],
+                        "pm2.5_atm_a": [10.0, 10.0], "pm2.5_atm_b": [10.5, 400.0]})
+    out = create_purpleair_normaliser()(raw).sort_values("date_time")
+    assert list(out.columns) == ADAPTER_DATA_COLUMNS_QA
+    assert out["qa_code"].iloc[0] == "Validated"
+    assert out["qa_code"].iloc[1] != "Validated"
+
+
+def test_adapter_mirror_equals_the_public_mirror():
+    from aeolus.sources.purpleair import create_purpleair_normaliser
+
+    raw = pd.DataFrame({"sensor_index": [1, 1], "time_stamp": [1704067200, 1704070800],
+                        "pm2.5_atm_a": [10.0, 10.0], "pm2.5_atm_b": [10.5, 400.0]})
+    out = create_purpleair_normaliser()(raw).sort_values("date_time")
+    assert out["qa_code"].iloc[0] == "Validated" and out["qa_code"].iloc[1] != "Validated"
+    assert out["ratification"].tolist() == ["Validated", "Invalid"]
+
+
+def test_offline_sensor_with_include_flagged_false_does_not_crash():
+    """All channels null → the normaliser's own empty path must carry qa_code,
+    or the include_flagged filter raises KeyError."""
+    from aeolus.sources import purpleair
+    from aeolus.types import ADAPTER_DATA_COLUMNS_QA
+
+    client = MagicMock()
+    client.request_sensor_historic_data.return_value = {
+        "fields": ["time_stamp", "pm2.5_atm_a", "pm2.5_atm_b"], "data": [[1704067200, None, None]],
+    }
+    with patch.object(purpleair, "_get_purpleair_client", return_value=client):
+        out = purpleair.fetch_purpleair_data(["1"], datetime(2024, 1, 1), datetime(2024, 1, 2), include_flagged=False)
+    assert out.empty and list(out.columns) == ADAPTER_DATA_COLUMNS_QA
+
+
+def test_below_detection_limit_is_in_the_vocabulary():
+    from aeolus.network_registry import get_network_spec
+
+    assert get_network_spec("PURPLEAIR").qa_code_vocabulary["Below Detection Limit"]["qa_tier"] == "lcs_factory_only"

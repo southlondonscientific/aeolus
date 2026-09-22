@@ -415,7 +415,7 @@ class TestMakeDataFetcher:
         )
 
         expected_url = f"{DATA_BASE_URLS['aurn']}MY1_2024.RData"
-        mock_fetch.assert_called_with(expected_url)
+        mock_fetch.assert_any_call(expected_url)  # the metadata is fetched too
 
     @patch("aeolus.sources.regulatory.fetch_rdata")
     def test_data_fetcher_fetches_multiple_years(self, mock_fetch, mock_data_df):
@@ -429,8 +429,8 @@ class TestMakeDataFetcher:
             end_date=datetime(2024, 12, 31),
         )
 
-        # Should have called for 2022, 2023, 2024
-        assert mock_fetch.call_count == 3
+        # 2022, 2023, 2024 — plus one metadata fetch for the ratified_to join
+        assert mock_fetch.call_count == 4
 
     @patch("aeolus.sources.regulatory.fetch_rdata")
     def test_data_fetcher_fetches_multiple_sites(self, mock_fetch, mock_data_df):
@@ -444,8 +444,8 @@ class TestMakeDataFetcher:
             end_date=datetime(2024, 12, 31),
         )
 
-        # Should have called for both sites
-        assert mock_fetch.call_count == 2
+        # both sites, plus one metadata fetch for the ratified_to join
+        assert mock_fetch.call_count == 3
 
     @patch("aeolus.sources.regulatory.fetch_rdata")
     def test_data_fetcher_normalises_result(self, mock_fetch, mock_data_df):
@@ -510,7 +510,7 @@ class TestMakeDataFetcher:
         )
 
         expected_url = f"{DATA_BASE_URLS['aurn']}MY1_2024.RData"
-        mock_fetch.assert_called_with(expected_url)
+        mock_fetch.assert_any_call(expected_url)  # the metadata is fetched too
 
 
 # ============================================================================
@@ -873,3 +873,135 @@ class TestLiveIntegration:
         if not df.empty:
             assert "site_code" in df.columns
             assert all(df["source_network"] == "SAQN")
+
+
+# =========================================================================
+# v0.5.0 QA wiring: ratified_to join
+# =========================================================================
+
+from datetime import date
+
+from aeolus.sources import regulatory as reg
+
+
+def _metadata_rdata(rows):
+    """A metadata RData frame as fetch_rdata returns it."""
+    return pd.DataFrame(rows, columns=["site_id", "site_name", "location_type", "latitude", "longitude",
+                                       "parameter", "Parameter_name", "start_date", "end_date", "ratified_to",
+                                       "zone", "agglomeration", "local_authority"])
+
+
+def _data_rdata(hours, **values):
+    base = pd.Timestamp("2024-01-01", tz="UTC")
+    return pd.DataFrame({"date": [(base + pd.Timedelta(hours=h)).timestamp() for h in hours],
+                         "site": "Marylebone Road", "code": "MY1", **values})
+
+
+META = _metadata_rdata([
+    ["MY1", "Marylebone Road", "Urban Traffic", 51.52, -0.15, "NO2", "Nitrogen dioxide", "1997-07-17", "ongoing", "2024-01-01", "", "", ""],
+    ["MY1", "Marylebone Road", "Urban Traffic", 51.52, -0.15, "O3", "Ozone", "1997-07-17", "ongoing", "Never", "", "", ""],
+])
+
+
+class TestRatifiedToJoin:
+    def _fetch(self, network, meta=META):
+        def side_effect(url):
+            return meta if url == reg.METADATA_URLS[network] else _data_rdata([0, 23, 24, 25], NO2=[1.0, 2.0, 3.0, 4.0], O3=[5.0] * 4, SO2=[6.0] * 4)
+        with patch("aeolus.sources.regulatory.fetch_rdata", side_effect=side_effect):
+            return reg.make_data_fetcher(network)(["MY1"], datetime(2024, 1, 1, tzinfo=timezone.utc), datetime(2024, 1, 3, tzinfo=timezone.utc))
+
+    def test_rows_on_or_before_ratified_to_are_ratified(self):
+        out = self._fetch("aurn")
+        no2 = out[out["measurand"] == "NO2"].sort_values("date_time")
+        assert no2["qa_code"].tolist() == ["verified", "verified", "unverified", "unverified"]
+
+    def test_never_ratified_and_unknown_measurands(self):
+        out = self._fetch("aurn")
+        assert set(out.loc[out["measurand"] == "O3", "qa_code"]) == {"unverified"}   # "Never"
+        assert out.loc[out["measurand"] == "SO2", "qa_code"].isna().all()           # not in metadata
+
+    def test_other_uk_networks_use_their_own_tokens(self):
+        out = self._fetch("aqe")
+        no2 = out[out["measurand"] == "NO2"].sort_values("date_time")
+        assert no2["qa_code"].tolist() == ["Ratified", "Ratified", "Provisional", "Provisional"]
+
+    def test_wired_adapter_columns(self):
+        from aeolus.types import ADAPTER_DATA_COLUMNS_QA
+
+        assert list(self._fetch("aurn").columns) == ADAPTER_DATA_COLUMNS_QA
+
+    def test_unwired_networks_have_no_qa_column(self):
+        with patch("aeolus.sources.regulatory.fetch_rdata", return_value=_data_rdata([0, 1], NO2=[1.0, 2.0])):
+            out = reg.make_data_fetcher("lmam")(["AD1"], datetime(2024, 1, 1, tzinfo=timezone.utc), datetime(2024, 1, 2, tzinfo=timezone.utc))
+        assert "qa_code" not in out.columns
+
+    def test_lookup_is_not_cached_when_metadata_is_unavailable(self):
+        with patch("aeolus.sources.regulatory.fetch_rdata", return_value=None):
+            assert reg._ratified_to_lookup("aurn") == {}
+        with patch("aeolus.sources.regulatory.fetch_rdata", return_value=META):
+            assert reg._ratified_to_lookup("aurn")[("MY1", "NO2")] == date(2024, 1, 1)
+            assert reg._ratified_to_lookup("aurn")[("MY1", "O3")] is None
+
+    def test_end_to_end_tier_and_mirror(self):
+        import aeolus
+
+        def side_effect(url):
+            return META if url == reg.METADATA_URLS["aurn"] else _data_rdata([0, 25], NO2=[1.0, 2.0])
+        with patch("aeolus.sources.regulatory.fetch_rdata", side_effect=side_effect):
+            out = aeolus.download("AURN", ["MY1"], datetime(2024, 1, 1), datetime(2024, 1, 3)).sort_values("date_time")
+        assert out["qa_tier"].tolist() == ["reference_full_qc", "reference_provisional"]
+        assert out["ratification_stage"].tolist() == ["ratified", "unratified"]
+        assert out["ratification"].tolist() == ["Ratified", "Provisional"]
+
+
+class TestRatifiedToJoinReviewFixes:
+    """PR #16 review: silent failures, non-date values, empties, the mirror, refresh."""
+
+    def _run(self, network, meta_response, data_hours=(0, 25)):
+        def side_effect(url):
+            if url == reg.METADATA_URLS[network]:
+                return meta_response
+            return _data_rdata(list(data_hours), NO2=[1.0] * len(data_hours))
+        with patch("aeolus.sources.regulatory.fetch_rdata", side_effect=side_effect):
+            return reg.make_data_fetcher(network)(["MY1"], datetime(2024, 1, 1, tzinfo=timezone.utc), datetime(2024, 1, 3, tzinfo=timezone.utc))
+
+    def test_metadata_unavailable_warns_and_yields_null_codes(self):
+        from aeolus.types import AeolusDataWarning
+
+        with pytest.warns(AeolusDataWarning, match="ratification"):
+            out = self._run("aurn", None)
+        assert out["qa_code"].isna().all()
+
+    @pytest.mark.parametrize("value", [pd.NA, None, "", "ongoing", "not-a-date"])
+    def test_non_date_ratified_to_is_unknown_not_never(self, value):
+        meta = _metadata_rdata([["MY1", "Marylebone Road", "Urban Traffic", 51.52, -0.15, "NO2", "Nitrogen dioxide", "1997-07-17", "ongoing", value, "", "", ""]])
+        out = self._run("aurn", meta)
+        assert out["qa_code"].isna().all(), "only the literal 'Never' means never-ratified"
+
+    def test_literal_never_is_unratified(self):
+        out = self._run("aurn", META)
+        assert set(out.loc[out["measurand"] == "NO2", "qa_code"]) <= {"verified", "unverified"}
+
+    def test_empty_result_carries_the_qa_column(self):
+        from aeolus.types import ADAPTER_DATA_COLUMNS_QA
+
+        with patch("aeolus.sources.regulatory.fetch_rdata", return_value=None), pytest.warns(Warning):
+            out = reg.make_data_fetcher("aurn")(["MY1"], datetime(2024, 1, 1, tzinfo=timezone.utc), datetime(2024, 1, 2, tzinfo=timezone.utc))
+        assert out.empty and list(out.columns) == ADAPTER_DATA_COLUMNS_QA
+
+    def test_adapter_mirror_equals_the_public_mirror(self):
+        out = self._run("aurn", META).sort_values("date_time")
+        assert out["ratification"].tolist() == ["Ratified", "Provisional"]
+
+    def test_lookup_refreshes_after_ttl(self, monkeypatch):
+        monkeypatch.setattr(reg, "_METADATA_TTL_S", 0)
+        with patch("aeolus.sources.regulatory.fetch_rdata", return_value=META) as mock_fetch:
+            reg._ratified_to_lookup("aurn")
+            reg._ratified_to_lookup("aurn")
+        assert mock_fetch.call_count == 2
+
+    def test_find_sites_and_the_join_share_one_metadata_download(self):
+        with patch("aeolus.sources.regulatory.fetch_rdata", return_value=META) as mock_fetch:
+            reg.make_metadata_fetcher("aurn")()
+            reg._ratified_to_lookup("aurn")
+        assert mock_fetch.call_count == 1

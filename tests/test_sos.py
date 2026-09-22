@@ -19,7 +19,7 @@ from aeolus import api
 from aeolus.registry import clear_registry, get_source, register_source
 from aeolus.sources import sos
 from aeolus.schema import DATA_COLUMNS as PUBLIC_DATA_COLUMNS
-from aeolus.types import ADAPTER_DATA_COLUMNS
+from aeolus.types import ADAPTER_DATA_COLUMNS, ADAPTER_DATA_COLUMNS_QA
 
 
 # ============================================================================
@@ -387,7 +387,7 @@ class TestDataFetching:
         )
 
         assert not df.empty
-        assert list(df.columns) == ADAPTER_DATA_COLUMNS
+        assert list(df.columns) == ADAPTER_DATA_COLUMNS_QA
         assert all(df["site_code"] == "CLL2")
         assert all(df["measurand"] == "NO2")
         assert all(df["source_network"] == "AURN")
@@ -435,6 +435,14 @@ class TestDataFetching:
             ["CLL2"], datetime(2026, 3, 18, tzinfo=timezone.utc), datetime(2026, 3, 19, tzinfo=timezone.utc)
         )
         assert set(df["units"]) == {expected}
+
+    @responses.activate
+    def test_sos_rows_carry_the_networks_unratified_token(self):
+        responses.add(responses.GET, f"{sos.SOS_BASE_URL}/timeseries/3/getData", json=MOCK_GETDATA_RESPONSE, status=200)
+        _register_mock_aurn_and_sos()
+        sos._network_mappings["aurn"] = {"CLL2": [{"ts_id": "3", "measurand": "NO2", "uom": "ug/m3"}]}
+        df = sos.make_sos_data_fetcher("aurn")(["CLL2"], datetime(2026, 3, 18, tzinfo=timezone.utc), datetime(2026, 3, 19, tzinfo=timezone.utc))
+        assert set(df["qa_code"]) == {"unverified"}
 
     @responses.activate
     def test_null_value_dropped_not_crash(self):
@@ -513,7 +521,7 @@ class TestDataFetching:
         )
 
         assert df.empty
-        assert list(df.columns) == ADAPTER_DATA_COLUMNS
+        assert list(df.columns) == ADAPTER_DATA_COLUMNS_QA
 
     def test_unmapped_site_returns_empty(self):
         """Requesting a site with no SOS mapping returns empty frame."""

@@ -59,13 +59,15 @@ import os
 import struct
 import json
 import threading
+import time
 import warnings
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from logging import warning
 from pathlib import Path
 from typing import Callable
 from urllib.parse import urlsplit
 
+import numpy as np
 import pandas as pd
 import rdata
 import requests
@@ -81,6 +83,7 @@ warnings.filterwarnings(
 
 from ..decorators import retry_on_network_error
 from ..registry import register_source
+from ..schema import legacy_mirror
 from ..transforms import (
     add_column,
     add_measurands_column,
@@ -130,6 +133,119 @@ DATA_BASE_URLS = {
     "laqn": "https://www.londonair.org.uk/r_data/",
     "lmam": "https://uk-air.defra.gov.uk/openair/LMAM/R_data/",
 }
+
+# (ratified token, unratified token) in each network's own words. The openair
+# metadata gives a `ratified_to` date per (site, parameter); rows on or before
+# it are ratified. AURN's tokens follow openair's `<species>_qc`; the other
+# UK networks publish "Ratified"/"Provisional" (and "Supplied", which the
+# metadata cannot reveal, so it is never emitted here). LMAM and LAQN carry
+# no ratification field and stay unwired.
+RATIFICATION_TOKENS = {
+    "aurn": ("verified", "unverified"),
+    "saqn": ("Ratified", "Provisional"),
+    "saqd": ("Ratified", "Provisional"),
+    "waqn": ("Ratified", "Provisional"),
+    "ni": ("Ratified", "Provisional"),
+    "aqe": ("Ratified", "Provisional"),
+}
+
+# The metadata RData is read by find_sites (site list) and by the ratified_to
+# join; one download serves both, remembered for AEOLUS_METADATA_TTL_S seconds
+# (default a day) so a long-running process still sees new ratifications.
+_METADATA_TTL_S = int(os.environ.get("AEOLUS_METADATA_TTL_S", "86400"))
+_metadata_cache: dict[str, tuple[float, pd.DataFrame]] = {}
+_ratified_to_cache: dict[str, tuple[int, dict]] = {}
+
+
+def reset_ratification_lookups() -> None:
+    """Forget cached metadata and ratified_to lookups (tests and ops)."""
+    _metadata_cache.clear()
+    _ratified_to_cache.clear()
+
+
+def _raw_metadata(network: str) -> pd.DataFrame | None:
+    """The network's metadata RData, downloaded at most once per TTL.
+
+    A failed download is not remembered, so the next call retries.
+    """
+    url = METADATA_URLS.get(network.lower())
+    if url is None:
+        return None
+    hit = _metadata_cache.get(url)
+    if hit is not None and time.time() - hit[0] < _METADATA_TTL_S:
+        return hit[1]
+    df = fetch_rdata(url)
+    if df is not None:
+        _metadata_cache[url] = (time.time(), df)
+    return df
+
+
+def _ratified_to_lookup(network: str) -> dict[tuple[str, str], date | None]:
+    """``(site_code, measurand) -> last ratified date`` for *network*.
+
+    ``None`` means the metadata says ``"Never"``. A pair whose value is
+    anything else that is not an ISO date (blank, NA, "ongoing") is left out,
+    so its rows get a null ``qa_code`` rather than a status the upstream never
+    asserted. Empty, with a warning, if the metadata could not be read.
+    """
+    network = network.lower()
+    df = _raw_metadata(network)
+    if df is None or not {"site_id", "parameter", "ratified_to"} <= set(df.columns):
+        if df is None:
+            warnings.warn(
+                f"{network.upper()}: ratification metadata unavailable; qa_code will be "
+                "null for this download",
+                AeolusDataWarning,
+                stacklevel=4,
+            )
+        return {}
+    cached = _ratified_to_cache.get(network)
+    if cached is not None and cached[0] == id(df):
+        return cached[1]
+    lookup: dict[tuple[str, str], date | None] = {}
+    for site, param, ratified in zip(df["site_id"], df["parameter"], df["ratified_to"], strict=True):
+        if ratified is None or (not isinstance(ratified, str) and pd.isna(ratified)):
+            continue
+        text = str(ratified).strip()
+        key = (str(site).upper(), str(param))
+        if text == "Never":
+            lookup[key] = None
+            continue
+        try:
+            lookup[key] = date.fromisoformat(text)
+        except ValueError:
+            continue
+    _ratified_to_cache[network] = (id(df), lookup)
+    return lookup
+
+
+def _add_ratification_codes(df: pd.DataFrame, network: str) -> pd.DataFrame:
+    """Add ``qa_code`` from the ratified_to join, vectorised.
+
+    Rows whose (site, measurand) the metadata does not list get ``None``.
+    """
+    ratified_token, unratified_token = RATIFICATION_TOKENS[network.lower()]
+    if df.empty:
+        return df.assign(qa_code=pd.Series(dtype=object))
+    lookup = _ratified_to_lookup(network)
+    if not lookup:
+        return df.assign(qa_code=pd.Series([None] * len(df), index=df.index, dtype=object))
+
+    keys = pd.MultiIndex.from_arrays(
+        [df["site_code"].astype(str).str.upper(), df["measurand"].astype(str)]
+    )
+    until = pd.Series(
+        {k: (pd.Timestamp(v) if v is not None else pd.NaT) for k, v in lookup.items()},
+        dtype="datetime64[ns]",
+    )
+    until.index = pd.MultiIndex.from_tuples(until.index)
+    listed = keys.isin(until.index)
+    mapped = until.reindex(keys).to_numpy()  # NaT for "Never" and for unlisted pairs
+    day = df["date_time"].dt.tz_convert("UTC").dt.tz_localize(None).dt.floor("D").to_numpy()
+    ratified = listed & (day <= mapped)  # a NaT comparison is False
+    codes = np.where(~listed, None, np.where(ratified, ratified_token, unratified_token))
+    return df.assign(qa_code=pd.Series(codes, index=df.index, dtype=object))
+
 
 # LAQN openair files use lowercase column names and `FINE` for PM2.5; the
 # `site` column contains the site code (no separate `code` column). Rename
@@ -468,8 +584,7 @@ def make_metadata_fetcher(network_name: str) -> MetadataFetcher:
     """
 
     def fetch_metadata() -> pd.DataFrame:
-        url = METADATA_URLS[network_name.lower()]
-        df = fetch_rdata(url)
+        df = _raw_metadata(network_name)
 
         if df is None:
             warnings.warn(
@@ -569,7 +684,7 @@ def make_data_fetcher(
                 AeolusDataWarning,
                 stacklevel=2,
             )
-            return empty_data_frame()
+            return empty_data_frame(qa=network_name.lower() in RATIFICATION_TOKENS)
 
         # Concatenate all results
         combined = pd.concat(results, ignore_index=True)
@@ -587,6 +702,11 @@ def make_data_fetcher(
                 normalised["date_time"] <= ed
             )
             normalised = normalised[mask]
+
+        if network_name.lower() in RATIFICATION_TOKENS:
+            normalised = _add_ratification_codes(normalised, network_name)
+            # The adapter's legacy label must be the one the public frame shows
+            normalised["ratification"] = legacy_mirror(network_name, normalised["qa_code"])
 
         return normalised
 

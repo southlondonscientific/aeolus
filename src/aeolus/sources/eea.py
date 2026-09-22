@@ -60,6 +60,7 @@ from io import BytesIO, StringIO
 from logging import getLogger
 from zipfile import ZipFile
 
+import numpy as np
 import pandas as pd
 import requests
 
@@ -75,8 +76,9 @@ from ..transforms import (
     select_columns,
 )
 from ..units import canonical_units
+from ..schema import legacy_mirror
 from ..types import (
-    ADAPTER_DATA_COLUMNS,
+    ADAPTER_DATA_COLUMNS_QA,
     METADATA_COLUMNS,
     AeolusDataWarning,
     empty_data_frame,
@@ -131,16 +133,6 @@ MEASURAND_TO_NOTATION = {
     "PM2.5": "PM2.5",
     "PM1": "PM1",
     "C6H6": "C6H6",
-}
-
-# EEA Verification codes -> Aeolus ratification values, per the EIONET
-# vocabulary (https://dd.eionet.europa.eu/vocabulary/aq/observationverification):
-#   1 = Verified, 2 = Preliminary verified, 3 = Not verified.
-# Until v0.4.6 this map was inverted (1 -> Provisional, 2/3 -> Verified).
-VERIFICATION_MAP = {
-    1: "Verified",
-    2: "Provisional",
-    3: "Provisional",
 }
 
 # Dataset ID sent to the download API. NB the name is historical and wrong:
@@ -538,7 +530,14 @@ def normalise_eea_data():
 
     def map_verification(df: pd.DataFrame) -> pd.DataFrame:
         df = df.copy()
-        df["ratification"] = df["Verification"].map(VERIFICATION_MAP).fillna("Provisional")
+        # The EIONET code itself is the QA token. Anything that is not an
+        # integer code (blank, "n/a", a float that is not whole) is a null
+        # code, never an error and never a made-up status.
+        codes = pd.to_numeric(df["Verification"], errors="coerce")
+        integral = codes.notna() & np.isfinite(codes) & (codes % 1 == 0)
+        text = codes.where(integral, 0).fillna(0).astype(int).astype(str)
+        df["qa_code"] = pd.Series(np.where(integral, text, None), index=df.index, dtype=object)
+        df["ratification"] = legacy_mirror("EEA", df["qa_code"])
         return df
 
     return compose(
@@ -556,7 +555,7 @@ def normalise_eea_data():
         add_column("source_network", "EEA"),
         map_verification,
         add_column("created_at", lambda df: datetime.now(timezone.utc)),
-        select_columns(*ADAPTER_DATA_COLUMNS, require_all=True),
+        select_columns(*ADAPTER_DATA_COLUMNS_QA, require_all=True),
         reset_index(),
     )
 
@@ -615,7 +614,7 @@ def fetch_eea_data(
             AeolusDataWarning,
             stacklevel=2,
         )
-        return empty_data_frame()
+        return empty_data_frame(qa=True)
 
     # Build POST body for the EEA Parquet API
     notation_list: list[str] = []
@@ -637,7 +636,7 @@ def fetch_eea_data(
 
     zip_bytes = _download_parquet(body)
     if not zip_bytes:
-        return empty_data_frame()
+        return empty_data_frame(qa=True)
 
     # Parse Parquet files from ZIP
     dfs: list[pd.DataFrame] = []
@@ -655,15 +654,15 @@ def fetch_eea_data(
             AeolusDataWarning,
             stacklevel=2,
         )
-        return empty_data_frame()
+        return empty_data_frame(qa=True)
 
     if not dfs:
-        return empty_data_frame()
+        return empty_data_frame(qa=True)
 
     raw_df = pd.concat(dfs, ignore_index=True)
 
     if raw_df.empty:
-        return empty_data_frame()
+        return empty_data_frame(qa=True)
 
     # Normalise
     normalise = normalise_eea_data()
@@ -674,7 +673,7 @@ def fetch_eea_data(
     df = df[df["site_code"].str.upper().isin(sites_upper)]
 
     if df.empty:
-        return empty_data_frame()
+        return empty_data_frame(qa=True)
 
     return df.reset_index(drop=True)
 

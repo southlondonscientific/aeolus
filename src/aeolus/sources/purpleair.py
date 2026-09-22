@@ -42,6 +42,7 @@ from .._dates import to_utc
 from ..decorators import retry_on_network_error
 from ..registry import register_source
 from ..transforms import add_column, compose, select_columns
+from ..schema import legacy_mirror
 from ..types import AeolusDataWarning, empty_data_frame, empty_metadata_frame
 
 logger = getLogger(__name__)
@@ -354,7 +355,9 @@ def fetch_purpleair_data(
             - temperature_a, temperature_b: Temperature from each channel
 
     Note:
-        QA/QC Flags (ratification column):
+        QA/QC Flags (qa_code column):
+            (these labels are emitted as ``qa_code``; the legacy ``ratification``
+            column carries the derived mirror)
             - "Validated": Both channels valid and agree within thresholds
             - "Channel Disagreement": Both channels valid but disagree
             - "Single Channel (A)" or "Single Channel (B)": Only one channel valid
@@ -401,7 +404,7 @@ def fetch_purpleair_data(
         client = _get_purpleair_client()
     except ValueError as e:
         warning(str(e))
-        return _empty_raw_dataframe() if raw else empty_data_frame()
+        return _empty_raw_dataframe() if raw else empty_data_frame(qa=True)
 
     all_data = []
 
@@ -461,7 +464,7 @@ def fetch_purpleair_data(
             logger.warning(f"No data returned for sensor {sensor_index}")
 
     if not all_data:
-        return _empty_raw_dataframe() if raw else empty_data_frame()
+        return _empty_raw_dataframe() if raw else empty_data_frame(qa=True)
 
     # Combine all sensor data
     combined = pd.concat(all_data, ignore_index=True)
@@ -476,7 +479,7 @@ def fetch_purpleair_data(
 
     # Filter out flagged data if requested
     if not include_flagged:
-        result = result[result["ratification"] == "Validated"]
+        result = result[result["qa_code"] == "Validated"]
 
     return result
 
@@ -638,6 +641,10 @@ def create_purpleair_normaliser():
         parse_timestamps,
         rename_columns,
         convert_temperature,
+        # The channel/confidence label IS the upstream QA token
+        add_column("qa_code", lambda df: df["ratification"].astype(object)),
+        # ... and the legacy label is the one the public frame will show
+        add_column("ratification", lambda df: legacy_mirror("PURPLEAIR", df["qa_code"])),
         add_column("source_network", "PURPLEAIR"),
         # Lazy callable — evaluated per fetch, not frozen at module-import time.
         add_column("created_at", lambda df: datetime.now(timezone.utc)),
@@ -650,6 +657,7 @@ def create_purpleair_normaliser():
             "source_network",
             "ratification",
             "created_at",
+            "qa_code",
             require_all=True,
         ),
     )
@@ -659,7 +667,7 @@ def create_purpleair_normaliser():
         if long_df.empty:
             # Every channel null (e.g. an offline sensor): legitimately no data,
             # not a schema violation
-            return empty_data_frame()
+            return empty_data_frame(qa=True)
         return pipeline(long_df)
 
     return normalise

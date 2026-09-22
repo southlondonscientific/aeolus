@@ -726,6 +726,7 @@ class TestFetchBreatheLondonData:
             "source_network",
             "ratification",
             "created_at",
+            "qa_code",
         ]
         assert list(result.columns) == expected_columns
 
@@ -857,15 +858,17 @@ class TestBreatheLondonNormalizer:
                 "Species": ["NO2", "PM2.5"],
                 "ScaledValue": [45.2, 18.5],
                 "Units": ["ug.m-3", "ug.m-3"],
-                "RatificationStatus": ["Ratified", None],
+                "RatificationStatus": ["P", None],
             }
         )
 
         result = normaliser(df)
 
         assert "ratification" in result.columns
-        assert result["ratification"].iloc[0] == "Ratified"
-        assert result["ratification"].iloc[1] == "Indicative"
+        assert result["qa_code"].iloc[0] == "P"
+        assert result["ratification"].iloc[0] == "Provisional"
+        assert result["qa_code"].iloc[1] is None
+        assert result["ratification"].iloc[1] == "Unvalidated"
 
     def test_adds_default_ratification_when_missing(self):
         """Test that default ratification is added when column missing."""
@@ -883,7 +886,7 @@ class TestBreatheLondonNormalizer:
 
         result = normaliser(df)
 
-        assert (result["ratification"] == "Indicative").all()
+        assert (result["ratification"] == "Unvalidated").all()
 
     def test_adds_source_network(self):
         """Test that source_network column is added."""
@@ -993,6 +996,7 @@ class TestBreatheLondonNormalizer:
             "source_network",
             "ratification",
             "created_at",
+            "qa_code",
         ]
         assert list(result.columns) == expected_columns
 
@@ -1405,3 +1409,28 @@ class TestLiveIntegration:
         # Verify structure even if empty
         expected_cols = {"site_code", "date_time", "measurand", "value", "units"}
         assert expected_cols.issubset(set(df.columns))
+
+
+def test_qa_code_is_ratification_status_verbatim_and_missing_is_none():
+    from aeolus.sources.breathe_london import create_breathe_london_normaliser
+    from aeolus.types import ADAPTER_DATA_COLUMNS_QA
+
+    raw = pd.DataFrame([
+        {"SiteCode": "BL0001", "DateTime": "2024-01-01T00:00:00Z", "Species": "NO2", "ScaledValue": 10.0, "Units": "ug.m-3", "RatificationStatus": "P"},
+        {"SiteCode": "BL0001", "DateTime": "2024-01-01T01:00:00Z", "Species": "NO2", "ScaledValue": 11.0, "Units": "ug.m-3", "RatificationStatus": None},
+    ])
+    out = create_breathe_london_normaliser()(raw).sort_values("date_time")
+    assert list(out.columns) == ADAPTER_DATA_COLUMNS_QA
+    assert out["qa_code"].tolist() == ["P", None]
+    assert "Indicative" not in set(out["ratification"])  # never synthesised any more
+
+
+def test_adapter_mirror_equals_the_public_mirror():
+    from aeolus.sources.breathe_london import create_breathe_london_normaliser
+
+    raw = pd.DataFrame([
+        {"SiteCode": "BL0001", "DateTime": "2024-01-01T00:00:00Z", "Species": "NO2", "ScaledValue": 10.0, "Units": "ug.m-3", "RatificationStatus": "P"},
+        {"SiteCode": "BL0001", "DateTime": "2024-01-01T01:00:00Z", "Species": "NO2", "ScaledValue": 11.0, "Units": "ug.m-3", "RatificationStatus": None},
+    ])
+    out = create_breathe_london_normaliser()(raw).sort_values("date_time")
+    assert out["ratification"].tolist() == ["Provisional", "Unvalidated"]

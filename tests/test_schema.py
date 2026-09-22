@@ -97,7 +97,7 @@ def test_the_cache_holds_public_frames(tmp_path):
         with patch.dict(get_source("AURN"), {"fetch_data": _fake_fetcher}):
             aeolus.download("AURN", ["MY1"], datetime(2024, 1, 1), datetime(2024, 1, 2))
         (path,) = tmp_path.rglob("*.parquet")
-        assert "v3" in path.parts
+        assert "v4" in path.parts  # bumped when real QA codes landed
         assert list(pd.read_parquet(path).columns) == DATA_COLUMNS
     finally:
         cache.disable_cache()

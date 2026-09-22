@@ -11,7 +11,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from aeolus.types import ADAPTER_DATA_COLUMNS, METADATA_COLUMNS
+from aeolus.types import ADAPTER_DATA_COLUMNS, ADAPTER_DATA_COLUMNS_QA, METADATA_COLUMNS
 
 
 @pytest.fixture(autouse=True)
@@ -215,9 +215,9 @@ class TestNormaliseEeaData:
         from aeolus.sources.eea import normalise_eea_data
 
         df = normalise_eea_data()(self._raw_df())
-        for col in ADAPTER_DATA_COLUMNS:
+        for col in ADAPTER_DATA_COLUMNS_QA:
             assert col in df.columns, f"Missing column: {col}"
-        assert len(df.columns) == len(ADAPTER_DATA_COLUMNS)
+        assert len(df.columns) == len(ADAPTER_DATA_COLUMNS_QA)
 
     @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
     def test_site_code_extraction(self, _mock_mapping):
@@ -287,13 +287,28 @@ class TestNormaliseEeaData:
         # 2 = Preliminary verified, 3 = Not verified.
         # https://dd.eionet.europa.eu/vocabulary/aq/observationverification
         # Fixture: NO2 rows carry Verification=2, the PM10 row Verification=1.
+        # The adapter's label is the same legacy mirror the public frame shows
         by_measurand = dict(zip(df["measurand"], df["ratification"], strict=True))
-        assert by_measurand == {"PM10": "Verified", "NO2": "Provisional"}
+        assert by_measurand == {"PM10": "Ratified", "NO2": "Provisional"}
 
-    def test_verification_map_matches_eionet_vocabulary(self):
-        from aeolus.sources.eea import VERIFICATION_MAP
+    @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
+    def test_unparseable_verification_is_null_not_an_error(self, _mock_mapping):
+        from aeolus.sources.eea import normalise_eea_data
 
-        assert VERIFICATION_MAP == {1: "Verified", 2: "Provisional", 3: "Provisional"}
+        raw = self._raw_df()
+        raw["Verification"] = pd.Series(["1.0", float("inf")], dtype=object)[: len(raw)]
+        assert normalise_eea_data()(raw)["qa_code"].tolist() == ["1", None]
+        raw["Verification"] = pd.Series(["n/a", 2.5], dtype=object)[: len(raw)]
+        assert normalise_eea_data()(raw)["qa_code"].tolist() == [None, None]
+
+    @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
+    def test_qa_code_is_the_verification_code_verbatim(self, _mock_mapping):
+        from aeolus.sources.eea import normalise_eea_data
+        from aeolus.types import ADAPTER_DATA_COLUMNS_QA
+
+        df = normalise_eea_data()(self._raw_df())
+        assert list(df.columns) == ADAPTER_DATA_COLUMNS_QA
+        assert dict(zip(df["measurand"], df["qa_code"], strict=True)) == {"PM10": "1", "NO2": "2"}
 
 
 class TestFetchEeaData:

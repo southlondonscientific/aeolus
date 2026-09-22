@@ -103,3 +103,7 @@ data = aeolus.download(
 # Compare reference vs low-cost
 data.groupby(['source_network', 'measurand'])['value'].mean()
 ```
+
+## Data quality
+
+`qa_code` is the API's `RatificationStatus` verbatim (`P` → `qa_tier = lcs_calibrated`, `ratification_stage = unratified`). Where the API gives no status, `qa_code` is null and `qa_tier` is `unknown`; earlier versions labelled those rows `Indicative`, which Breathe London never said.

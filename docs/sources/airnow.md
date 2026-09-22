@@ -179,3 +179,7 @@ print(pm25.groupby("site_code")["value"].mean())
 - [API Documentation](https://docs.airnowapi.org/)
 - [Air Quality Index (AQI) Basics](https://www.airnow.gov/aqi/aqi-basics/)
 - [EPA Air Quality System (AQS)](https://www.epa.gov/aqs) - For verified historical data
+
+## Data quality
+
+Every AirNow row carries `qa_code = "Provisional"` (`qa_tier = reference_provisional`, `ratification_stage = unratified`): the AirNow feed is never ratified — certified data is published separately through EPA's AQS.

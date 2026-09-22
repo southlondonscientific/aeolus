@@ -46,6 +46,7 @@ from ..decorators import retry_on_network_error
 from ..geo import haversine_distance
 from ..registry import register_source
 from ..units import canonical_unit
+from ..schema import legacy_mirror
 from ..types import AeolusDataWarning, empty_data_frame
 
 logger = logging.getLogger(__name__)
@@ -452,6 +453,14 @@ def rebuild_sos_mapping() -> Path:
 # ============================================================================
 
 
+def _unratified_token(network: str) -> str | None:
+    """The network's own word for "not yet ratified" (see regulatory.RATIFICATION_TOKENS)."""
+    from .regulatory import RATIFICATION_TOKENS
+
+    tokens = RATIFICATION_TOKENS.get(network.lower())
+    return tokens[1] if tokens else None
+
+
 def make_sos_data_fetcher(network: str):
     """Create a data fetcher that retrieves data from the SOS API.
 
@@ -477,6 +486,11 @@ def make_sos_data_fetcher(network: str):
         )
 
         from ..progress import track
+
+        # Near-real-time data is never ratified yet: one token, and the legacy
+        # label the public frame will show for it, resolved once per fetch.
+        qa_token = _unratified_token(network)
+        legacy_label = legacy_mirror(f"{network}-SOS", pd.Series([qa_token], dtype=object)).iloc[0]
 
         results = []
         for site_code in track(sites, f"Fetching {network.upper()} SOS"):
@@ -528,13 +542,14 @@ def make_sos_data_fetcher(network: str):
                             # flat 'ug/m3' that mislabelled CO ~1000x.
                             "units": canonical_unit(ts_info.get("uom", "ug/m3")),
                             "source_network": network.upper(),
-                            "ratification": "None",
+                            "ratification": legacy_label,
                             "created_at": pd.Timestamp.now(tz="UTC"),
+                            "qa_code": qa_token,
                         }
                     )
 
         if not results:
-            return empty_data_frame()
+            return empty_data_frame(qa=True)
 
         return pd.DataFrame(results)
 

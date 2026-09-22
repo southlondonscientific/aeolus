@@ -112,6 +112,14 @@ def finalise_metadata_frame(df: pd.DataFrame, source: str) -> pd.DataFrame:
     return out[core + extras]
 
 
+def legacy_mirror(source: str, qa_codes: pd.Series) -> pd.Series:
+    """The legacy ``ratification`` label for these ``qa_code`` values — the same one
+    the public frame will show, so an adapter's own column never disagrees with it."""
+    _, _, spec = spec_for_source(source)
+    tier, stage = derive_qa(qa_codes, spec.qa_code_vocabulary, spec.default_ratification_stage)
+    return legacy_ratification(tier, stage)
+
+
 def with_network_column(df: pd.DataFrame) -> pd.DataFrame:
     """Accept a pre-0.5.0 frame: if it has `source_network` but no `network`, add one."""
     if "network" not in df.columns and "source_network" in df.columns:

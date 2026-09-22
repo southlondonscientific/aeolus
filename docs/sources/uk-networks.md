@@ -188,3 +188,7 @@ data = aeolus.download(
     end_date=datetime(2024, 1, 31)
 )
 ```
+
+## Data quality
+
+For AURN, SAQN, WAQN, NI and AQE, `qa_code` says whether each row has been ratified: `verified`/`unverified` for AURN, `Ratified`/`Provisional` for the others. Aeolus derives it per site and pollutant from the `ratified_to` date in each network's openair metadata (downloaded at most once a day per process, and shared with `find_sites`; if it cannot be read, Aeolus warns and `qa_code` is null for that download), so `qa_tier` is `reference_full_qc` for ratified rows and `reference_provisional` otherwise; `ratification_stage` is `ratified`/`unratified`. Near-real-time rows from the SOS sources are always unratified. A pollutant the metadata does not list gets a null `qa_code` and `qa_tier = unknown`. LAQN and LMAM publish no ratification field, so their rows stay `unknown`.

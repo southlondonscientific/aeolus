@@ -211,6 +211,10 @@ ADAPTER_DATA_COLUMNS = [
     "created_at",
 ]
 
+# A wired adapter also emits the upstream's QA token, verbatim (None where the
+# upstream said nothing for that row). aeolus.schema derives qa_tier from it.
+ADAPTER_DATA_COLUMNS_QA = [*ADAPTER_DATA_COLUMNS, "qa_code"]
+
 
 def __getattr__(name):  # `from aeolus.types import DATA_COLUMNS` = the public schema
     if name == "DATA_COLUMNS":
@@ -243,13 +247,15 @@ class AeolusDataWarning(UserWarning):
     """
 
 
-def empty_data_frame() -> pd.DataFrame:
+def empty_data_frame(qa: bool = False) -> pd.DataFrame:
     """Empty frame in the ADAPTER schema — what a fetcher returns for no data.
 
     Use this instead of bare ``pd.DataFrame()`` so that concatenation
-    with valid data never fails due to missing columns.
+    with valid data never fails due to missing columns. A wired adapter
+    (one that emits ``qa_code``) passes ``qa=True`` so its empty result has
+    the same columns as its data.
     """
-    return pd.DataFrame(columns=ADAPTER_DATA_COLUMNS)
+    return pd.DataFrame(columns=ADAPTER_DATA_COLUMNS_QA if qa else ADAPTER_DATA_COLUMNS)
 
 
 METADATA_COLUMNS = ["site_code", "site_name", "latitude", "longitude", "source_network", "measurands"]

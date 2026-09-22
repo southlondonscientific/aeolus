@@ -84,3 +84,7 @@ Codes follow the [EIONET observation-verification vocabulary](https://dd.eionet.
 - [EEA Air Quality Download Service](https://eeadmz1-downloads-webapp.azurewebsites.net/)
 - [EEA Air Quality Statistics Viewer](https://discomap.eea.europa.eu/App/AQViewer/)
 - [Air Quality Directive](https://environment.ec.europa.eu/topics/air/air-quality/eu-air-quality-standards_en)
+
+## Data quality
+
+`qa_code` is the EIONET `Verification` code, verbatim: `"1"` verified → `qa_tier = reference_full_qc`, `ratification_stage = ratified`; `"2"` preliminary verified and `"3"` not verified → `reference_provisional`, `unratified`. The legacy `ratification` mirror shows `Ratified` or `Provisional`. Rows with `Validity < 1` (invalid, or under maintenance) are dropped rather than flagged.

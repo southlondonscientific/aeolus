@@ -139,3 +139,7 @@ print(data['ratification'].value_counts())
 - [PurpleAir API Documentation](https://api.purpleair.com/)
 - [Developer Portal](https://develop.purpleair.com/)
 - [Community Forum](https://community.purpleair.com/) - QA/QC methodology discussions
+
+## Data quality
+
+`qa_code` is PurpleAir's channel-agreement label for the row — `Validated`, `Single Channel (A)`/`(B)`, `Channel Disagreement`, `Sensor Saturation`, `Invalid` or `Unvalidated`. `Validated` and single-channel rows derive `qa_tier = lcs_factory_only`; disagreement, saturation and invalid rows derive `flagged`; `Unvalidated` derives `unknown`. `include_flagged=False` still drops everything but `Validated`.
