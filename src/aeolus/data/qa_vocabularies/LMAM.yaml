@@ -1,0 +1,18 @@
+# src/aeolus/data/qa_vocabularies/LMAM.yaml
+code: LMAM
+name: Locally Managed Automatic Monitoring
+country: GB
+regulatory: true
+operators:
+- Local authorities (via Defra UK-AIR)
+instrument_class: mixed
+qa_model: mixed
+default_ratification_stage: supplied
+qa_code_vocabulary: {}
+ratification_cadence_months: null
+first_ratification_latency_months: null
+full_year_ratified_by: null
+ratification_overrides: ''
+data_licence: OGL-UK-3.0
+homepage_url: https://uk-air.defra.gov.uk/networks/network-info?view=nondefraaqmon
+notes: ''

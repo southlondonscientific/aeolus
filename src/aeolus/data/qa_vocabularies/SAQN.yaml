@@ -1,0 +1,34 @@
+# src/aeolus/data/qa_vocabularies/SAQN.yaml
+code: SAQN
+name: Scottish Air Quality Network
+country: GB
+regulatory: true
+operators:
+- Ricardo
+- Scottish Government
+instrument_class: mixed
+qa_model: regulatory_temporal_ratification
+default_ratification_stage: null
+qa_code_vocabulary:
+  "Ratified":
+    description: Ratified
+    qa_tier: reference_full_qc
+    ratification_stage: ratified
+    source_url: https://www.scottishairquality.scot
+  "Provisional":
+    description: Provisional, not yet ratified
+    qa_tier: reference_provisional
+    ratification_stage: unratified
+    source_url: https://www.scottishairquality.scot
+  "Supplied":
+    description: Supplied by the operator; not centrally ratified
+    qa_tier: unknown
+    ratification_stage: supplied
+    source_url: https://www.scottishairquality.scot
+ratification_cadence_months: null
+first_ratification_latency_months: 6
+full_year_ratified_by: null
+ratification_overrides: AURN-affiliated sites ~3 months
+data_licence: OGL-UK-3.0
+homepage_url: https://www.scottishairquality.scot
+notes: ''

@@ -1,0 +1,23 @@
+# src/aeolus/data/qa_vocabularies/AIRNOW.yaml
+code: AIRNOW
+name: EPA AirNow
+country: US
+regulatory: true
+operators:
+- US EPA
+instrument_class: reference
+qa_model: regulatory_temporal_ratification
+default_ratification_stage: unratified
+qa_code_vocabulary:
+  "Provisional":
+    description: Provisional (AirNow never ratifies; validated data is in AQS)
+    qa_tier: reference_provisional
+    ratification_stage: unratified
+    source_url: https://www.airnow.gov
+ratification_cadence_months: null
+first_ratification_latency_months: null
+full_year_ratified_by: ~1 May of year+1 (in AQS, not AirNow)
+ratification_overrides: ''
+data_licence: US public domain
+homepage_url: https://www.airnow.gov
+notes: ''

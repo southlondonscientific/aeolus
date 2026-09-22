@@ -131,3 +131,6 @@ docs/dev/use_cases_v040.md
 docs/superpowers/plans/2026-04-07-eea-sonitus-sources.md
 docs/superpowers/plans/2026-04-08-conformance-tests.md
 docs/superpowers/plans/2026-04-08-hypothesis-mutmut-testing.md
+
+# Package data shipped inside the wheel (the data/ rule above is for local scratch data)
+!src/aeolus/data/

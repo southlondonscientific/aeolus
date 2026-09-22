@@ -1,0 +1,53 @@
+# src/aeolus/data/qa_vocabularies/PURPLEAIR.yaml
+code: PURPLEAIR
+name: PurpleAir
+country: "*"
+regulatory: false
+operators:
+- PurpleAir Inc. (sensor owners)
+instrument_class: LCS
+qa_model: point_in_time_validation
+default_ratification_stage: not_applicable
+qa_code_vocabulary:
+  "Validated":
+    description: Validated
+    qa_tier: lcs_factory_only
+    ratification_stage: not_applicable
+    source_url: https://www2.purpleair.com
+  "Single Channel (A)":
+    description: Single Channel (A)
+    qa_tier: lcs_factory_only
+    ratification_stage: not_applicable
+    source_url: https://www2.purpleair.com
+  "Single Channel (B)":
+    description: Single Channel (B)
+    qa_tier: lcs_factory_only
+    ratification_stage: not_applicable
+    source_url: https://www2.purpleair.com
+  "Channel Disagreement":
+    description: Channel Disagreement
+    qa_tier: flagged
+    ratification_stage: not_applicable
+    source_url: https://www2.purpleair.com
+  "Sensor Saturation":
+    description: Sensor Saturation
+    qa_tier: flagged
+    ratification_stage: not_applicable
+    source_url: https://www2.purpleair.com
+  "Invalid":
+    description: Invalid
+    qa_tier: flagged
+    ratification_stage: not_applicable
+    source_url: https://www2.purpleair.com
+  "Unvalidated":
+    description: Unvalidated
+    qa_tier: unknown
+    ratification_stage: not_applicable
+    source_url: https://www2.purpleair.com
+ratification_cadence_months: null
+first_ratification_latency_months: null
+full_year_ratified_by: null
+ratification_overrides: ''
+data_licence: PurpleAir API terms
+homepage_url: https://www2.purpleair.com
+notes: ''

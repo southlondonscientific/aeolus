@@ -23,6 +23,7 @@ dependencies = [
     "numpy>=1.24.0",
     "scipy>=1.10.0",
     "pyarrow>=14.0.0",
+    "pyyaml>=6.0",
 ]
 keywords = [
     "air quality",
@@ -95,6 +96,7 @@ aeolus = [
     "sources/_sos_mapping.json",
     "viz/fonts/*.ttf",
     "viz/fonts/OFL.txt",
+    "data/qa_vocabularies/*.yaml",
 ]
 
 [tool.pytest.ini_options]
