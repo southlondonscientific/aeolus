@@ -519,6 +519,23 @@ def normalise_eea_data():
         df["date_time"] = utc
         return df[df["date_time"].notna()]
 
+    def prefer_verified_days(df: pd.DataFrame) -> pd.DataFrame:
+        """Serve each (site, measurand, day) from the highest-priority dataset that
+        holds any row for it — verified beats up-to-date beats Airbase.
+
+        Day-level, not hour-level, and before the validity filter, so that:
+        co-located instruments at one station are not merged; an hour the
+        archive rejected is not resurrected from the feed; and Italian
+        up-to-date points whose stamps do not follow the DST model cannot
+        double up beside archive rows on overlap days.
+        """
+        if "dataset" not in df.columns or df.empty:
+            return df
+        priority = df["dataset"].map({d: i for i, d in enumerate(DATASET_PRIORITY)})
+        day = df["date_time"].dt.floor("D")
+        best = priority.groupby([df["site_code"], df["measurand"], day], observed=True).transform("min")
+        return df[priority == best]
+
     def map_pollutants(df: pd.DataFrame) -> pd.DataFrame:
         df = df.copy()
         df["measurand"] = df["Pollutant"].map(POLLUTANT_CODE_MAP)
@@ -552,11 +569,13 @@ def normalise_eea_data():
         return df
 
     return compose(
-        filter_rows(lambda df: df["Validity"] >= 1),
         extract_site_codes,
         map_pollutants,
         rename_columns({"Start": "date_time", "Value": "value", "Unit": "units"}),
         stamps_to_utc,
+        prefer_verified_days,
+        # After the priority step, so an hour the archive rejected stays rejected
+        filter_rows(lambda df: df["Validity"] >= 1),
         convert_value,
         # convert_value coerces unparseable values to NaN; drop them (the
         # Validity>=1 filter is a QA flag, not a value-presence check). Matches
@@ -566,7 +585,9 @@ def normalise_eea_data():
         add_column("source_network", "EEA"),
         map_verification,
         add_column("created_at", lambda df: datetime.now(timezone.utc)),
-        select_columns(*ADAPTER_DATA_COLUMNS_QA, require_all=True),
+        # Which dataset served the row; the finaliser keeps it as `backend`
+        add_column("backend", lambda df: df["dataset"].map(DATASET_BACKEND) if "dataset" in df.columns else "EEA"),
+        select_columns(*ADAPTER_DATA_COLUMNS_QA, "backend", require_all=True),
         reset_index(),
     )
 
@@ -574,6 +595,35 @@ def normalise_eea_data():
 # ============================================================================
 # DATA FETCHER
 # ============================================================================
+
+
+def _parse_parquet_zip(zip_bytes: bytes) -> pd.DataFrame | None:
+    dfs: list[pd.DataFrame] = []
+    with ZipFile(BytesIO(zip_bytes)) as zf:
+        for name in zf.namelist():
+            if name.endswith(".parquet"):
+                with zf.open(name) as f:
+                    df = pd.read_parquet(BytesIO(f.read()))
+                    if not df.empty:
+                        dfs.append(df)
+    return pd.concat(dfs, ignore_index=True) if dfs else None
+
+
+def _fetch_dataset(body_base: dict, dataset: int) -> pd.DataFrame | None:
+    """One dataset's raw rows for the window, tagged with the dataset id."""
+    zip_bytes = _download_parquet({**body_base, "dataset": dataset})
+    if not zip_bytes:
+        return None
+    try:
+        raw = _parse_parquet_zip(zip_bytes)
+    except Exception as e:  # noqa: BLE001 - a bad zip from one dataset must not sink the others
+        warnings.warn(
+            f"Failed to parse EEA Parquet response (dataset {dataset}): {e}",
+            AeolusDataWarning,
+            stacklevel=3,
+        )
+        return None
+    return None if raw is None else raw.assign(dataset=dataset)
 
 
 def _infer_country_from_sites(sites: list[str]) -> str | None:
@@ -635,45 +685,24 @@ def fetch_eea_data(
             if notation:
                 notation_list.append(notation)
 
-    body: dict = {
+    body_base: dict = {
         "countries": [country.upper()],
         "cities": [],
         "pollutants": notation_list if notation_list else [],
-        "dataset": DATASET_UTD,
         "dateTimeStart": to_utc(start_date).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "dateTimeEnd": to_utc(end_date).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "compress": True,
     }
-
-    zip_bytes = _download_parquet(body)
-    if not zip_bytes:
+    # The verified archive and the up-to-date feed overlap by up to two years
+    # (which years depends on the country), so both are always asked for;
+    # Airbase only holds 2002–2012.
+    datasets = [DATASET_VERIFIED, DATASET_UTD]
+    if to_utc(start_date).year <= 2012:
+        datasets.append(DATASET_AIRBASE)
+    frames = [f for f in (_fetch_dataset(body_base, d) for d in datasets) if f is not None]
+    if not frames:
         return empty_data_frame(qa=True)
-
-    # Parse Parquet files from ZIP
-    dfs: list[pd.DataFrame] = []
-    try:
-        with ZipFile(BytesIO(zip_bytes)) as zf:
-            for name in zf.namelist():
-                if name.endswith(".parquet"):
-                    with zf.open(name) as f:
-                        df = pd.read_parquet(BytesIO(f.read()))
-                        if not df.empty:
-                            dfs.append(df)
-    except Exception as e:
-        warnings.warn(
-            f"Failed to parse EEA Parquet response: {e}",
-            AeolusDataWarning,
-            stacklevel=2,
-        )
-        return empty_data_frame(qa=True)
-
-    if not dfs:
-        return empty_data_frame(qa=True)
-
-    raw_df = pd.concat(dfs, ignore_index=True)
-
-    if raw_df.empty:
-        return empty_data_frame(qa=True)
+    raw_df = pd.concat(frames, ignore_index=True)
 
     # Normalise
     normalise = normalise_eea_data()
