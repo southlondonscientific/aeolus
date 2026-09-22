@@ -11,7 +11,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from aeolus.types import ADAPTER_DATA_COLUMNS, METADATA_COLUMNS
+from aeolus.types import ADAPTER_DATA_COLUMNS, ADAPTER_DATA_COLUMNS_QA, METADATA_COLUMNS
 
 
 @pytest.fixture(autouse=True)
@@ -215,9 +215,9 @@ class TestNormaliseEeaData:
         from aeolus.sources.eea import normalise_eea_data
 
         df = normalise_eea_data()(self._raw_df())
-        for col in ADAPTER_DATA_COLUMNS:
+        for col in ADAPTER_DATA_COLUMNS_QA:
             assert col in df.columns, f"Missing column: {col}"
-        assert len(df.columns) == len(ADAPTER_DATA_COLUMNS)
+        assert len(df.columns) == len(ADAPTER_DATA_COLUMNS_QA)
 
     @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
     def test_site_code_extraction(self, _mock_mapping):
@@ -294,6 +294,16 @@ class TestNormaliseEeaData:
         from aeolus.sources.eea import VERIFICATION_MAP
 
         assert VERIFICATION_MAP == {1: "Verified", 2: "Provisional", 3: "Provisional"}
+
+
+    @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
+    def test_qa_code_is_the_verification_code_verbatim(self, _mock_mapping):
+        from aeolus.sources.eea import normalise_eea_data
+        from aeolus.types import ADAPTER_DATA_COLUMNS_QA
+
+        df = normalise_eea_data()(self._raw_df())
+        assert list(df.columns) == ADAPTER_DATA_COLUMNS_QA
+        assert dict(zip(df["measurand"], df["qa_code"], strict=True)) == {"PM10": "1", "NO2": "2"}
 
 
 class TestFetchEeaData:

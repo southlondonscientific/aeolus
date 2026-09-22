@@ -76,7 +76,7 @@ from ..transforms import (
 )
 from ..units import canonical_units
 from ..types import (
-    ADAPTER_DATA_COLUMNS,
+    ADAPTER_DATA_COLUMNS_QA,
     METADATA_COLUMNS,
     AeolusDataWarning,
     empty_data_frame,
@@ -538,6 +538,8 @@ def normalise_eea_data():
 
     def map_verification(df: pd.DataFrame) -> pd.DataFrame:
         df = df.copy()
+        # The EIONET code itself is the QA token; the label is the legacy mirror
+        df["qa_code"] = df["Verification"].map(lambda v: None if pd.isna(v) else str(int(v)))
         df["ratification"] = df["Verification"].map(VERIFICATION_MAP).fillna("Provisional")
         return df
 
@@ -556,7 +558,7 @@ def normalise_eea_data():
         add_column("source_network", "EEA"),
         map_verification,
         add_column("created_at", lambda df: datetime.now(timezone.utc)),
-        select_columns(*ADAPTER_DATA_COLUMNS, require_all=True),
+        select_columns(*ADAPTER_DATA_COLUMNS_QA, require_all=True),
         reset_index(),
     )
 
