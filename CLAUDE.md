@@ -103,21 +103,33 @@ For conda users: `conda install -c conda-forge aeolus_aq` then `pip install open
 
 ## Standard Data Schema
 
-All sources normalise data to this 8-column schema:
+All downloads return this 13-column schema (`aeolus.schema.DATA_COLUMNS`):
 - `site_code` - Unique site identifier
-- `date_time` - Timestamp (UTC-aware, left-closed intervals)
+- `network` - Which network produced the data (`AURN`, `LAQN`, `EEA`, ...)
+- `date_time` - Timestamp (UTC-aware; marks the START of the averaging interval)
 - `measurand` - Pollutant (PM2.5, NO2, O3, etc.)
 - `value` - Measurement value
-- `units` - Units (typically ug/m3)
-- `source_network` - Data source name
-- `ratification` - Data quality flag
+- `units` - Units as the network reports them (`ug/m3`, `mg/m3` for CO, `ppb` for AirNow gases)
+- `qa_code` - The upstream's own quality token, verbatim; null where the upstream is silent
+- `qa_tier` - `reference_full_qc` | `reference_provisional` | `lcs_calibrated` | `lcs_factory_only` | `flagged` | `unknown`
+- `ratification_stage` - `unratified` | `ratified` | `supplied` | `not_applicable` | null
+- `backend` - Which fetcher served the row (`RDATA`, `SOS`, `ERG_REST`, `EEA`, ...)
+- `source_network` - deprecated mirror of `network`; removed in 1.0
+- `ratification` - deprecated mirror derived from the three QA columns; removed in 1.0
 - `created_at` - When record was fetched (UTC-aware)
+
+Set `AEOLUS_LEGACY_COLUMNS=0` (or `aeolus.options.legacy_columns = False`) to drop the two mirrors.
+Adapters emit `types.ADAPTER_DATA_COLUMNS` (the old eight); `aeolus.schema.finalise_data_frame` adds the rest at the
+download convergence points. `qa_tier`/`ratification_stage` come from the network's vocabulary in
+`src/aeolus/data/qa_vocabularies/<CODE>.yaml` (`aeolus.network_registry`).
 
 **Metadata schema** (from `get_metadata()` / `find_sites()`):
 - `site_code` - Unique site identifier (use for download)
 - `site_name` - Human-readable name
 - `latitude`, `longitude` - Location coordinates
-- `source_network` - Data source name
+- `network`, `country`, `instrument_class`, `provider` (LMAM pcode, else null), `backend`
+- `measurands` - list of pollutants at the site (or None)
+- `source_network` - deprecated mirror of `network`
 
 **Bounding box format** (consistent across all sources):
 - `bbox=(min_lon, min_lat, max_lon, max_lat)` - GeoJSON/shapely convention
@@ -271,7 +283,7 @@ Mock API responses are defined as pytest fixtures within each test file.
 - Low-cost sensor data marked as `ratification='Unvalidated'`
 - PurpleAir data has additional QA flags (`Validated`, `Single Channel`, etc.)
 - All timestamps are UTC-aware (enforced since v0.3.0rc2)
-- Data schema is strict 8 columns; `site_name` is in metadata only, not data output
+- Data schema is strict 13 columns (`aeolus.schema.DATA_COLUMNS`); adapters emit the 8 `ADAPTER_DATA_COLUMNS`; `site_name` is in metadata only
 - Empty DataFrames always carry the standard schema columns (never bare `pd.DataFrame()`)
 - SOS sources (AURN-SOS, etc.) are registered with `primary=False` — hidden from `list_sources()` and `find_sites()` by default, pass `include_all=True` to see them
 - `get_current()` auto-routes AURN→AURN-SOS for near-real-time readings

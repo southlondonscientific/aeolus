@@ -33,6 +33,7 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
+from .. import options
 from ..types import AeolusDataWarning
 from ..units import canonical_unit, canonical_units
 from .base import MOLECULAR_WEIGHTS, ensure_ugm3_array, validate_data
@@ -67,20 +68,14 @@ class TrendResult:
 # time_average
 # =============================================================================
 
-_TIME_AVERAGE_COLUMNS = [
-    "site_code",
-    "date_time",
-    "measurand",
-    "value",
-    "units",
-    "source_network",
-    "data_capture",
-]
+def _time_average_columns() -> list[str]:
+    mirror = ["source_network"] if options.legacy_columns else []
+    return ["site_code", "date_time", "measurand", "value", "units", "network", *mirror, "data_capture"]
 
 
 def _empty_time_average_df() -> pd.DataFrame:
     """Return an empty DataFrame with the time_average schema."""
-    return pd.DataFrame(columns=_TIME_AVERAGE_COLUMNS)
+    return pd.DataFrame(columns=_time_average_columns())
 
 
 def _infer_data_frequency(series: pd.Series) -> pd.Timedelta:
@@ -340,7 +335,7 @@ def time_average(
 
     Returns:
         DataFrame with columns: site_code, date_time, measurand, value,
-        units, source_network, data_capture.
+        units, network, data_capture.
     """
     validate_data(data)
 
@@ -355,7 +350,9 @@ def time_average(
         if df.empty:
             return _empty_time_average_df()
 
-    df = _prepare_observations(df)
+    from ..schema import with_network_column
+
+    df = _prepare_observations(with_network_column(df))
     offset = _start_anchored(freq)
 
     def resampled(series: pd.Series):
@@ -414,13 +411,9 @@ def time_average(
         if data_thresh > 0:
             agg = agg.where(dc >= data_thresh)
 
-        # Get representative units and source_network from the group
+        # Get representative units and network from the group
         units_val = group["units"].iloc[0] if "units" in group.columns else ""
-        network_val = (
-            group["source_network"].iloc[0]
-            if "source_network" in group.columns
-            else ""
-        )
+        network_val = group["network"].iloc[0] if "network" in group.columns else ""
 
         period_df = pd.DataFrame(
             {
@@ -429,6 +422,7 @@ def time_average(
                 "measurand": measurand,
                 "value": agg.values,
                 "units": units_val,
+                "network": network_val,
                 "source_network": network_val,
                 "data_capture": dc.values,
             }
@@ -439,7 +433,7 @@ def time_average(
     if not results:
         return _empty_time_average_df()
 
-    return pd.concat(results, ignore_index=True)
+    return pd.concat(results, ignore_index=True)[_time_average_columns()]
 
 
 # =============================================================================

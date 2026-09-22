@@ -110,3 +110,10 @@ def finalise_metadata_frame(df: pd.DataFrame, source: str) -> pd.DataFrame:
     core = public_metadata_columns()
     extras = [c for c in out.columns if c not in METADATA_COLUMNS]
     return out[core + extras]
+
+
+def with_network_column(df: pd.DataFrame) -> pd.DataFrame:
+    """Accept a pre-0.5.0 frame: if it has `source_network` but no `network`, add one."""
+    if "network" not in df.columns and "source_network" in df.columns:
+        return df.assign(network=df["source_network"])
+    return df

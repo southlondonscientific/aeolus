@@ -65,7 +65,7 @@ from .types import AeolusDataWarning, AeolusExperimentalWarning
 from .schema import DATA_COLUMNS as _STANDARD_COLUMNS
 from .schema import finalise_data_frame
 from .schema import METADATA_COLUMNS as _METADATA_COLUMNS
-from .schema import empty_public_metadata_frame, finalise_metadata_frame
+from .schema import empty_public_metadata_frame, finalise_metadata_frame, with_network_column
 
 
 _warned_experimental: set[str] = set()
@@ -613,7 +613,9 @@ def find_sites(
     # Guarantee the core metadata schema: a source that omits a column
     # (e.g. no per-site measurands) degrades to None/NaN rather than
     # raising a KeyError below.
-    for col in _METADATA_COLUMNS:
+    from .schema import public_metadata_columns
+
+    for col in public_metadata_columns():
         if col not in combined.columns:
             combined[col] = None
 
@@ -796,28 +798,27 @@ def summarise(data: pd.DataFrame) -> pd.DataFrame:
 
     Returns:
         DataFrame with one row per site+pollutant, columns:
-        ``site_code``, ``source_network``, ``measurand``, ``start``,
+        ``site_code``, ``network``, ``measurand``, ``start``,
         ``end``, ``records``, ``valid``, ``data_capture``.
 
     Example:
         >>> data = aeolus.download("AURN", ["MY1", "KC1"], start, end)
         >>> aeolus.summarise(data)
     """
-    if data.empty:
-        return pd.DataFrame(
-            columns=[
-                "site_code", "source_network", "measurand",
-                "start", "end", "records", "valid", "data_capture",
-            ]
-        )
+    from . import options
 
-    df = data.copy()
+    mirror = ["source_network"] if options.legacy_columns else []
+    columns = ["site_code", "network", *mirror, "measurand", "start", "end", "records", "valid", "data_capture"]
+    if data.empty:
+        return pd.DataFrame(columns=columns)
+
+    df = with_network_column(data.copy())
     df["date_time"] = pd.to_datetime(df["date_time"])
     requested = data.attrs.get("aeolus_requested_range")
 
     rows = []
     for (site, network, measurand), g in df.groupby(
-        ["site_code", "source_network", "measurand"], observed=True
+        ["site_code", "network", "measurand"], observed=True
     ):
         dt = g["date_time"]
         total = len(g)
@@ -846,6 +847,7 @@ def summarise(data: pd.DataFrame) -> pd.DataFrame:
 
         rows.append({
             "site_code": site,
+            "network": network,
             "source_network": network,
             "measurand": measurand,
             "start": start,
@@ -855,4 +857,4 @@ def summarise(data: pd.DataFrame) -> pd.DataFrame:
             "data_capture": round(dc, 3),
         })
 
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows)[columns]

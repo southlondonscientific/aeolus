@@ -62,6 +62,15 @@ The correctness scrub planned as v0.4.6, held to ship as part of v0.5.0 (one re-
 - `plot_trend()` labels its axis with the trended pollutant's units rather than the first row's.
 - `ensure_ugm3_array()` warns on unknown units and on ppb/ppm without a molecular weight, matching the scalar `ensure_ugm3()`.
 
+### Changed (breaking) — the v0.5.0 wire format
+
+- **Every download returns 13 columns instead of 8.** New: `network` (who produced the data), `backend` (which fetcher served it), and the three-column data-quality model — `qa_code` (the upstream's own token, verbatim), `qa_tier` (six cross-network tiers) and `ratification_stage` (four stages or null). `source_network` and `ratification` remain as deprecated mirrors until 1.0; Aeolus raises one `DeprecationWarning` per process while they are on. Set `AEOLUS_LEGACY_COLUMNS=0` (or `aeolus.options.legacy_columns = False`) to drop them and prove your code has migrated. `find_sites()` gains `network`, `country`, `instrument_class`, `provider` and `backend`.
+- **Until each adapter is wired (the next release step), `qa_code` is null and `qa_tier` is `unknown` for every network; the `ratification` mirror is unchanged**, so nothing a consumer reads today changes value.
+- `network=` is accepted as an alias for the first argument of `download()`, `fetch()`, `find_sites()` and `get_current()`.
+- `summarise()` and `time_average()` report `network` (and the mirror while it is on) and still accept pre-0.5.0 frames.
+- A network registry (`aeolus.network_registry`, data in `src/aeolus/data/qa_vocabularies/*.yaml`) carries each network's identity, QA vocabulary, ratification timing and licence. **PyYAML is a new runtime dependency.**
+- The cache moves to `~/.cache/aeolus/v3/`; nothing written by an earlier version is served.
+
 ### Changed
 
 - **Documentation of the time convention was backwards.** The guide said `13:00` meant 12:00–13:00; every UK source has always labelled the *start* of the hour (openair's "date beginning"). The guide now says so, and adapters whose upstream differs convert to it.

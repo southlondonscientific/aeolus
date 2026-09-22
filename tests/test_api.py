@@ -921,3 +921,13 @@ def test_downloaded_frame_survives_parquet_and_json(monkeypatch, tmp_path):
     # the range survived the roundtrip: one reading in a requested year is ~0 capture, not 1.0
     assert back.attrs["aeolus_requested_range"] == out.attrs["aeolus_requested_range"]
     assert aeolus.summarise(back)["data_capture"].iloc[0] < 0.01
+
+
+def test_summarise_reports_network_and_accepts_old_frames():
+    import aeolus
+
+    idx = pd.date_range("2023-01-01", periods=24, freq="h", tz="UTC")
+    new = pd.DataFrame({"site_code": "MY1", "network": "AURN", "date_time": idx, "measurand": "NO2", "value": 1.0})
+    old = new.rename(columns={"network": "source_network"})
+    assert aeolus.summarise(new)["network"].tolist() == ["AURN"]
+    assert aeolus.summarise(old)["network"].tolist() == ["AURN"]
