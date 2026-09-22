@@ -452,6 +452,13 @@ def rebuild_sos_mapping() -> Path:
 # ============================================================================
 
 
+def _unratified_token(network: str) -> str | None:
+    from .regulatory import RATIFICATION_TOKENS
+
+    tokens = RATIFICATION_TOKENS.get(network.lower())
+    return tokens[1] if tokens else None
+
+
 def make_sos_data_fetcher(network: str):
     """Create a data fetcher that retrieves data from the SOS API.
 
@@ -530,6 +537,8 @@ def make_sos_data_fetcher(network: str):
                             "source_network": network.upper(),
                             "ratification": "None",
                             "created_at": pd.Timestamp.now(tz="UTC"),
+                            # Near-real-time data is never ratified yet
+                            "qa_code": _unratified_token(network),
                         }
                     )
 

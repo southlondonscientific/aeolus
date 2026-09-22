@@ -211,6 +211,10 @@ ADAPTER_DATA_COLUMNS = [
     "created_at",
 ]
 
+# A wired adapter also emits the upstream's QA token, verbatim (None where the
+# upstream said nothing for that row). aeolus.schema derives qa_tier from it.
+ADAPTER_DATA_COLUMNS_QA = [*ADAPTER_DATA_COLUMNS, "qa_code"]
+
 
 def __getattr__(name):  # `from aeolus.types import DATA_COLUMNS` = the public schema
     if name == "DATA_COLUMNS":

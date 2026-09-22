@@ -60,7 +60,7 @@ import struct
 import json
 import threading
 import warnings
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from logging import warning
 from pathlib import Path
 from typing import Callable
@@ -130,6 +130,74 @@ DATA_BASE_URLS = {
     "laqn": "https://www.londonair.org.uk/r_data/",
     "lmam": "https://uk-air.defra.gov.uk/openair/LMAM/R_data/",
 }
+
+# (ratified token, unratified token) in each network's own words. The openair
+# metadata gives a `ratified_to` date per (site, parameter); rows on or before
+# it are ratified. AURN's tokens follow openair's `<species>_qc`; the other
+# UK networks publish "Ratified"/"Provisional" (and "Supplied", which the
+# metadata cannot reveal, so it is never emitted here). LMAM and LAQN carry
+# no ratification field and stay unwired.
+RATIFICATION_TOKENS = {
+    "aurn": ("verified", "unverified"),
+    "saqn": ("Ratified", "Provisional"),
+    "saqd": ("Ratified", "Provisional"),
+    "waqn": ("Ratified", "Provisional"),
+    "ni": ("Ratified", "Provisional"),
+    "aqe": ("Ratified", "Provisional"),
+}
+
+_ratified_to_cache: dict[str, dict] = {}
+
+
+def reset_ratification_lookups() -> None:
+    """Clear the per-process ratified_to lookups (tests and ops)."""
+    _ratified_to_cache.clear()
+
+
+def _ratified_to_lookup(network: str) -> dict[tuple[str, str], date | None]:
+    """``(site_code, measurand) -> last ratified date`` for *network*; ``None``
+    means the metadata says "Never". Empty if the metadata could not be read —
+    and then NOT cached, so the next call retries.
+    """
+    network = network.lower()
+    if network in _ratified_to_cache:
+        return _ratified_to_cache[network]
+    url = METADATA_URLS.get(network)
+    df = fetch_rdata(url) if url else None
+    if df is None:
+        return {}  # could not read: retry next time
+    lookup: dict[tuple[str, str], date | None] = {}
+    if not {"site_id", "parameter", "ratified_to"} <= set(df.columns):
+        _ratified_to_cache[network] = lookup  # read fine, carries no ratification
+        return lookup
+    for site, param, ratified in zip(df["site_id"], df["parameter"], df["ratified_to"], strict=True):
+        text = str(ratified).strip()
+        try:
+            lookup[(str(site).upper(), str(param))] = date.fromisoformat(text)
+        except ValueError:
+            lookup[(str(site).upper(), str(param))] = None  # "Never"
+    _ratified_to_cache[network] = lookup
+    return lookup
+
+
+def _add_ratification_codes(df: pd.DataFrame, network: str) -> pd.DataFrame:
+    """Add ``qa_code`` from the ratified_to join. Rows whose (site, measurand)
+    the metadata does not list get ``None``."""
+    ratified_token, unratified_token = RATIFICATION_TOKENS[network.lower()]
+    lookup = _ratified_to_lookup(network)
+    if df.empty:
+        return df.assign(qa_code=pd.Series(dtype=object))
+    keys = list(zip(df["site_code"].astype(str).str.upper(), df["measurand"].astype(str), strict=True))
+    days = df["date_time"].dt.tz_convert("UTC").dt.date
+    codes = []
+    for key, day in zip(keys, days, strict=True):
+        if key not in lookup:
+            codes.append(None)
+        else:
+            until = lookup[key]
+            codes.append(ratified_token if until is not None and day <= until else unratified_token)
+    return df.assign(qa_code=pd.Series(codes, index=df.index, dtype=object))
+
 
 # LAQN openair files use lowercase column names and `FINE` for PM2.5; the
 # `site` column contains the site code (no separate `code` column). Rename
@@ -587,6 +655,9 @@ def make_data_fetcher(
                 normalised["date_time"] <= ed
             )
             normalised = normalised[mask]
+
+        if network_name.lower() in RATIFICATION_TOKENS:
+            normalised = _add_ratification_codes(normalised, network_name)
 
         return normalised
 
