@@ -6,8 +6,11 @@ every download converges and adds the network identity and the QA model. It is
 the only code that knows both schemas — do not add these columns in adapters.
 """
 
+import warnings
+
 import pandas as pd
 
+from . import options
 from .network_registry import spec_for_source
 from .qa import derive_qa, legacy_ratification
 
@@ -18,9 +21,18 @@ DATA_COLUMNS = [
 ]
 LEGACY_DATA_COLUMNS = ("source_network", "ratification")  # mirrors, dropped in v1.0
 
+_warned_legacy = False
+
+
+def public_data_columns() -> list[str]:
+    """The column list in force: with or without the legacy mirrors."""
+    if options.legacy_columns:
+        return list(DATA_COLUMNS)
+    return [c for c in DATA_COLUMNS if c not in LEGACY_DATA_COLUMNS]
+
 
 def empty_public_frame() -> pd.DataFrame:
-    return pd.DataFrame(columns=DATA_COLUMNS)
+    return pd.DataFrame(columns=public_data_columns())
 
 
 def finalise_data_frame(df: pd.DataFrame, source: str) -> pd.DataFrame:
@@ -46,6 +58,17 @@ def finalise_data_frame(df: pd.DataFrame, source: str) -> pd.DataFrame:
     if wired or "ratification" not in out.columns:
         out["ratification"] = legacy_ratification(out["qa_tier"], out["ratification_stage"])
 
-    out = out[DATA_COLUMNS]
+    global _warned_legacy
+    if options.legacy_columns and not _warned_legacy:
+        _warned_legacy = True
+        warnings.warn(
+            "The `source_network` and `ratification` columns are deprecated mirrors of "
+            "`network` and of `qa_code`/`qa_tier`/`ratification_stage`; they will be removed "
+            "in aeolus 1.0. Set AEOLUS_LEGACY_COLUMNS=0 (or aeolus.options.legacy_columns = "
+            "False) to drop them now and check your code has migrated.",
+            DeprecationWarning,
+            stacklevel=4,
+        )
+    out = out[public_data_columns()]
     out.attrs = attrs
     return out

@@ -125,3 +125,36 @@ def test_unregistered_custom_source_is_its_own_unknown_network():
     row = out.iloc[0]
     assert (row["network"], row["backend"], row["qa_tier"]) == ("MYNET", "MYNET", "unknown")
     assert row["ratification_stage"] is None and row["ratification"] == "whatever"
+
+
+# ---- legacy mirrors: the switch and the one-time warning --------------------
+
+import warnings  # noqa: E402
+
+import aeolus.options  # noqa: E402
+from aeolus import schema  # noqa: E402
+
+
+def test_mirrors_can_be_switched_off(monkeypatch):
+    monkeypatch.setattr(aeolus.options, "legacy_columns", False)
+    out = finalise_data_frame(adapter_frame(), "AURN")
+    assert "source_network" not in out.columns and "ratification" not in out.columns
+    assert list(out.columns) == [c for c in DATA_COLUMNS if c not in schema.LEGACY_DATA_COLUMNS]
+    assert list(empty_public_frame().columns) == list(out.columns)
+
+
+def test_deprecation_warning_is_raised_once_per_process(monkeypatch):
+    monkeypatch.setattr(schema, "_warned_legacy", False)
+    with pytest.warns(DeprecationWarning, match="source_network.*ratification.*AEOLUS_LEGACY_COLUMNS"):
+        finalise_data_frame(adapter_frame(), "AURN")
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        finalise_data_frame(adapter_frame(), "AURN")
+
+
+def test_no_warning_when_mirrors_are_off(monkeypatch):
+    monkeypatch.setattr(schema, "_warned_legacy", False)
+    monkeypatch.setattr(aeolus.options, "legacy_columns", False)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        finalise_data_frame(adapter_frame(), "AURN")
