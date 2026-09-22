@@ -5,9 +5,8 @@ The [European Environment Agency](https://www.eea.europa.eu/) aggregates regulat
 !!! warning "Experimental"
     EEA support is **experimental** (`aeolus.get_source_info("EEA")["status"]`), and Aeolus warns once per session when you use it. Known gaps:
 
-    - **Only recent data.** Aeolus queries the EEA *up-to-date* feed only. Requests for earlier years return an empty frame — the verified archive and the historical Airbase dataset are not wired in yet.
-    - **Everything is `Provisional`.** That follows from the point above: the up-to-date feed carries preliminary or unverified data.
-    - **Italy.** The EEA publishes hourly data in fixed UTC+1, which Aeolus converts to UTC. Italy's up-to-date feed is the exception — it is on local clock time — so Aeolus treats Italian stamps as Europe/Rome; the hour that does not exist each spring, and the ambiguous one each autumn, are dropped.
+    - **Clocks are verified for a few countries only.** The EEA says its hourly timestamps are in fixed UTC+1, and Aeolus converts from that. Measured true for the up-to-date feed in DE, NL, IE, ES and PL and for the verified archive in DE, NL, PL and IT. Two measured exceptions are handled: Italy's up-to-date feed is on local clock time (treated as Europe/Rome; the hour that does not exist each spring and the ambiguous one each autumn are dropped), and Ireland's verified archive is on plain UTC. Every other country, and the Airbase archive, is *assumed* to follow the EEA's statement.
+    - **Overlapping datasets differ.** Where the archive and the feed both hold a day, Aeolus serves the archive; the feed's values for the same hours can differ by rounding or later corrections.
 
 ## Overview
 
@@ -15,7 +14,7 @@ The [European Environment Agency](https://www.eea.europa.eu/) aggregates regulat
 - **Data quality**: Reference (national regulatory networks, pooled by EEA)
 - **Ratification**: `Verified` (full QA/QC by the data provider) or `Provisional` (preliminary or not verified)
 - **API key**: Not required
-- **History**: recent data only at present (see the warning above); the EEA itself holds hourly data from 2013
+- **History**: hourly data from 2013 (verified archive), recent months (up-to-date feed) and 2002–2012 (Airbase)
 - **Operator**: European Environment Agency
 
 ## No API Key Required
@@ -87,4 +86,6 @@ Codes follow the [EIONET observation-verification vocabulary](https://dd.eionet.
 
 ## Data quality
 
-`qa_code` is the EIONET `Verification` code, verbatim: `"1"` verified → `qa_tier = reference_full_qc`, `ratification_stage = ratified`; `"2"` preliminary verified and `"3"` not verified → `reference_provisional`, `unratified`. The legacy `ratification` mirror shows `Ratified` or `Provisional`. Rows with `Validity < 1` (invalid, or under maintenance) are dropped rather than flagged.
+`qa_code` is the EIONET `Verification` code, verbatim: `"1"` verified → `qa_tier = reference_full_qc`, `ratification_stage = ratified`; `"2"` preliminary verified and `"3"` not verified → `reference_provisional`, `unratified`; `"0"` (Airbase, 2002–2012, status not recorded) → `unknown`. The legacy `ratification` mirror shows `Ratified` or `Provisional`. Rows with `Validity < 1` (invalid, or under maintenance) are dropped rather than flagged.
+
+`backend` says which EEA dataset served each row: `EEA_E1A` (verified archive, reported annually after national QA/QC), `EEA_E2A` (up-to-date feed) or `EEA_AIRBASE`. Aeolus asks for the archive and the feed on every download (and Airbase for windows reaching 2012 or earlier) and serves each site-pollutant-day from the highest-priority dataset that holds it.

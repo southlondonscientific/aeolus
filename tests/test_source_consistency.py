@@ -358,7 +358,7 @@ class TestSourceStatus:
 
         info = aeolus.get_source_info("EEA")
         assert info["status"] == "experimental"
-        assert "verified archive" in info["status_note"]
+        assert "UTC+1" in info["status_note"]
 
     def test_sources_are_stable_by_default(self):
         import aeolus

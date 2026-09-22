@@ -63,7 +63,7 @@ cross-backend dedup; `source=` deprecation→removal; multi-backend split-and-st
 | `qa_code` | — | **NEW** | verbatim upstream QA token; **never overwritten**; `null` where upstream is silent |
 | `qa_tier` | — | **NEW** | six-value canonical enum (§4.1); derived from `qa_code` via the network's vocabulary |
 | `ratification_stage` | — | **NEW** | four-value enum + `null` (§4.2) |
-| `backend` | — | **NEW** | provenance: which fetcher served the row (`RDATA`/`ERG_REST`/`SOS`/`ARGUS`/`OPENAQ`/`PURPLEAIR`/`SENSOR_COMMUNITY`/`AIRNOW`/`EEA`/`SONITUS`/`AIRQO`/`BREATHE_LONDON` — the last added 2026-09-22 during implementation; the spec had omitted it) |
+| `backend` | — | **NEW** | provenance: which fetcher served the row (`RDATA`/`ERG_REST`/`SOS`/`ARGUS`/`OPENAQ`/`PURPLEAIR`/`SENSOR_COMMUNITY`/`AIRNOW`/`EEA_E1A`/`EEA_E2A`/`EEA_AIRBASE`/`SONITUS`/`AIRQO`/`BREATHE_LONDON` — `BREATHE_LONDON` and the three EEA values added during implementation, 2026-09-22) |
 | `source_network` | ✓ | **mirror** | deprecation mirror of `network`; `DeprecationWarning`; dropped v1.0 |
 | `ratification` | ✓ | **mirror** | deprecation mirror, derived from the triple (§4.3); dropped v1.0 |
 | `created_at` | ✓ | ✓ | unchanged |
@@ -340,7 +340,7 @@ ARGUS backend in 0.5.0 or a 0.5.x. The CI parity test (§5) starts as aeolus-aut
 has seeds to compare. Separately, Argus's write path had to stop discarding corrected values (`ON CONFLICT DO NOTHING`)
 before it can absorb *any* re-baseline — implemented on Argus branch `feat/readings-upsert-history`, 2026-09-20.
 
-### 17.6 EEA: only the up-to-date feed is queried, and the feeds do not separate cleanly  — *CHARACTERISED 2026-09-20; design PROPOSED*
+### 17.6 EEA: only the up-to-date feed is queried, and the feeds do not separate cleanly  — *DONE 2026-09-22 (plan 3): day-level dataset priority, per-country clocks; see the plan's review record*
 **Method:** 240 live requests (8 countries — IE DE FR ES PL NO IT NL — × 10 periods 2010–2026 × 3 datasets, NO2,
 three-day windows), then 400 one-day requests month by month 2023–2026 for datasets 1 and 2. Zero request errors.
 **Settled:**

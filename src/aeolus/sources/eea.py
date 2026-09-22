@@ -732,8 +732,8 @@ register_source("EEA", {
     "bbox_aware": True,
     "status": "experimental",
     "status_note": (
-        "only the EEA up-to-date feed is queried, so earlier years return no data "
-        "(the verified archive is not wired in yet); every row is therefore "
-"'Provisional'. Timestamps are converted from the EEA's UTC+1 (Italy: local time)."
+        "timestamps are converted from the EEA's UTC+1 convention, which is verified only for "
+        "the up-to-date feed in DE/NL/IE/ES/PL (Italy: local time) and the verified archive in "
+        "DE/NL/PL/IT (Ireland: plain UTC); other countries and the Airbase archive are assumed."
     ),
 })
