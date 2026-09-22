@@ -97,7 +97,7 @@ class TestSosMappingLatch:
             {"site_code": ["MY1"], "latitude": [51.52], "longitude": [-0.15]}
         )
         monkeypatch.setattr(
-            "aeolus.sources.regulatory.make_metadata_fetcher", lambda net: (lambda: meta)
+            "aeolus.sources.regulatory.make_metadata_fetcher", lambda net: (lambda **kw: meta)
         )
         assert sos._build_station_mapping("aurn") == {}
         sos._build_station_mapping("aurn")
@@ -451,3 +451,18 @@ class TestRdataBreakerHalfOpen:
             regulatory.fetch_rdata(f"{dead}MY1_{year}.RData")
         # exactly one probe (3 attempts), then closed again — not three more full failures
         assert len(responses.calls) - opened == 3
+
+
+class TestSosMappingRebuildSeesClosedSites:
+    def test_rebuild_asks_for_closed_sites_so_each_station_matches_itself(self, monkeypatch):
+        from aeolus.sources import sos
+
+        monkeypatch.setattr(sos, "_fetch_all_timeseries", lambda: [])
+        calls = []
+        meta = pd.DataFrame({"site_code": ["MY1"], "latitude": [51.52], "longitude": [-0.15]})
+        monkeypatch.setattr(
+            "aeolus.sources.regulatory.make_metadata_fetcher",
+            lambda net: (lambda **kw: (calls.append(kw), meta)[1]),
+        )
+        sos._build_station_mapping("aurn")
+        assert calls == [{"include_closed": True}]

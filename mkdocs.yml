@@ -78,6 +78,7 @@ nav:
       - Data Sources: guide/sources.md
       - Downloading Data: guide/downloading.md
       - Data Quality (Ratification): guide/ratification.md
+      - Migrating to 0.5: guide/migrating-to-0.5.md
       - Metrics & Analysis: guide/metrics.md
       - Visualization: guide/visualization.md
   - Data Sources:
@@ -98,6 +99,7 @@ nav:
       - aeolus.networks: api/networks.md
       - aeolus.portals: api/portals.md
       - aeolus.metrics: api/metrics.md
+      - aeolus.schema / qa / registry: api/schema.md
   - Contributing: contributing.md
 
 extra:

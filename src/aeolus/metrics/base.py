@@ -355,7 +355,7 @@ def calculate_aqi_from_breakpoints(
             else:
                 # Below this band's lower bound: either below the bottom of the
                 # whole scale (e.g. a slightly-negative low-cost-sensor reading,
-                # which this library keeps as ratification='Unvalidated') or
+                # which this library keeps, with the network's own qa_code) or
                 # inside one of the 0.1-µg/m³ gaps some tables leave between
                 # bands (e.g. EU CAQI NO2 band 1 ends at 40 and band 2 starts at
                 # 40.1). Either way the value belongs in *this* band — snap to

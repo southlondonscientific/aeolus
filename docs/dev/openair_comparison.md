@@ -68,7 +68,7 @@ sites = aeolus.find_sites(near=(51.5074, -0.1278), radius_km=10)
 **Aeolus:**
 ```python
 aeolus.summarise(data)
-# Returns: site_code, source_network, measurand, start, end, records, valid, data_capture
+# Returns: site_code, network, measurand, start, end, records, valid, data_capture
 ```
 
 ## Time Averaging
@@ -261,7 +261,7 @@ Most of these (especially the polar/wind plots and trajectory analysis) require 
 | Column names | Lower case (`date`, `no2`, `pm25`) | Descriptive (`date_time`, `measurand`, `value`) |
 | Timestamps | POSIXct, local time or UTC | Always UTC-aware `datetime64[ns, UTC]` |
 | Units | Implicit (assumed µg/m³) | Explicit `units` column |
-| Site identity | `site` column | `site_code` + `source_network` columns |
+| Site identity | `site` column | `site_code` + `network` columns |
 | Missing data | NA in pollutant columns | Missing rows or `value=NaN` |
 
 The long format used by Aeolus is more verbose but handles multi-source, multi-pollutant data without column name conflicts. Converting between formats is straightforward with pandas `pivot`/`melt`.

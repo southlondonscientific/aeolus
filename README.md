@@ -51,16 +51,18 @@ print(data.head())
 ```
 
 ```
-   site_code           date_time measurand  value  units source_network
-0       MY1 2024-01-01 00:00:00       NO2   42.3  ug/m3           AURN
-1       MY1 2024-01-01 00:00:00     PM2.5   18.7  ug/m3           AURN
-2       MY1 2024-01-01 00:00:00      PM10   24.1  ug/m3           AURN
+  site_code network                 date_time measurand     value  units   qa_code            qa_tier ratification_stage backend
+0       MY1    AURN 2024-01-01 00:00:00+00:00        O3  39.71443  ug/m3  verified  reference_full_qc           ratified   RDATA
+1       MY1    AURN 2024-01-01 01:00:00+00:00        O3  23.74883  ug/m3  verified  reference_full_qc           ratified   RDATA
+2       MY1    AURN 2024-01-01 02:00:00+00:00        O3  31.33249  ug/m3  verified  reference_full_qc           ratified   RDATA
 ...
 ```
 
+Ten of the 13 columns are shown; the others are the deprecated mirrors `source_network` and `ratification`, and `created_at` (see the schema table below).
+
 ## Data Sources
 
-Aeolus connects to 12 monitoring networks and 2 global data portals, providing access to an estimated 28 billion station-hours of air quality data. This spans reference-grade government networks (AURN, EEA, AirNow), low-cost sensor networks (Sensor.Community, PurpleAir, Breathe London), and global aggregation portals (OpenAQ). All sources are normalised to a common 8-column schema, so data from a DEFRA reference monitor in London and a citizen science sensor in Kampala arrive in the same format.
+Aeolus connects to 12 monitoring networks and 2 global data portals, providing access to an estimated 28 billion station-hours of air quality data. This spans reference-grade government networks (AURN, EEA, AirNow), low-cost sensor networks (Sensor.Community, PurpleAir, Breathe London), and global aggregation portals (OpenAQ). All sources are normalised to a common 13-column schema, so data from a DEFRA reference monitor in London and a citizen science sensor in Kampala arrive in the same format.
 
 ### UK Regulatory Networks
 
@@ -165,7 +167,7 @@ set_rate_limiting(max_requests=5, period=60, min_delay=2.0)
 set_rate_limiting(enabled=False)
 ```
 
-**Note:** Data is marked as `Unvalidated` since this is citizen science data without formal QA/QC processes.
+**Note:** Sensor.Community publishes no per-row quality flag, so `qa_code` is null and `qa_tier` is `unknown` (`ratification_stage = not_applicable`).
 
 ### EPA AirNow (USA)
 
@@ -256,21 +258,25 @@ data = aeolus.portals.download(
 
 ### Standardised Format
 
-All data sources return pandas DataFrames with a consistent schema:
+All data sources return pandas DataFrames with the same 13 columns (`aeolus.schema.DATA_COLUMNS`):
 
 | Column | Description |
 |--------|-------------|
 | `site_code` | Unique site identifier |
-| `date_time` | Measurement timestamp |
+| `network` | Which network produced the data (`AURN`, `LAQN`, `EEA`, ...) |
+| `date_time` | Start of the averaging interval, tz-aware UTC (`13:00` covers 13:00–14:00) |
 | `measurand` | Pollutant (NO2, PM2.5, PM10, O3, etc.) |
 | `value` | Measured concentration |
 | `units` | Units as the network reports them (µg/m³; mg/m³ for CO; ppb for AirNow gases) |
-| `network` | Which network produced the data (`AURN`, `LAQN`, `EEA`, ...) |
 | `qa_code` | The upstream's own quality token, verbatim (null where the upstream is silent) |
 | `qa_tier` | Cross-network quality tier: `reference_full_qc`, `reference_provisional`, `lcs_calibrated`, `lcs_factory_only`, `flagged`, `unknown` |
 | `ratification_stage` | `unratified`, `ratified`, `supplied`, `not_applicable` or null |
-| `backend` | Which fetcher served the row (`RDATA`, `SOS`, `ERG_REST`, ...) |
-| `source_network`, `ratification` | Deprecated mirrors, removed in 1.0 (`AEOLUS_LEGACY_COLUMNS=0` drops them) |
+| `backend` | Which fetcher served the row (`RDATA`, `SOS`, `ERG_REST`, `EEA_E1A`, ...) |
+| `source_network` | Deprecated mirror of `network`, removed in 1.0 |
+| `ratification` | Deprecated mirror derived from the three QA columns, removed in 1.0 |
+| `created_at` | When the record was fetched (UTC) |
+
+`AEOLUS_LEGACY_COLUMNS=0` drops the two mirrors. Migrating from 0.4? See [Migrating to 0.5](https://github.com/southlondonscientific/aeolus/blob/main/docs/guide/migrating-to-0.5.md).
 
 ### Data Transformations
 

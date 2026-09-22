@@ -26,13 +26,15 @@ be listed completely.
 
 from datetime import datetime
 
+from typing import Any
+
 import pandas as pd
 
 from .._dates import resolve_dates
 from ..registry import get_source, unknown_source_message
 
 
-def get_metadata(network: str, **filters) -> pd.DataFrame:
+def get_metadata(network: str, **filters: Any) -> pd.DataFrame:
     """
     Get monitoring site metadata for a network.
 
@@ -49,7 +51,7 @@ def get_metadata(network: str, **filters) -> pd.DataFrame:
             - site_name: Human-readable site name
             - latitude: Site latitude
             - longitude: Site longitude
-            - source_network: Network name
+            - source_network: Network name (raw adapter metadata; ``aeolus.find_sites()`` returns the public schema with ``network``)
 
     Raises:
         ValueError: If network is unknown or not a network type
@@ -110,8 +112,8 @@ def download(
             - measurand: Pollutant measured (e.g., "NO2", "PM2.5")
             - value: Measured value
             - units: Units of measurement
-            - source_network: Network name
-            - ratification: Data quality flag
+            - network / backend / qa_code / qa_tier / ratification_stage: the 0.5 contract columns
+            - source_network, ratification: deprecated mirrors (``AEOLUS_LEGACY_COLUMNS=0`` drops them)
             - created_at: When record was fetched
 
     Raises:

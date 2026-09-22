@@ -81,7 +81,7 @@ All sources return data in a consistent format:
 ```
 site_code | network | date_time                 | measurand | value | units | qa_code | qa_tier | ratification_stage | backend | source_network | ratification | created_at
 ----------|---------|---------------------------|-----------|-------|-------|---------|---------|--------------------|---------|----------------|--------------|---------------------------
-MY1       | AURN    | 2024-01-01 00:00:00+00:00 | NO2       | 45.2  | ug/m3 | null    | unknown | null               | RDATA   | AURN           | None         | 2026-02-16 12:00:00+00:00
+MY1       | AURN    | 2024-01-01 00:00:00+00:00 | NO2       | 45.2  | ug/m3 | verified | reference_full_qc | ratified  | RDATA   | AURN           | Ratified     | 2026-02-16 12:00:00+00:00
 ```
 
 - `network` is who produced the data; `backend` is which of Aeolus's fetchers served it (`AURN` via `RDATA` or `SOS`).
@@ -95,7 +95,7 @@ This makes it easy to combine and compare data from different sources.
 Site metadata (from `find_sites()`) uses a consistent format:
 
 ```
-site_code | site_name          | latitude | longitude | network | country | instrument_class | provider | backend | measurands | source_network
+site_code | site_name          | latitude | longitude | network | country | instrument_class | provider | backend | measurands | source_network (deprecated mirror)
 ----------|--------------------|---------:|----------:|---------|---------|------------------|----------|---------|------------|---------------
 MY1       | London Marylebone  | 51.5225  | -0.1546   | AURN    | GB      | reference        | null     | RDATA   | [NO2, ...] | AURN
 ```

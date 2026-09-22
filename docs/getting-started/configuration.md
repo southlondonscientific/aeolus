@@ -43,6 +43,23 @@ import aeolus
 # Now API keys are available
 ```
 
+## Aeolus settings
+
+All optional. Read once, when `aeolus` is imported (`AEOLUS_CACHE_DIR`: on first use of the cache).
+
+| Variable | Default | Effect |
+|---|---|---|
+| `AEOLUS_LEGACY_COLUMNS` | `1` | `0` drops the deprecated `source_network` and `ratification` mirrors — use it to prove your code has migrated to 0.5 |
+| `AEOLUS_CACHE_DIR` | `~/.cache/aeolus` | Where downloads are cached once `aeolus.cache.enable_cache()` has been called (the cache is off by default; a versioned sub-directory per cache format, currently `v4`) |
+| `AEOLUS_CACHE_VOLATILE_TTL_S` | `3600` | How long a download whose window touches "now" (e.g. `last="7d"`) is served from cache before it is refreshed |
+| `AEOLUS_METADATA_TTL_S` | `86400` | How long AURN-family site metadata (the `ratified_to` join) is memoised |
+| `AEOLUS_RDATA_BREAKER_FAILURES` | `3` | Consecutive failures after which an openair RData host fails fast |
+| `AEOLUS_RDATA_BREAKER_COOLDOWN_S` | `60` | How long that host fails fast before Aeolus probes it again |
+| `AEOLUS_SOS_BREAKER_FAILURES` | `5` | The same, for the UK-AIR SOS near-real-time endpoint |
+| `AEOLUS_SOS_BREAKER_COOLDOWN_S` | `60` | Cool-down for the SOS breaker |
+
+`AEOLUS_LEGACY_COLUMNS` is also settable in code: `aeolus.options.legacy_columns = False`.
+
 ## Obtaining API Keys
 
 ### OpenAQ

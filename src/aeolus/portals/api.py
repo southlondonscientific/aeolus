@@ -26,13 +26,15 @@ requiring search/discovery patterns rather than complete listing.
 
 from datetime import datetime
 
+from typing import Any
+
 import pandas as pd
 
 from .._dates import resolve_dates
 from ..registry import get_source, unknown_source_message
 
 
-def find_sites(portal: str, **filters) -> pd.DataFrame:
+def find_sites(portal: str, **filters: Any) -> pd.DataFrame:
     """
     Search for monitoring locations in a portal.
 
@@ -55,7 +57,7 @@ def find_sites(portal: str, **filters) -> pd.DataFrame:
             - site_name: Human-readable name
             - latitude: Location latitude
             - longitude: Location longitude
-            - source_network: Original data source
+            - source_network: Original data source (raw adapter metadata; ``aeolus.find_sites()`` returns the public schema with ``network``)
 
     Raises:
         ValueError: If portal is unknown, not a portal type, or no filters provided
@@ -129,8 +131,8 @@ def download(
             - measurand: Pollutant measured (e.g., "NO2", "PM2.5")
             - value: Measured value
             - units: Units of measurement
-            - source_network: Original data source
-            - ratification: Data quality flag
+            - network / backend / qa_code / qa_tier / ratification_stage: the 0.5 contract columns
+            - source_network, ratification: deprecated mirrors (``AEOLUS_LEGACY_COLUMNS=0`` drops them)
             - created_at: When record was fetched
 
     Raises:

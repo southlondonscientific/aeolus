@@ -68,7 +68,7 @@ Supported Portals:
 For more details, see: https://github.com/southlondonscientific/aeolus
 """
 
-__version__ = "0.4.5.4"
+__version__ = "0.5.0a1"
 
 # Import submodules for networks, portals, metrics, cache
 from . import cache, metrics, networks, options, portals, transforms

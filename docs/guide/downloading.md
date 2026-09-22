@@ -72,7 +72,7 @@ Use `summarise()` to quickly inspect downloaded data:
 ```python
 data = aeolus.download("AURN", ["MY1", "KC1"], last="30d")
 aeolus.summarise(data)
-# Shows: site_code, source_network, measurand, start, end, records, valid, data_capture
+# Shows: site_code, network, measurand, start, end, records, valid, data_capture
 ```
 
 ## Multiple Sources
@@ -90,7 +90,7 @@ data = aeolus.download(
 )
 ```
 
-The resulting DataFrame contains data from all sources, distinguished by the `source_network` column.
+The resulting DataFrame contains data from all sources, distinguished by the `network` column (and `backend`, which says which fetcher served each row).
 
 ## Filtering Pollutants
 

@@ -6,7 +6,7 @@
 
 - **Coverage**: Global (35,000+ sensors)
 - **Sensors**: SDS011, PMS series, BME280, and others
-- **Data quality**: Unvalidated (citizen science)
+- **Data quality**: no per-row flag — `qa_code` null, `qa_tier = unknown` (citizen science)
 - **API key**: Not required
 - **Operator**: Community-run (originated in Stuttgart, Germany)
 
@@ -135,9 +135,9 @@ set_rate_limiting(max_requests=5, period=60, min_delay=2.0)
 set_rate_limiting(enabled=False)
 ```
 
-## Data Quality
+## Data quality
 
-Data is marked as `ratification='Unvalidated'` because:
+Sensor.Community publishes no per-row quality flag, so `qa_code` is null, `qa_tier` is `unknown` and `ratification_stage` is `not_applicable`. Treat the data as uncalibrated citizen science:
 
 - Sensors are installed and maintained by citizens
 - No formal calibration or QA/QC process

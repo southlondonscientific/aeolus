@@ -322,7 +322,7 @@ def time_average(
     value is set to NaN. This is the foundation for regulatory statistics.
 
     Args:
-        data: DataFrame from aeolus.download() with standard 8-column schema.
+        data: DataFrame from aeolus.download() (the public schema; pre-0.5 frames are accepted).
         freq: Target frequency string (pandas offset alias).
               Common values: "D" (daily), "8h" (8-hourly), "W" (weekly),
               "ME" (monthly), "YE" (yearly).

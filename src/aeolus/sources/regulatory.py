@@ -484,12 +484,64 @@ def _load_sos_mapping() -> dict:
 
 
 # Metadata normalisation pipeline for regulatory networks
-def normalise_regulatory_metadata(network_name: str) -> Normaliser:
+def drop_closed_sites(df: pd.DataFrame) -> pd.DataFrame:
+    """Keep only sites with at least one parameter still being measured.
+
+    The openair metadata lists every site-parameter the network has ever run,
+    with ``end_date`` an ISO date for a series that has ended and ``ongoing``
+    (or blank) for one that has not. A site whose every series has ended is
+    closed — some decades ago — and listing it makes ``find_sites(near=...)``
+    return dead monitors. This mirrors openair's ``importMeta(all = FALSE)``.
+    """
+    if "end_date" not in df.columns or df.empty:
+        return df
+    site_open = _series_open(df["end_date"]).groupby(df["site_code"]).transform("any")
+    return df[site_open]
+
+
+def _series_open(end_date: pd.Series) -> pd.Series:
+    """True where a site-parameter series has not ended: ``ongoing``, blank, or a date not yet past."""
+    ended = pd.to_datetime(end_date, errors="coerce", format="ISO8601")  # "ongoing", blank, NaN -> NaT
+    today = pd.Timestamp.now(tz="UTC").tz_localize(None).normalize()
+    return ended.isna() | (ended >= today)
+
+
+def one_row_per_site(df: pd.DataFrame) -> pd.DataFrame:
+    """Collapse the openair metadata's one-row-per-parameter layout to one row per site.
+
+    The parameter columns are dropped before this step, so the rows differ only
+    in their series dates: ``start_date`` becomes the earliest, ``end_date`` is
+    ``ongoing`` if any series is still running (else the latest end), and the
+    per-parameter ``ratified_to`` is dropped (the data path reads it from the
+    raw metadata, per parameter, for the ``qa_code`` join).
+    """
+    if "site_code" not in df.columns or df.empty:
+        return df
+    df = df.drop(columns=[c for c in ("ratified_to",) if c in df.columns])
+    agg: dict[str, pd.Series] = {}
+    if "start_date" in df.columns:
+        started = pd.to_datetime(df["start_date"], errors="coerce", format="ISO8601")
+        agg["start_date"] = started.groupby(df["site_code"]).min().dt.strftime("%Y-%m-%d")
+    if "end_date" in df.columns:
+        open_any = _series_open(df["end_date"]).groupby(df["site_code"]).any()
+        ended = pd.to_datetime(df["end_date"], errors="coerce", format="ISO8601")
+        latest = ended.groupby(df["site_code"]).max().dt.strftime("%Y-%m-%d")
+        agg["end_date"] = latest.where(~open_any, "ongoing")
+    out = df.drop_duplicates(subset="site_code", keep="first").set_index("site_code")
+    for col, values in agg.items():
+        out[col] = values.reindex(out.index).astype(object).where(lambda v: v.notna(), None)
+    return out.reset_index()
+
+
+def normalise_regulatory_metadata(network_name: str, *, include_closed: bool = False) -> Normaliser:
     """
     Create a normalisation pipeline for regulatory network metadata.
 
     Args:
         network_name: Name of the network (e.g., "AURN", "SAQN")
+        include_closed: Keep sites whose every parameter has an ``end_date``
+            in the past (default False: only sites still measuring are listed,
+            as openair's ``importMeta(all = FALSE)`` does).
 
     Returns:
         Normaliser: Function that normalises metadata DataFrame
@@ -505,6 +557,8 @@ def normalise_regulatory_metadata(network_name: str) -> Normaliser:
                 "local_authority": "owner",
             }
         ),
+        (lambda df: df) if include_closed else drop_closed_sites,
+        one_row_per_site,
         add_column("source_network", network_name.upper()),
         add_measurands_column(site_lookup),
         reset_index(),
@@ -583,7 +637,8 @@ def make_metadata_fetcher(network_name: str) -> MetadataFetcher:
         MetadataFetcher: Function that fetches and normalises metadata
     """
 
-    def fetch_metadata() -> pd.DataFrame:
+    def fetch_metadata(*, include_closed: bool = False) -> pd.DataFrame:
+        """Site metadata; ``include_closed=True`` also lists sites whose every series has ended."""
         df = _raw_metadata(network_name)
 
         if df is None:
@@ -594,7 +649,7 @@ def make_metadata_fetcher(network_name: str) -> MetadataFetcher:
             )
             return empty_metadata_frame()
 
-        normaliser = normalise_regulatory_metadata(network_name)
+        normaliser = normalise_regulatory_metadata(network_name, include_closed=include_closed)
         return normaliser(df)
 
     return fetch_metadata

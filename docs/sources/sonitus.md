@@ -5,7 +5,7 @@ The [Sonitus](https://data.smartdublin.ie/dataset/sonitus) network is Dublin Cit
 ## Overview
 
 - **Coverage**: Dublin, Ireland
-- **Data quality**: Indicative (low-cost multi-parameter sensors) plus a small number of reference-grade national monitors co-managed with EPA Ireland
+- **Data quality**: no per-row flag — `qa_code` null, `qa_tier = unknown`. Mostly low-cost multi-parameter sensors plus a small number of reference-grade national monitors co-managed with EPA Ireland
 - **Resolution**: 15-minute
 - **API key**: Not required (uses public credentials from the Smart Dublin data portal)
 - **Pollutants**: NO2, SO2, CO, NO, O3, PM1, PM2.5, PM10, TSP

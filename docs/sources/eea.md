@@ -12,7 +12,7 @@ The [European Environment Agency](https://www.eea.europa.eu/) aggregates regulat
 
 - **Coverage**: 40+ European countries, 7,000+ stations
 - **Data quality**: Reference (national regulatory networks, pooled by EEA)
-- **Ratification**: `Verified` (full QA/QC by the data provider) or `Provisional` (preliminary or not verified)
+- **QA**: `qa_code` is the EIONET `Verification` code (`1` verified, `2` preliminary, `3` not verified, `0` Airbase); `qa_tier` `reference_full_qc` or `reference_provisional`
 - **API key**: Not required
 - **History**: hourly data from 2013 (verified archive), recent months (up-to-date feed) and 2002–2012 (Airbase)
 - **Operator**: European Environment Agency
@@ -57,25 +57,25 @@ sites = aeolus.networks.get_metadata("EEA")
 germany = sites[sites["country"] == "DE"]
 ```
 
-## Data Quality
+## Data quality
 
-Each row is labelled with a `ratification` value derived from the EEA `Verification` field:
+`qa_code` is the EEA `Verification` code, verbatim:
 
-| EEA field value | `ratification` |
-|-----------------|----------------|
-| 1 (Verified) | `Verified` |
-| 2 (Preliminary verified) | `Provisional` |
-| 3 (Not verified) | `Provisional` |
+| `Verification` | `qa_code` | `qa_tier` | `ratification_stage` | legacy `ratification` mirror |
+|---|---|---|---|---|
+| 1 Verified | `"1"` | `reference_full_qc` | `ratified` | `Ratified` |
+| 2 Preliminary verified | `"2"` | `reference_provisional` | `unratified` | `Provisional` |
+| 3 Not verified | `"3"` | `reference_provisional` | `unratified` | `Provisional` |
+| 0 (Airbase, 2002–2012, status not recorded) | `"0"` | `unknown` | null | `None` |
 
-Codes follow the [EIONET observation-verification vocabulary](https://dd.eionet.europa.eu/vocabulary/aq/observationverification). Versions before 0.5.0 had this mapping inverted.
+Codes follow the [EIONET observation-verification vocabulary](https://dd.eionet.europa.eu/vocabulary/aq/observationverification). Versions before 0.5.0 had this mapping inverted. Rows with `Validity < 1` (invalid, or under maintenance) are dropped rather than flagged.
 
-!!! warning "Historical coverage"
-    Aeolus currently queries only the EEA *up-to-date* feed, which holds recent data (all `Provisional`). Requests for earlier years return an empty frame; the verified archive is not yet wired in.
+`backend` says which EEA dataset served each row: `EEA_E1A` (verified archive, reported annually after national QA/QC), `EEA_E2A` (up-to-date feed) or `EEA_AIRBASE`. Aeolus asks for the archive and the feed on every download that reaches past 2012 (and Airbase only for the years up to 2012, which is all it holds) and serves each site-pollutant-day, on the archive's own clock, from the highest-priority dataset that holds it. A dataset whose request fails is reported as a warning and the others still serve.
 
 ## Notes
 
 - **No real-time**: `get_current()` is not supported for EEA — the download API is not near-real-time. Use national sources (AURN, etc.) for live readings.
-- **Dataset variant**: Aeolus uses the E1a ("Verified") dataset for the broadest coverage of recent data.
+- **Datasets**: the verified archive (E1a) starts in 2013; the up-to-date feed (E2a) holds the most recent one to two years, depending on the country; Airbase holds 2002–2012. Where the archive and the feed overlap, the archive wins day by day.
 - **Samplingpoint mapping**: EEA `Samplingpoint` identifiers follow different conventions per country. Aeolus uses the EEA's own metadata CSV to map these to EoI station codes authoritatively.
 
 ## Resources
@@ -83,9 +83,3 @@ Codes follow the [EIONET observation-verification vocabulary](https://dd.eionet.
 - [EEA Air Quality Download Service](https://eeadmz1-downloads-webapp.azurewebsites.net/)
 - [EEA Air Quality Statistics Viewer](https://discomap.eea.europa.eu/App/AQViewer/)
 - [Air Quality Directive](https://environment.ec.europa.eu/topics/air/air-quality/eu-air-quality-standards_en)
-
-## Data quality
-
-`qa_code` is the EIONET `Verification` code, verbatim: `"1"` verified → `qa_tier = reference_full_qc`, `ratification_stage = ratified`; `"2"` preliminary verified and `"3"` not verified → `reference_provisional`, `unratified`; `"0"` (Airbase, 2002–2012, status not recorded) → `unknown`. The legacy `ratification` mirror shows `Ratified` or `Provisional`. Rows with `Validity < 1` (invalid, or under maintenance) are dropped rather than flagged.
-
-`backend` says which EEA dataset served each row: `EEA_E1A` (verified archive, reported annually after national QA/QC), `EEA_E2A` (up-to-date feed) or `EEA_AIRBASE`. Aeolus asks for the archive and the feed on every download that reaches past 2012 (and Airbase only for the years up to 2012, which is all it holds) and serves each site-pollutant-day, on the archive's own clock, from the highest-priority dataset that holds it. A dataset whose request fails is reported as a warning and the others still serve.

@@ -341,8 +341,9 @@ def fetch_purpleair_data(
             - measurand: Pollutant measured (e.g., "PM2.5", "PM10")
             - value: Measured value (average of A and B channels if both valid)
             - units: Units of measurement
-            - source_network: "PurpleAir"
-            - ratification: Data quality flag (see Notes)
+            - source_network: "PURPLEAIR" (raw adapter frame; the public frame adds ``network``, ``qa_tier``)
+            - qa_code: channel-agreement label (see Notes)
+            - ratification: legacy quality label
             - created_at: When record was fetched
 
         If raw=True: Wide-format data with columns:

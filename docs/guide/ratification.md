@@ -19,7 +19,7 @@ The pre-0.5.0 `ratification` column is still present as a **deprecated mirror** 
 | AURN | `verified` / `unverified` — from the site's per-pollutant `ratified_to` date in the openair metadata | `reference_full_qc` / `reference_provisional` |
 | SAQN, WAQN, NI, AQE | `Ratified` / `Provisional`, the same way | `reference_full_qc` / `reference_provisional` |
 | AURN-SOS and the other near-real-time sources | always the network's unratified token | `reference_provisional` |
-| EEA | the EIONET `Verification` code: `"1"` verified, `"2"` preliminary verified, `"3"` not verified | `reference_full_qc` for `"1"`, else `reference_provisional` |
+| EEA | the EIONET `Verification` code: `"1"` verified, `"2"` preliminary verified, `"3"` not verified, `"0"` Airbase (status not recorded) | `reference_full_qc` for `"1"`, `reference_provisional` for `"2"`/`"3"`, `unknown` for `"0"` |
 | PurpleAir | the channel-agreement label: `Validated`, `Single Channel (A)`/`(B)`, `Below Detection Limit`, `Channel Disagreement`, `Sensor Saturation`, `Invalid`, `Unvalidated` | `lcs_factory_only` (validated, single channel, below detection limit), `flagged` (disagreement, saturation, invalid), `unknown` (unvalidated) |
 | Breathe London | `RatificationStatus` (`P`), null where absent | `lcs_calibrated`, else `unknown` |
 | AirNow | `Provisional` — the AirNow feed is never ratified; certified data is in EPA's AQS | `reference_provisional` |
@@ -56,3 +56,5 @@ For PurpleAir, `aeolus.sources.purpleair.fetch_purpleair_data(..., include_flagg
 - Compare networks on `qa_tier`, not on the raw `qa_code` — the codes are each network's own words.
 - A null `qa_code` means the upstream said nothing; it is not a bad reading. Check the network's documentation page for what that implies.
 - Recent AURN-family data is provisional for roughly three to six months; the metadata's `ratified_to` date is what Aeolus uses to tell.
+
+Coming from the 0.4 `ratification` column? See [Migrating to 0.5](migrating-to-0.5.md).

@@ -4,6 +4,8 @@
 
 Aeolus provides a unified Python interface for accessing air quality data from multiple sources, automatically normalising everything into a consistent pandas DataFrame format.
 
+Upgrading from 0.4? Read [Migrating to 0.5](guide/migrating-to-0.5.md) first.
+
 ## Features
 
 - **Unified API** - One interface for all data sources
@@ -58,7 +60,7 @@ print(data.head())
 ## Installation
 
 ```bash
-pip install aeolus-aq
+pip install --pre aeolus-aq   # --pre: these docs describe the 0.5 alpha
 ```
 
 See the [Installation Guide](getting-started/installation.md) for more options.

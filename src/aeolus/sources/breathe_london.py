@@ -297,8 +297,9 @@ def fetch_breathe_london_data(
             - measurand: Pollutant measured (e.g., "NO2", "PM2.5")
             - value: Measured value
             - units: Units of measurement
-            - source_network: "Breathe London"
-            - ratification: Data quality flag
+            - source_network: "BREATHE_LONDON" (raw adapter frame; the public frame adds ``network``, ``qa_tier``)
+            - qa_code: the API ``RatificationStatus`` verbatim
+            - ratification: legacy quality label
             - created_at: When record was fetched
 
     Note:

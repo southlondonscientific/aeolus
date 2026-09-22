@@ -6,7 +6,7 @@
 
 - **Coverage**: Greater London (~100+ sensors)
 - **Sensor type**: Low-cost electrochemical and optical sensors
-- **Data quality**: Indicative (calibrated against reference monitors)
+- **Data quality**: `qa_tier = lcs_calibrated` (status `P`), calibrated against reference monitors
 - **API key**: Required
 - **Operator**: Vodafone/Airly
 
@@ -52,14 +52,15 @@ data = aeolus.download(
 )
 ```
 
-## Data Quality
+## Data quality
 
-Breathe London sensors are **indicative** rather than reference-grade:
+Breathe London sensors are low-cost, calibrated instruments rather than reference-grade:
 
 - Calibrated using co-location with AURN reference monitors
 - Subject to sensor drift and environmental interference
 - Best used for spatial patterns rather than absolute values
-- Data marked as `ratification='Indicative'`
+
+`qa_code` is the API's `RatificationStatus` verbatim (`P` → `qa_tier = lcs_calibrated`, `ratification_stage = unratified`). Where the API gives no status, `qa_code` is null and `qa_tier` is `unknown`; earlier versions labelled those rows `Indicative`, which Breathe London never said. See the [Data Quality guide](../guide/ratification.md) for filtering by tier.
 
 ### Best Practices
 
@@ -101,9 +102,5 @@ data = aeolus.download(
 )
 
 # Compare reference vs low-cost
-data.groupby(['source_network', 'measurand'])['value'].mean()
+data.groupby(['network', 'measurand'])['value'].mean()
 ```
-
-## Data quality
-
-`qa_code` is the API's `RatificationStatus` verbatim (`P` → `qa_tier = lcs_calibrated`, `ratification_stage = unratified`). Where the API gives no status, `qa_code` is null and `qa_tier` is `unknown`; earlier versions labelled those rows `Indicative`, which Breathe London never said.
