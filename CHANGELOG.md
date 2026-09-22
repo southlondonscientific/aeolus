@@ -5,7 +5,11 @@ All notable changes to Aeolus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — targeting v0.5.0
+## [Unreleased]
+
+## [0.5.0a1] - 2026-09-23 (alpha for internal consumers)
+
+First alpha of the 0.5 contract for Hermes, RHEA, Clara and Argus to migrate against. Not for general use. Migration guide: `docs/guide/migrating-to-0.5.md`.
 
 The correctness scrub planned as v0.4.6, held to ship as part of v0.5.0 (one re-baseline event). Work packages from `docs/dev/v046_fix_plan.md`. Many of these change emitted values; consumers (Hermes, RHEA, Clara, Argus) should re-baseline.
 
