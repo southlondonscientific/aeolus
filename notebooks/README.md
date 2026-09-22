@@ -12,9 +12,11 @@ Each notebook is self-contained, tells a complete story, and can be adapted for 
 | 03 | [Low-Cost Sensor vs Reference Monitor](03_sensor_vs_reference.ipynb) | `PURPLEAIR_API_KEY` | Citizen Scientist, Student |
 | 04 | [UK City Air Quality Ranking](04_uk_city_ranking.ipynb) | None | Journalist, Researcher |
 | 05 | [Exposure Assessment for Health Study](05_exposure_assessment.ipynb) | `BL_API_KEY` | Health Researcher |
-| 06 | [African Air Quality with AirQo](06_african_air_quality.ipynb) | `AIRQO_API_KEY` | Researcher, Student |
-| 07 | [Global Sensor Network Comparison](07_global_sensor_comparison.ipynb) | `PURPLEAIR_API_KEY`, `AIRQO_API_KEY` | Researcher, IoT Developer |
+| 06 | [African Air Quality with AirQo](06_african_air_quality.ipynb) | `AIRQO_API_KEY` | Researcher, Student (outputs cleared 2026-09-23 pending a renewed AirQo token) |
+| 07 | [Global Sensor Network Comparison](07_global_sensor_comparison.ipynb) | `PURPLEAIR_API_KEY`, `AIRQO_API_KEY` | Researcher, IoT Developer (executed 2026-09-23 with the AirQo token expired, so its AirQo column is empty) |
 | 08 | [Multi-Year Trend Analysis](08_trend_analysis.ipynb) | None | Researcher, Consultant |
+
+Outputs last executed live on 2026-09-23 with aeolus 0.5.0a1 (notebook 06 excepted, see above).
 
 ## Quick Start
 
