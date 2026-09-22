@@ -410,12 +410,16 @@ def create_breathe_london_normaliser():
 
     def add_quality_flag(df: pd.DataFrame) -> pd.DataFrame:
         """Add data quality information."""
-        # Use RatificationStatus from API if available, otherwise mark as Indicative
-        if "RatificationStatus" in df.columns:
-            df["ratification"] = df["RatificationStatus"].fillna("Indicative")
-            df = df.drop(columns=["RatificationStatus"])
-        else:
-            df["ratification"] = "Indicative"
+        # The upstream status is the QA token, verbatim; a missing status is
+        # unknown (not "Indicative", which was never something BL said).
+        status = (
+            df["RatificationStatus"]
+            if "RatificationStatus" in df.columns
+            else pd.Series(None, index=df.index, dtype=object)
+        )
+        df["qa_code"] = status.astype(object).where(status.notna(), None)
+        df["ratification"] = df["qa_code"].fillna("Unvalidated")
+        df = df.drop(columns=["RatificationStatus"], errors="ignore")
         return df
 
     def standardise_units(df: pd.DataFrame) -> pd.DataFrame:
@@ -468,6 +472,7 @@ def create_breathe_london_normaliser():
             "source_network",
             "ratification",
             "created_at",
+            "qa_code",
             require_all=True,
         ),
     )
