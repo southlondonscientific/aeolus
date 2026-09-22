@@ -4,7 +4,7 @@
 
 **Goal:** Make `aeolus.download("EEA", …)` return data for any year the EEA holds, by querying the verified archive (E1a), the up-to-date feed (E2a) and the historical Airbase set together, preferring verified rows — with each row's timestamp on the right clock and its dataset recorded.
 
-**Architecture:** `fetch_eea_data` issues one request per relevant dataset instead of one, tags each raw frame with its dataset id, and normalises the union. Timestamp conversion becomes dataset- and country-aware (`stamps_to_utc`). After normalisation, duplicate `(site_code, measurand, date_time)` rows are collapsed by priority verified → up-to-date → Airbase. The adapter emits `backend` (`EEA_E1A` / `EEA_E2A` / `EEA_AIRBASE`) so provenance survives the finalising step, which now keeps an adapter-provided `backend`.
+**Architecture:** `fetch_eea_data` issues one request per relevant dataset instead of one, tags each raw frame with its dataset id, and normalises the union. Timestamp conversion becomes dataset- and country-aware (`stamps_to_utc`). Inside the normaliser, before the validity filter, rows are collapsed by **day-level priority**: if the verified archive holds any row for a `(site, measurand, day)`, the up-to-date feed's (and Airbase's) rows for that day are dropped, so an overlap day is served entirely by one dataset. The adapter emits `backend` (`EEA_E1A` / `EEA_E2A` / `EEA_AIRBASE`) so provenance survives the finalising step, which now keeps an adapter-provided `backend`.
 
 **Tech Stack:** Python 3.11+, pandas, pyarrow, pytest with `unittest.mock`, uv.
 
@@ -15,7 +15,7 @@
 - Plan 1's Global Constraints apply (British English; `uv run`; exact offline pytest command; live conformance before merging; enums frozen; `qa_code` verbatim).
 - **Ground facts, all verified live (2026-09-20/22):** dataset ids are **1 = E2a up-to-date, 2 = E1a verified, 3 = Airbase (≤ 2012)** — the API's own zip folders are named `E2a`/`E1a`/`Airbase`. E2a begins 2024-01 (DE, IT, NL, PL), 2025-01 (ES) or 2026-01 (IE, FR, NO) and overlaps E1a for up to two years; E1a is incomplete for its latest year; overlapping values differ (rounding, corrections). `Verification` is 100 % `1` in E1a, `0` in Airbase.
 - **Clocks (the messy part):** EEA states hourly stamps are "converted to the UTC+1 timezone". Verified true for E2a in DE, NL, IE, ES, PL (Italy's E2a is local civil time) and for E1a in DE, NL, PL, IT (lag 0 against their E2a on overlap). **Ireland's E1a is plain UTC** (lag 0 against Sonitus, r = 0.9999, both January and September 2025) — the documented convention does not hold there. FR, NO, ES E1a and all Airbase: unverified, assumed UTC+1. EEA therefore **stays `experimental`**; the status note must say exactly what is verified.
-- Do not deduplicate Italy across datasets by raw stamp: convert both to UTC first (E2a as Europe/Rome, E1a as UTC+1), then deduplicate.
+- Deduplication is by **day**, not hour, and runs **before** the `Validity >= 1` filter. Reasons (plan review, 2026-09-22): hour-level keys merge co-located instruments (two PM10 sampling points at one station); an hour the archive rejected as invalid would otherwise be resurrected from the up-to-date feed; and Italy's up-to-date stamps follow the DST model for only ~88 % of sampling points (§17.6: 340/390 shifted in September, ~13 % in winter), so after conversion the residual points would sit an hour off the archive and double up. With day-level priority none of these can happen on overlap days; the residual Italian E2a points remain a caveat for non-overlap periods and are documented as such.
 - Branch `feat/v050-eea-datasets` off `main` after PR #16 (QA wiring) has merged.
 
 ## File structure
@@ -47,13 +47,13 @@ def test_adapter_provided_backend_is_kept():
 
 - [ ] **Step 2: Run to verify it fails** — `uv run pytest tests/test_schema.py --no-cov -p no:cacheprovider -q -k adapter_provided_backend` → `['EEA', 'EEA'] != ['EEA_E1A', 'EEA']`.
 
-- [ ] **Step 3: Implement** — in `finalise_data_frame`, replace `out["backend"] = backend` with:
+- [ ] **Step 3: Implement** — in `finalise_data_frame` (NOT `finalise_metadata_frame`, which has the same line), replace `out["backend"] = backend` with:
 
 ```python
     # An adapter that serves one network from several upstream datasets (EEA)
     # says which served each row; everything else gets the route's backend.
     if "backend" in out.columns:
-        out["backend"] = out["backend"].astype(object).where(out["backend"].notna(), backend)
+        out["backend"] = out["backend"].fillna(backend)  # fillna keeps the dtype: finalising twice must be a no-op
     else:
         out["backend"] = backend
 ```
@@ -81,13 +81,14 @@ def test_adapter_provided_backend_is_kept():
             ("IE/SPO.IE.IE0098ASample1_8", 1, "2024-07-01 01:00", "2024-07-01 00:00"),  # Ireland E2a is UTC+1
         ],
     )
-    @patch("aeolus.sources.eea._get_spo_mapping", return_value={})
-    def test_stamps_depend_on_dataset_and_country(self, _mock, samplingpoint, dataset, start, expected_utc):
+    def test_stamps_depend_on_dataset_and_country(self, samplingpoint, dataset, start, expected_utc):
         from aeolus.sources.eea import normalise_eea_data
 
         raw = self._raw_df([{**MOCK_PARQUET_RECORDS[0], "Samplingpoint": samplingpoint, "Start": start, "End": start}])
         raw["dataset"] = dataset
-        with patch("aeolus.sources.eea._samplingpoint_to_eoi", return_value="X0001A"):
+        # Patch the mapping, not the per-row function: Series.apply treats a
+        # MagicMock as dict-like and the pipeline then has nothing to concatenate.
+        with patch("aeolus.sources.eea._get_spo_mapping", return_value={samplingpoint.split("/", 1)[1]: "X0001A"}):
             out = normalise_eea_data()(raw)
         assert out["date_time"].iloc[0] == pd.Timestamp(expected_utc, tz="UTC")
 ```
@@ -121,7 +122,7 @@ _E1A_CLOCK_OVERRIDES = {"IE": "UTC"}
 and in `stamps_to_utc`, replace the body after `naive = ...` with:
 
 ```python
-        country = df["Samplingpoint"].astype(str).str[:2]
+        country = df["Samplingpoint"].astype(str).str.split("/").str[0]  # "IE/SPO.IE…" -> "IE"
         dataset = df["dataset"] if "dataset" in df.columns else pd.Series(DATASET_UTD, index=df.index)
         utc = naive.dt.tz_localize("Etc/GMT-1").dt.tz_convert("UTC")  # POSIX sign: GMT-1 is UTC+1
         for code, zone in _UTD_LOCAL_CLOCK.items():
@@ -136,7 +137,7 @@ and in `stamps_to_utc`, replace the body after `naive = ...` with:
         return df[df["date_time"].notna()]
 ```
 
-Update the docstring to say what the comment says. Replace every remaining `DATASET_E1A` reference (`grep -n DATASET_E1A src tests`) with `DATASET_UTD` for now — Task 3 changes the fetch.
+Update the `stamps_to_utc` docstring and the module docstring (which still says "We use E1a (dataset=1)") to say what the comment says. Replace every remaining `DATASET_E1A` reference (`grep -n DATASET_E1A src tests`) with `DATASET_UTD` for now — Task 3 changes the fetch.
 
 - [ ] **Step 4: Run** `tests/test_eea.py tests/test_time_conventions.py`. **Step 5: Commit** — `feat(eea): dataset- and country-aware timestamp clocks`.
 
@@ -156,16 +157,25 @@ Update the docstring to say what the comment says. Replace every remaining `DATA
     def test_queries_verified_and_utd_and_prefers_verified(self, mock_download, _mock_mapping):
         from aeolus.sources.eea import DATASET_UTD, DATASET_VERIFIED, fetch_eea_data
 
-        rec = dict(MOCK_PARQUET_RECORDS[0])  # IE record, Start 2024-01-01T00:00
-        verified = _make_parquet_zip([{**rec, "Value": "10.0", "Verification": 1}])
-        utd = _make_parquet_zip([{**rec, "Value": "11.5", "Verification": 2},
-                                 {**rec, "Start": "2024-01-01T01:00:00", "End": "2024-01-01T02:00:00", "Value": "12.0", "Verification": 2}])
+        # A German fixture: Germany is on the documented UTC+1 clock in both
+        # datasets, so no country override interferes with the assertions.
+        # (An Irish fixture would read E1a as UTC and E2a as UTC+1 and the
+        # hours would no longer line up.)
+        sp = "DE/SPO.DE_DEBB021_NO2_dataGroup1"
+        _mock_mapping.return_value = {**MOCK_SPO_MAPPING, "SPO.DE_DEBB021_NO2_dataGroup1": "DEBB021"}
+        rec = {**MOCK_PARQUET_RECORDS[0], "Samplingpoint": sp}
+        day1 = lambda h, v, ver: {**rec, "Start": f"2024-01-01T{h:02d}:00:00", "End": f"2024-01-01T{h + 1:02d}:00:00", "Value": v, "Verification": ver}
+        day2 = lambda h, v, ver: {**rec, "Start": f"2024-01-02T{h:02d}:00:00", "End": f"2024-01-02T{h + 1:02d}:00:00", "Value": v, "Verification": ver}
+        verified = _make_parquet_zip([day1(1, "10.0", 1)])                                   # archive holds day 1 only
+        utd = _make_parquet_zip([day1(1, "11.5", 2), day1(2, "11.9", 2), day2(1, "12.0", 2)])  # feed holds both days
         mock_download.side_effect = lambda body: {DATASET_VERIFIED: verified, DATASET_UTD: utd}.get(body["dataset"])
 
-        out = fetch_eea_data(["IE0028A"], datetime(2024, 1, 1), datetime(2024, 1, 2)).sort_values("date_time")
+        out = fetch_eea_data(["DEBB021"], datetime(2024, 1, 1), datetime(2024, 1, 3)).sort_values("date_time")
         datasets_asked = sorted(c.args[0]["dataset"] for c in mock_download.call_args_list)
         assert datasets_asked == [DATASET_UTD, DATASET_VERIFIED]           # no Airbase for a 2024 window
-        assert out["value"].tolist() == [10.0, 12.0]                        # verified wins the shared hour
+        # Day 1 is served entirely by the archive (its 02:00 feed row is dropped
+        # too — day-level priority); day 2 only the feed has.
+        assert out["value"].tolist() == [10.0, 12.0]
         assert out["backend"].tolist() == ["EEA_E1A", "EEA_E2A"]
         assert out["qa_code"].tolist() == ["1", "2"]
 
@@ -174,14 +184,14 @@ Update the docstring to say what the comment says. Replace every remaining `DATA
     def test_airbase_is_asked_for_only_before_2013(self, mock_download, _mock_mapping):
         from aeolus.sources.eea import DATASET_AIRBASE, fetch_eea_data
 
-        fetch_eea_data(["IE0028A"], datetime(2012, 3, 1), datetime(2012, 3, 8))
+        fetch_eea_data(["IE0131A"], datetime(2012, 3, 1), datetime(2012, 3, 8))
         assert DATASET_AIRBASE in {c.args[0]["dataset"] for c in mock_download.call_args_list}
         mock_download.reset_mock()
-        fetch_eea_data(["IE0028A"], datetime(2013, 1, 1), datetime(2013, 1, 8))
+        fetch_eea_data(["IE0131A"], datetime(2013, 1, 1), datetime(2013, 1, 8))
         assert DATASET_AIRBASE not in {c.args[0]["dataset"] for c in mock_download.call_args_list}
 ```
 
-Adjust the site code and `Start` strings to whatever `MOCK_PARQUET_RECORDS[0]` and `MOCK_SPO_MAPPING` actually use (read them; the mapping must resolve the record's `Samplingpoint` to the site you request).
+Add a third test, `test_invalid_archive_hour_is_not_resurrected_from_the_feed`: archive row for day 1 hour 1 with `Validity: -1`, feed rows for day 1 hours 1 and 2 valid → the result has **no** rows for day 1 (the archive claims the day; its only row is then dropped as invalid). And a fourth, `test_two_sampling_points_at_one_station_both_survive`: two archive rows, same station/hour, different `Samplingpoint` → two rows out.
 
 - [ ] **Step 2: Run to verify they fail** — today only one request is made (`datasets_asked == [1]`) and there is no `backend` column.
 
@@ -236,17 +246,28 @@ In `fetch_eea_data`, replace everything from `body: dict = {` to the `# Normalis
     raw_df = pd.concat(frames, ignore_index=True)
 ```
 
-and after normalisation, before the site filter:
+The deduplication lives in the **normaliser**, as a step straight after `stamps_to_utc` and **before** the `Validity >= 1` filter (move that `filter_rows` down the pipeline to just after this step):
 
 ```python
-    # One row per (site, measurand, hour): verified beats up-to-date beats Airbase
-    df = df.assign(_priority=df["backend"].map({DATASET_BACKEND[d]: i for i, d in enumerate(DATASET_PRIORITY)}))
-    df = (df.sort_values(["site_code", "measurand", "date_time", "_priority"], kind="stable")
-            .drop_duplicates(subset=["site_code", "measurand", "date_time"], keep="first")
-            .drop(columns="_priority"))
+    def prefer_verified_days(df: pd.DataFrame) -> pd.DataFrame:
+        """Serve each (site, measurand, day) from the highest-priority dataset that
+        holds any row for it — verified beats up-to-date beats Airbase.
+
+        Day-level, not hour-level, and before the validity filter, so that:
+        co-located instruments at one station are not merged; an hour the
+        archive rejected is not resurrected from the feed; and Italian
+        up-to-date points whose stamps do not follow the DST model cannot
+        double up beside archive rows on overlap days.
+        """
+        if "dataset" not in df.columns or df.empty:
+            return df
+        priority = df["dataset"].map({d: i for i, d in enumerate(DATASET_PRIORITY)})
+        day = df["date_time"].dt.floor("D")
+        best = priority.groupby([df["site_code"], df["measurand"], day], observed=True).transform("min")
+        return df[priority == best]
 ```
 
-In `normalise_eea_data`, add `add_column("backend", lambda df: df["dataset"].map(DATASET_BACKEND) if "dataset" in df.columns else "EEA")` before `select_columns`, and select `*ADAPTER_DATA_COLUMNS_QA, "backend"` (still `require_all=True`). The `dataset` column must survive until `stamps_to_utc` — it does, because nothing drops it before the terminal select.
+Pipeline order after the change: `extract_site_codes`, `map_pollutants`, `rename_columns`, `stamps_to_utc`, `prefer_verified_days`, `filter_rows(Validity >= 1)`, `convert_value`, … Then add `add_column("backend", lambda df: df["dataset"].map(DATASET_BACKEND) if "dataset" in df.columns else "EEA")` before `select_columns`, and select `*ADAPTER_DATA_COLUMNS_QA, "backend"` (still `require_all=True`). `fetch_eea_data` itself does no deduplication. The `dataset` column survives to these steps because nothing drops it before the terminal select.
 
 - [ ] **Step 4: Run** `tests/test_eea.py tests/test_eea_properties.py tests/test_schema.py`; fix column-list assertions to include `backend`. **Step 5: Commit** — `feat(eea): query verified, up-to-date and Airbase datasets; prefer verified rows`.
 
@@ -268,7 +289,7 @@ In `normalise_eea_data`, add `add_column("backend", lambda df: df["dataset"].map
 
 (`tests/test_network_registry.py` validates it loads.)
 
-- [ ] **Step 2: Conformance** — in `tests/test_conformance.py::TestEEA` replace `test_download` with two tests: the existing recent-window download, and
+- [ ] **Step 2: Conformance** — in `tests/test_conformance.py::TestEEA`, fix `test_download`: it requests `"STA-IE0028A"`, which `_infer_country_from_sites` reads as country `ST`, so it has always passed on an empty frame. Use `"IE0028A"` and assert `not data.empty`. Then add two tests (the Sonitus twin pair `DCC-AQ1 ↔ IE0098A` is from the 2026-09-21 time audit, r ≈ 0.98):
 
 ```python
     def test_past_year_is_served_from_the_verified_archive(self):
@@ -313,3 +334,14 @@ and update `tests/test_source_consistency.py::test_eea_is_experimental_and_says_
 - §17.6 proposal covered: window-based dataset selection (Task 3), verified-wins dedup (Task 3), provenance (Tasks 1, 3), Italy handled by converting before dedup (Task 2), `Verification = 0` (Task 4), past-year conformance (Task 4). §17.10's Ireland hazard → Task 2 override + Task 4 guard.
 - Not done, deliberately: per-country E1a clock verification beyond DE/NL/PL/IT/IE — no reference source; recorded in the status note. Deduplication of EEA against national sources (Sonitus) is v0.6.0 cross-backend dedup.
 - Cost: two requests per download instead of one (three for pre-2013 windows); an empty dataset response returns in ~1.5 s.
+
+## Plan review (2026-09-22, before execution)
+
+Reviewed by a read-only agent against the post-#16 code with the plan applied to a scratch copy. Three blockers fixed
+in the text above: the Task 3 fixture was Irish (the Ireland override then shifts its hours) and used a site absent
+from `MOCK_SPO_MAPPING`; the Task 2 test patched the per-row function with a MagicMock, which `Series.apply` treats as
+dict-like; `astype(object).where(...)` for `backend` broke the finalise-twice idempotency test under pandas 3. Three
+design findings — hour-level dedup merges co-located instruments, resurrects archive-rejected hours from the feed, and
+doubles Italy's ~12 % non-model sampling points — are all answered by the day-level priority step now specified in
+Task 3, placed before the validity filter. Two nits (the conformance test's `STA-` site code that had always yielded
+empty data; the stale `DATASET_E1A` docstrings) folded in.
