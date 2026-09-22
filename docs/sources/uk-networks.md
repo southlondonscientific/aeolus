@@ -129,6 +129,9 @@ Data is fetched from the openair RData feed at `londonair.org.uk/r_data/` (one f
 
 The londonair RData files store gases in volume units (ppb; CO in ppm) — they are an interchange format that R's `openair::importImperial()` converts on read. Aeolus does the same, using Defra's published 20 °C factors (NO2 and NOx 1.9125, O3 1.9957, SO2 2.6609, CO 1.1642), so `LAQN` values are in µg/m³ (CO in mg/m³) and agree with `LAQN-ERG`, with the network's own API, and — for sites that are also in AURN, such as Marylebone Road — with Defra's files exactly for ratified years. Particulates are already in µg/m³ and are not converted.
 
+!!! note "North Kensington (KC1), January–March 2023"
+    The londonair record for KC1 is stamped one hour late from 1 January to 26 March 2023 (the logger appears to have stayed on summer time). The AURN record for the same analyser is correct; prefer `AURN` for KC1 over that period.
+
 !!! warning "Versions before 0.5.0"
     Earlier versions did not convert, and labelled the ppb values `ug/m3`. LAQN gas values from `aeolus.download("LAQN", ...)` were therefore too low by the factors above (NO2 and NOx by 1.91×, O3 by 2.00×). Anything stored from those versions should be re-downloaded.
 

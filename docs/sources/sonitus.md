@@ -48,6 +48,8 @@ near_centre = aeolus.find_sites(
 
 ## Notes
 
+- **Timestamps.** Sonitus publishes 15-minute values stamped in UTC at the *end* of each bin. Aeolus relabels them to the start (`09:00` is the mean over 09:00–09:15), like every other source. The Sonitus server filters requests by Dublin local time; Aeolus asks for an hour either side and trims, so you get exactly the window you requested.
+
 - **15-minute resolution**: Data is reported at 15-minute intervals rather than hourly.
 - **Negative values**: Uncalibrated sensors occasionally produce small negative values. Aeolus passes these through as-is — filter downstream if needed for your analysis.
 - **Column variability**: Available pollutants vary by monitor type (gas vs particulate).

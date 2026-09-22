@@ -36,6 +36,7 @@ from logging import warning
 import pandas as pd
 import requests
 
+from .._dates import to_utc
 from ..decorators import retry_on_network_error
 from ..registry import register_source
 from ..transforms import add_column, compose, rename_columns, select_columns
@@ -327,8 +328,8 @@ def fetch_breathe_london_data(
         # Note: API uses camelCase for parameters (SiteCode, startTime, endTime)
         params = {
             "SiteCode": site,  # Query one site at a time
-            "startTime": start_date.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "endTime": end_date.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "startTime": to_utc(start_date).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "endTime": to_utc(end_date).strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
 
         try:

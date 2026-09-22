@@ -86,6 +86,9 @@ def mock_measurement():
     measurement = MagicMock()
     measurement.value = 45.2
     measurement.period = MagicMock()
+    # The hour 11:00-12:00: aeolus labels the START of the period
+    measurement.period.datetime_from = MagicMock()
+    measurement.period.datetime_from.utc = datetime(2024, 1, 1, 11, 0, 0)
     measurement.period.datetime_to = MagicMock()
     measurement.period.datetime_to.utc = datetime(2024, 1, 1, 12, 0, 0)
     return measurement

@@ -65,5 +65,7 @@ The `{pcode}/` subfolder is the discriminator between provider networks — `fin
 
 ## Notes
 
+- **Clock changes.** Several LMAM providers log in local time. Their data arrives on a correct UTC grid, but with one hour missing each spring (the local hour that does not exist) and two each autumn (the ambiguous one). Expect data capture a little under 100 % for those days; AURN-family sites are unaffected.
+
 - The R `openair` package's `source="local"` and `source="lmam"` are aliases for the same DEFRA feed.
 - Sites overlap with other UK sources at certain locations (e.g. a few AURN-affiliated sites also appear in LMAM via the `aqdm` provider). When a site is available in both, prefer the source with the ratification status you need.

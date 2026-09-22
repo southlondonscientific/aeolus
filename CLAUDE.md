@@ -267,7 +267,7 @@ Mock API responses are defined as pytest fixtures within each test file.
 
 - Python 3.11+ required
 - Uses `pandas` for data handling
-- Time bins are left-closed: timestamp 13:00 represents [12:00, 13:00)
+- `date_time` is tz-aware UTC and marks the START of its interval: 13:00 means [13:00, 14:00) (openair "date beginning"). Adapters convert upstreams that differ (EEA is UTC+1; Sonitus stamps bin END; OpenAQ use `datetime_from`). Use `aeolus._dates.to_utc()` on any user datetime before `.timestamp()` or `strftime("…Z")`
 - Low-cost sensor data marked as `ratification='Unvalidated'`
 - PurpleAir data has additional QA flags (`Validated`, `Single Channel`, etc.)
 - All timestamps are UTC-aware (enforced since v0.3.0rc2)

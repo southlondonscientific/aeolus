@@ -63,6 +63,7 @@ from zipfile import ZipFile
 import pandas as pd
 import requests
 
+from .._dates import to_utc
 from ..decorators import retry_on_network_error
 from ..registry import register_source
 from ..transforms import (
@@ -489,6 +490,32 @@ def normalise_eea_data():
         )
         return df
 
+    def stamps_to_utc(df: pd.DataFrame) -> pd.DataFrame:
+        """Convert EEA's hourly ``Start`` to tz-aware UTC.
+
+        The EEA download service states that hourly Start/End are "converted to
+        the UTC+1 timezone" (fixed, no daylight saving) — confirmed against the
+        German UBA API and Luchtmeetnet. Italy's *up-to-date* feed, the only
+        dataset queried today, is the exception: it is on local civil time
+        (every one of 569 sampling points skips an hour on spring-forward day),
+        so it is localised as Europe/Rome. The hour that does not exist in
+        spring, and the ambiguous one in autumn, cannot be placed and are dropped.
+        """
+        df = df.copy()
+        naive = pd.to_datetime(df["date_time"])
+        if naive.dt.tz is not None:
+            naive = naive.dt.tz_localize(None)
+        utc = naive.dt.tz_localize("Etc/GMT-1").dt.tz_convert("UTC")  # POSIX sign: GMT-1 is UTC+1
+        italy = df["Samplingpoint"].astype(str).str.startswith("IT/")
+        if italy.any():
+            utc[italy] = (
+                naive[italy]
+                .dt.tz_localize("Europe/Rome", ambiguous="NaT", nonexistent="NaT")
+                .dt.tz_convert("UTC")
+            )
+        df["date_time"] = utc
+        return df[df["date_time"].notna()]
+
     def map_pollutants(df: pd.DataFrame) -> pd.DataFrame:
         df = df.copy()
         df["measurand"] = df["Pollutant"].map(POLLUTANT_CODE_MAP)
@@ -519,6 +546,7 @@ def normalise_eea_data():
         extract_site_codes,
         map_pollutants,
         rename_columns({"Start": "date_time", "Value": "value", "Unit": "units"}),
+        stamps_to_utc,
         convert_value,
         # convert_value coerces unparseable values to NaN; drop them (the
         # Validity>=1 filter is a QA flag, not a value-presence check). Matches
@@ -602,8 +630,8 @@ def fetch_eea_data(
         "cities": [],
         "pollutants": notation_list if notation_list else [],
         "dataset": DATASET_E1A,
-        "dateTimeStart": start_date.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "dateTimeEnd": end_date.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "dateTimeStart": to_utc(start_date).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "dateTimeEnd": to_utc(end_date).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "compress": True,
     }
 
@@ -667,6 +695,6 @@ register_source("EEA", {
     "status_note": (
         "only the EEA up-to-date feed is queried, so earlier years return no data "
         "(the verified archive is not wired in yet); every row is therefore "
-        "'Provisional'; and the time zone of EEA timestamps is unconfirmed."
+"'Provisional'. Timestamps are converted from the EEA's UTC+1 (Italy: local time)."
     ),
 })

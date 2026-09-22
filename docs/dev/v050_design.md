@@ -393,11 +393,17 @@ when µg/m³ data from a 20 °C network is converted *to* ppb for the US EPA ind
 stoichiometry test — `(NOXasNO2 − NO2) / NO` is 1.533 in mass units, 1.000 in ppb; LAQN-ERG equals AURN exactly on a
 ratified week; Sonitus NO2 matches eight EEA Irish twins at 0.97–1.00. LAQN RData was the only defect. Not checked:
 non-PM fields of PurpleAir/Sensor.Community, and SOS and OpenAQ (no data returned in the sample).
-**Time (NOT audited — and never scheduled):** the v0.4.6 audit's five time-handling findings (Sonitus Dublin-local parsed
-as UTC; AirNow local hour as UTC; EEA never coerced; PurpleAir/Sonitus `.timestamp()` machine offset; Breathe London
-`strftime("…Z")`) were not assigned to any work package. Evidence gathered since: EEA `Start` equals the German UBA
-API's start times exactly and Luchtmeetnet's stamps exactly, which implies UTC+1 *if* UBA is fixed CET and Luchtmeetnet
-stamps hour-ending — conventions recalled, not found in writing; Sonitus returns its first record an hour after the
-requested UTC window start, suggesting local-time stamps. **This needs its own audit, by the same method as units:
-twin sources with known clocks, route by route. It should precede any claim in v0.5.0 that `date_time` is UTC.**
+**Time (audited 2026-09-20/21, three agents, fixed in the `fix/time-conventions` PR):** the library convention is tz-aware
+UTC, stamp = interval START (openair "date beginning"; the docs had said the opposite). Verified by DST-transition
+counts, twin lag tests and quoted documents: all UK RData routes, LAQN-ERG and Breathe London responses are correct.
+**Fixed:** EEA is fixed UTC+1 (EEA's download page: "converted to the UTC+1 timezone"; UBA spec: MEZ) and was passed
+through naive; Italy's up-to-date feed is local civil time; OpenAQ used `datetime_to` (end of hour); Sonitus is UTC but
+stamps bin END, and its server filters by Dublin local time; AirNow current observations are local; eight request-side
+sites used `.timestamp()` on naive dates or a literal `Z` on aware non-UTC dates → `_dates.to_utc`. Live proof: Sonitus
+and its EEA Irish twins now agree at lag 0, r = 1.0000.
+**Still open:** SOS interval convention (Defra's endpoint was down — if it follows the UK-AIR portal's "date ending",
+`get_current()` is an hour out of step with downloads: the highest-value remaining check); Breathe London, PurpleAir and
+AirNow-historical start-vs-end; AirQo (expired key); EEA countries beyond DE/NL/IE/ES/PL/IT; Ireland's E1a archive sits
+an hour behind its E2a feed — a hazard for §17.6's dataset stitching; EEA daily (`AggType` ≠ hour) rows are
+country-local per EEA's page and aeolus does not filter on `AggType`.
 
