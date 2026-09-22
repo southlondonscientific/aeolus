@@ -484,12 +484,45 @@ def _load_sos_mapping() -> dict:
 
 
 # Metadata normalisation pipeline for regulatory networks
-def normalise_regulatory_metadata(network_name: str) -> Normaliser:
+def drop_closed_sites(df: pd.DataFrame) -> pd.DataFrame:
+    """Keep only sites with at least one parameter still being measured.
+
+    The openair metadata lists every site-parameter the network has ever run,
+    with ``end_date`` an ISO date for a series that has ended and ``ongoing``
+    (or blank) for one that has not. A site whose every series has ended is
+    closed — some decades ago — and listing it makes ``find_sites(near=...)``
+    return dead monitors. This mirrors openair's ``importMeta(all = FALSE)``.
+    """
+    if "end_date" not in df.columns or df.empty:
+        return df
+    ended = pd.to_datetime(df["end_date"], errors="coerce")  # "ongoing", blank, NaN -> NaT
+    today = pd.Timestamp.now(tz="UTC").tz_localize(None).normalize()
+    row_open = ended.isna() | (ended >= today)
+    site_open = row_open.groupby(df["site_code"]).transform("any")
+    return df[site_open]
+
+
+def one_row_per_site(df: pd.DataFrame) -> pd.DataFrame:
+    """Collapse the openair metadata's one-row-per-parameter layout to one row per site.
+
+    The parameter columns are dropped before this step, so the rows are exact
+    duplicates apart from ``start_date``/``end_date``; the first row (oldest
+    series) is kept.
+    """
+    if "site_code" not in df.columns:
+        return df
+    return df.drop_duplicates(subset="site_code", keep="first")
+
+
+def normalise_regulatory_metadata(network_name: str, *, include_closed: bool = False) -> Normaliser:
     """
     Create a normalisation pipeline for regulatory network metadata.
 
     Args:
         network_name: Name of the network (e.g., "AURN", "SAQN")
+        include_closed: Keep sites whose every parameter has an ``end_date``
+            in the past (default False: only sites still measuring are listed,
+            as openair's ``importMeta(all = FALSE)`` does).
 
     Returns:
         Normaliser: Function that normalises metadata DataFrame
@@ -505,6 +538,8 @@ def normalise_regulatory_metadata(network_name: str) -> Normaliser:
                 "local_authority": "owner",
             }
         ),
+        (lambda df: df) if include_closed else drop_closed_sites,
+        one_row_per_site,
         add_column("source_network", network_name.upper()),
         add_measurands_column(site_lookup),
         reset_index(),

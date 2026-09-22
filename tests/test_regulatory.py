@@ -1005,3 +1005,48 @@ class TestRatifiedToJoinReviewFixes:
             reg.make_metadata_fetcher("aurn")()
             reg._ratified_to_lookup("aurn")
         assert mock_fetch.call_count == 1
+
+
+class TestClosedSitesAreNotListed:
+    """openair's importMeta(all=FALSE) lists only sites still open; so does find_sites()."""
+
+    def _meta(self, end_dates):
+        return pd.DataFrame({
+            "site_id": ["MY1", "MY1", "ISL", "ISL", "WA2"],
+            "site_name": ["Marylebone", "Marylebone", "Islington", "Islington", "Wandsworth"],
+            "latitude": [51.5] * 5, "longitude": [-0.1] * 5,
+            "site_type": ["Urban Traffic"] * 5, "local_authority": ["x"] * 5,
+            "start_date": ["1997-01-01"] * 5, "end_date": end_dates,
+            "parameter": ["NO2", "O3", "SO2", "NO2", "NO2"], "Parameter_name": ["n"] * 5,
+        })
+
+    def test_sites_whose_every_parameter_has_ended_are_dropped(self):
+        from aeolus.sources.regulatory import normalise_regulatory_metadata
+
+        out = normalise_regulatory_metadata("aurn")(self._meta(["ongoing", "2015-12-31", "1978-10-11", "1978-10-11", "2007-09-30"]))
+        assert set(out["site_code"]) == {"MY1"}
+
+    def test_blank_or_missing_end_dates_count_as_open(self):
+        from aeolus.sources.regulatory import normalise_regulatory_metadata
+
+        out = normalise_regulatory_metadata("aurn")(self._meta([None, None, "", float("nan"), "2007-09-30"]))
+        assert set(out["site_code"]) == {"MY1", "ISL"}
+
+    def test_a_future_end_date_is_still_open(self):
+        from aeolus.sources.regulatory import normalise_regulatory_metadata
+
+        out = normalise_regulatory_metadata("aurn")(self._meta(["ongoing", "ongoing", "2999-01-01", "2999-01-01", "2007-09-30"]))
+        assert set(out["site_code"]) == {"MY1", "ISL"}
+
+    def test_include_closed_keeps_everything(self):
+        from aeolus.sources.regulatory import normalise_regulatory_metadata
+
+        out = normalise_regulatory_metadata("aurn", include_closed=True)(self._meta(["ongoing", "ongoing", "1978-10-11", "1978-10-11", "2007-09-30"]))
+        assert set(out["site_code"]) == {"MY1", "ISL", "WA2"}
+
+    def test_one_row_per_site(self):
+        """The openair metadata has one row per site-parameter; find_sites() wants one per site."""
+        from aeolus.sources.regulatory import normalise_regulatory_metadata
+
+        out = normalise_regulatory_metadata("aurn")(self._meta(["ongoing"] * 5))
+        assert out["site_code"].tolist() == ["MY1", "ISL", "WA2"]
