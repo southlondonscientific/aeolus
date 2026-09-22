@@ -211,3 +211,10 @@ def test_adapter_provided_backend_is_kept():
     frame = pd.concat([adapter_frame("EEA", backend="EEA_E1A"), adapter_frame("EEA", backend=None)], ignore_index=True)
     out = finalise_data_frame(frame, "EEA")
     assert out["backend"].tolist() == ["EEA_E1A", "EEA"]
+
+
+def test_adapter_backend_must_be_a_sub_backend_of_the_route():
+    """Only a refinement of the route's backend (EEA -> EEA_E1A) is honoured."""
+    frame = pd.concat([adapter_frame("EEA", backend="EEA_E1A"), adapter_frame("EEA", backend="BOGUS")], ignore_index=True)
+    assert finalise_data_frame(frame, "EEA")["backend"].tolist() == ["EEA_E1A", "EEA"]
+    assert finalise_data_frame(adapter_frame("AURN", backend="EEA_E1A"), "AURN")["backend"].tolist() == ["RDATA"]

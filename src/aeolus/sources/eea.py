@@ -53,6 +53,7 @@ Implementation notes:
 """
 
 import math
+import re
 import warnings
 from datetime import datetime, timedelta, timezone
 from io import BytesIO, StringIO
@@ -135,8 +136,9 @@ MEASURAND_TO_NOTATION = {
 }
 
 # Dataset ids of the EEA download API. NB: the API's own zip folders confirm
-# these — 1 is the *up-to-date* feed, not the verified one (the constant was
-# misnamed DATASET_UTD = 1 until v0.5.0, so earlier years came back empty).
+# these — 1 is the *up-to-date* feed, not the verified one (before v0.5.0 the
+# code asked for dataset 1 believing it was the verified archive, so any year
+# older than the feed's window came back empty).
 DATASET_UTD = 1        # E2a: recent data, continuously transmitted
 DATASET_VERIFIED = 2   # E1a: reported annually after national QA/QC
 DATASET_AIRBASE = 3    # historical Airbase, 2002–2012
@@ -151,6 +153,19 @@ DATASET_BACKEND = {DATASET_VERIFIED: "EEA_E1A", DATASET_UTD: "EEA_E2A", DATASET_
 # Everything else is assumed UTC+1 — which is why EEA stays `experimental`.
 _UTD_LOCAL_CLOCK = {"IT": "Europe/Rome"}
 _E1A_CLOCK_OVERRIDES = {"IE": "UTC"}
+_EEA_CLOCK = "Etc/GMT-1"  # POSIX sign: GMT-1 is UTC+1
+AIRBASE_LAST_YEAR = 2012  # the verified archive (E1a) starts in 2013
+
+# The service reads our bounds on its own UTC+1 grid (a "Z" suffix
+# notwithstanding), so a plain request loses the window's last hour; a
+# local-clock feed (Italy in summer, UTC+2) loses two. Ask this much wider
+# each side and trim afterwards.
+_REQUEST_PAD = timedelta(hours=2)
+
+
+def _archive_clock(country: str) -> str:
+    """The clock the verified archive publishes on for ``country``."""
+    return _E1A_CLOCK_OVERRIDES.get(country, _EEA_CLOCK)
 
 # Pollutant names as they appear in PopupInfo HTML
 _POPUP_POLLUTANT_PATTERNS = {
@@ -507,7 +522,7 @@ def normalise_eea_data():
             naive = naive.dt.tz_localize(None)
         country = df["Samplingpoint"].astype(str).str.split("/").str[0]  # "IE/SPO.IE…" -> "IE"
         dataset = df["dataset"] if "dataset" in df.columns else pd.Series(DATASET_UTD, index=df.index)
-        utc = naive.dt.tz_localize("Etc/GMT-1").dt.tz_convert("UTC")  # POSIX sign: GMT-1 is UTC+1
+        utc = naive.dt.tz_localize(_EEA_CLOCK).dt.tz_convert("UTC")
         for code, zone in _UTD_LOCAL_CLOCK.items():
             rows = (country == code) & (dataset == DATASET_UTD)
             if rows.any():
@@ -515,7 +530,7 @@ def normalise_eea_data():
         for code, zone in _E1A_CLOCK_OVERRIDES.items():
             rows = (country == code) & (dataset == DATASET_VERIFIED)
             if rows.any():
-                utc[rows] = naive[rows].dt.tz_localize(zone).dt.tz_convert("UTC")
+                utc[rows] = naive[rows].dt.tz_localize(zone, ambiguous="NaT", nonexistent="NaT").dt.tz_convert("UTC")
         df["date_time"] = utc
         return df[df["date_time"].notna()]
 
@@ -528,11 +543,23 @@ def normalise_eea_data():
         archive rejected is not resurrected from the feed; and Italian
         up-to-date points whose stamps do not follow the DST model cannot
         double up beside archive rows on overlap days.
+
+        "Day" is the archive's own wall day for the country (UTC+1 for most,
+        plain UTC for Ireland), not the UTC day: the archive's coverage ends
+        at the end of *its* last day, and the feed's first hour after that
+        must survive rather than be claimed by an archive day that has no
+        row for it.
         """
         if "dataset" not in df.columns or df.empty:
             return df
+        df = df[df["site_code"].notna() & df["measurand"].notna()]  # groupby would drop these silently
         priority = df["dataset"].map({d: i for i, d in enumerate(DATASET_PRIORITY)})
-        day = df["date_time"].dt.floor("D")
+        country = df["Samplingpoint"].astype(str).str.split("/").str[0]
+        day = pd.Series(pd.NaT, index=df.index, dtype="datetime64[ns]")
+        for code in country.unique():
+            rows = country == code
+            wall = df.loc[rows, "date_time"].dt.tz_convert(_archive_clock(code)).dt.tz_localize(None)
+            day[rows] = wall.dt.floor("D")
         best = priority.groupby([df["site_code"], df["measurand"], day], observed=True).transform("min")
         return df[priority == best]
 
@@ -610,20 +637,33 @@ def _parse_parquet_zip(zip_bytes: bytes) -> pd.DataFrame | None:
 
 
 def _fetch_dataset(body_base: dict, dataset: int) -> pd.DataFrame | None:
-    """One dataset's raw rows for the window, tagged with the dataset id."""
-    zip_bytes = _download_parquet({**body_base, "dataset": dataset})
-    if not zip_bytes:
-        return None
+    """One dataset's raw rows for the window, tagged with the dataset id.
+
+    A failed request or an unreadable zip from one dataset must not sink the
+    others, so both are reported as a warning and yield nothing. ``Start`` is
+    made a naive datetime here, per dataset: the archive and the feed do not
+    always agree on whether their stamps carry a timezone, and a mixed
+    concatenation cannot be parsed afterwards.
+    """
     try:
-        raw = _parse_parquet_zip(zip_bytes)
-    except Exception as e:  # noqa: BLE001 - a bad zip from one dataset must not sink the others
+        zip_bytes = _download_parquet({**body_base, "dataset": dataset})
+        raw = _parse_parquet_zip(zip_bytes) if zip_bytes else None
+    except Exception as e:  # noqa: BLE001 - includes requests.RequestException from the download
         warnings.warn(
-            f"Failed to parse EEA Parquet response (dataset {dataset}): {e}",
+            f"EEA dataset {dataset} ({DATASET_BACKEND.get(dataset, dataset)}) could not be fetched: {e}",
             AeolusDataWarning,
             stacklevel=3,
         )
         return None
-    return None if raw is None else raw.assign(dataset=dataset)
+    if raw is None:
+        return None
+    start = pd.to_datetime(raw["Start"])
+    if start.dt.tz is not None:
+        start = start.dt.tz_localize(None)
+    return raw.assign(Start=start, dataset=dataset)
+
+
+_EOI_CODE = re.compile(r"^[A-Z]{2}[A-Z0-9]+$")
 
 
 def _infer_country_from_sites(sites: list[str]) -> str | None:
@@ -631,8 +671,13 @@ def _infer_country_from_sites(sites: list[str]) -> str | None:
 
     EoI codes start with a 2-letter country prefix (e.g. IE0131A -> IE).
     Returns the country code if all sites share the same prefix, else None.
+    Anything that is not shaped like an EoI code (e.g. a Sonitus-style
+    ``STA-IE0028A``) yields None rather than a bogus country.
     """
-    countries = {s[:2] for s in sites if len(s) >= 2}
+    codes = [s.upper() for s in sites]
+    if not codes or not all(_EOI_CODE.match(c) for c in codes):
+        return None
+    countries = {c[:2] for c in codes}
     return countries.pop() if len(countries) == 1 else None
 
 
@@ -670,8 +715,8 @@ def fetch_eea_data(
 
     if country is None:
         warnings.warn(
-            "Cannot infer country from mixed-country site codes. "
-            "Pass country= explicitly.",
+            f"Cannot infer the country from site codes {sorted(sites)}: EEA wants EoI codes "
+            "(two-letter country prefix, e.g. IE0028A) from one country. Pass country= explicitly.",
             AeolusDataWarning,
             stacklevel=2,
         )
@@ -685,36 +730,45 @@ def fetch_eea_data(
             if notation:
                 notation_list.append(notation)
 
-    # The service reads our bounds on its own UTC+1 grid (a "Z" suffix
-    # notwithstanding), so a plain request drops the window's last hour and
-    # adds one before its start. Ask an hour wider each side and trim after.
     start_utc, end_utc = to_utc(start_date), to_utc(end_date)
     body_base: dict = {
         "countries": [country.upper()],
         "cities": [],
         "pollutants": notation_list if notation_list else [],
-        "dateTimeStart": (start_utc - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "dateTimeEnd": (end_utc + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "dateTimeStart": (start_utc - _REQUEST_PAD).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "dateTimeEnd": (end_utc + _REQUEST_PAD).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "compress": True,
     }
     # The verified archive and the up-to-date feed overlap by up to two years
-    # (which years depends on the country), so both are always asked for;
-    # Airbase only holds 2002–2012.
-    datasets = [DATASET_VERIFIED, DATASET_UTD]
-    if to_utc(start_date).year <= 2012:
+    # (which years depends on the country), so both are asked for whenever the
+    # window reaches past Airbase; Airbase alone holds 2002–2012.
+    datasets = [] if end_utc.year <= AIRBASE_LAST_YEAR else [DATASET_VERIFIED, DATASET_UTD]
+    if start_utc.year <= AIRBASE_LAST_YEAR:
         datasets.append(DATASET_AIRBASE)
-    frames = [f for f in (_fetch_dataset(body_base, d) for d in datasets) if f is not None]
+    frames = []
+    for dataset in datasets:
+        frame = _fetch_dataset(body_base, dataset)
+        if frame is not None:
+            frames.append(frame)
     if not frames:
         return empty_data_frame(qa=True)
     raw_df = pd.concat(frames, ignore_index=True)
 
-    # Normalise
-    normalise = normalise_eea_data()
-    df = normalise(raw_df)
-
-    # Filter to requested sites and to the requested window
+    # Keep only the requested sites before normalising the whole country.
     sites_upper = {s.upper() for s in sites}
-    df = df[df["site_code"].str.upper().isin(sites_upper)]
+    mapping = _get_spo_mapping()
+    served = raw_df["Samplingpoint"].apply(_samplingpoint_to_eoi, mapping=mapping).str.upper()
+    raw_df = raw_df[served.isin(sites_upper)]
+    if raw_df.empty:
+        warnings.warn(
+            f"EEA returned rows for {country.upper()} but none for the requested sites "
+            f"{sorted(sites_upper)}; check the EoI codes.",
+            AeolusDataWarning,
+            stacklevel=2,
+        )
+        return empty_data_frame(qa=True)
+
+    df = normalise_eea_data()(raw_df)
     df = df[(df["date_time"] >= start_utc) & (df["date_time"] <= end_utc)]
 
     if df.empty:
