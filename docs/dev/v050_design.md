@@ -63,7 +63,7 @@ cross-backend dedup; `source=` deprecation→removal; multi-backend split-and-st
 | `qa_code` | — | **NEW** | verbatim upstream QA token; **never overwritten**; `null` where upstream is silent |
 | `qa_tier` | — | **NEW** | six-value canonical enum (§4.1); derived from `qa_code` via the network's vocabulary |
 | `ratification_stage` | — | **NEW** | four-value enum + `null` (§4.2) |
-| `backend` | — | **NEW** | provenance: which fetcher served the row (`RDATA`/`ERG_REST`/`SOS`/`ARGUS`/`OPENAQ`/`PURPLEAIR`/`SENSOR_COMMUNITY`/`AIRNOW`/`EEA`/`SONITUS`/`AIRQO`) |
+| `backend` | — | **NEW** | provenance: which fetcher served the row (`RDATA`/`ERG_REST`/`SOS`/`ARGUS`/`OPENAQ`/`PURPLEAIR`/`SENSOR_COMMUNITY`/`AIRNOW`/`EEA`/`SONITUS`/`AIRQO`/`BREATHE_LONDON` — the last added 2026-09-22 during implementation; the spec had omitted it) |
 | `source_network` | ✓ | **mirror** | deprecation mirror of `network`; `DeprecationWarning`; dropped v1.0 |
 | `ratification` | ✓ | **mirror** | deprecation mirror, derived from the triple (§4.3); dropped v1.0 |
 | `created_at` | ✓ | ✓ | unchanged |
