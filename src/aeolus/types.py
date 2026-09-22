@@ -198,7 +198,9 @@ SITE_COLUMNS = [
     "updated_at",
 ]
 
-DATA_COLUMNS = [
+# What an ADAPTER emits. The public schema (aeolus.schema.DATA_COLUMNS) is
+# built from this by aeolus.schema.finalise_data_frame.
+ADAPTER_DATA_COLUMNS = [
     "site_code",
     "date_time",
     "measurand",
@@ -208,6 +210,7 @@ DATA_COLUMNS = [
     "ratification",
     "created_at",
 ]
+DATA_COLUMNS = ADAPTER_DATA_COLUMNS  # repointed to the public schema in Task 5
 
 
 # =============================================================================
