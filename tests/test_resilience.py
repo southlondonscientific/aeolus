@@ -97,7 +97,7 @@ class TestSosMappingLatch:
             {"site_code": ["MY1"], "latitude": [51.52], "longitude": [-0.15]}
         )
         monkeypatch.setattr(
-            "aeolus.sources.regulatory.make_metadata_fetcher", lambda net: (lambda: meta)
+            "aeolus.sources.regulatory.make_metadata_fetcher", lambda net: (lambda **kw: meta)
         )
         assert sos._build_station_mapping("aurn") == {}
         sos._build_station_mapping("aurn")
