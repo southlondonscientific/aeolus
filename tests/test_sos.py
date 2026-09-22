@@ -521,7 +521,7 @@ class TestDataFetching:
         )
 
         assert df.empty
-        assert list(df.columns) == ADAPTER_DATA_COLUMNS
+        assert list(df.columns) == ADAPTER_DATA_COLUMNS_QA
 
     def test_unmapped_site_returns_empty(self):
         """Requesting a site with no SOS mapping returns empty frame."""

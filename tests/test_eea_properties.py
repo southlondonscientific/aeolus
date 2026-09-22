@@ -15,7 +15,6 @@ from hypothesis import strategies as st
 
 from aeolus.sources.eea import (
     POLLUTANT_CODE_MAP,
-    VERIFICATION_MAP,
     normalise_eea_data,
 )
 from aeolus.types import ADAPTER_DATA_COLUMNS
@@ -126,7 +125,7 @@ class TestEEANormalisationProperties:
         normaliser = normalise_eea_data()
         result = normaliser(df)
 
-        valid_ratifications = {"Provisional", "Verified"}
+        valid_ratifications = {"Provisional", "Ratified"}  # the derived legacy mirror
         if not result.empty:
             assert set(result["ratification"].unique()).issubset(valid_ratifications)
 
@@ -165,7 +164,8 @@ class TestEEAMappingProperties:
     def test_pollutant_map_returns_string(self, code):
         assert isinstance(POLLUTANT_CODE_MAP[code], str)
 
-    @given(code=st.sampled_from(list(VERIFICATION_MAP.keys())))
-    def test_verification_map_returns_string(self, code):
-        assert isinstance(VERIFICATION_MAP[code], str)
-        assert VERIFICATION_MAP[code] in {"Provisional", "Verified"}
+    @given(code=st.sampled_from([1, 2, 3]))
+    def test_verification_codes_are_in_the_vocabulary(self, code):
+        from aeolus.network_registry import get_network_spec
+
+        assert str(code) in get_network_spec("EEA").qa_code_vocabulary

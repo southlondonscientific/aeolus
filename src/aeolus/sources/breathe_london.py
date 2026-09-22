@@ -40,6 +40,7 @@ from .._dates import to_utc
 from ..decorators import retry_on_network_error
 from ..registry import register_source
 from ..transforms import add_column, compose, rename_columns, select_columns
+from ..schema import legacy_mirror
 from ..types import AeolusDataWarning, empty_data_frame, empty_metadata_frame
 
 # Configuration
@@ -352,7 +353,7 @@ def fetch_breathe_london_data(
         combined_df = pd.concat(all_data, ignore_index=True)
         return combined_df
     else:
-        return empty_data_frame()
+        return empty_data_frame(qa=True)
 
 
 
@@ -418,7 +419,7 @@ def create_breathe_london_normaliser():
             else pd.Series(None, index=df.index, dtype=object)
         )
         df["qa_code"] = status.astype(object).where(status.notna(), None)
-        df["ratification"] = df["qa_code"].fillna("Unvalidated")
+        df["ratification"] = legacy_mirror("BREATHE_LONDON", df["qa_code"])
         df = df.drop(columns=["RatificationStatus"], errors="ignore")
         return df
 

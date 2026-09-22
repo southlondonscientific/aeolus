@@ -287,14 +287,18 @@ class TestNormaliseEeaData:
         # 2 = Preliminary verified, 3 = Not verified.
         # https://dd.eionet.europa.eu/vocabulary/aq/observationverification
         # Fixture: NO2 rows carry Verification=2, the PM10 row Verification=1.
+        # The adapter's label is the same legacy mirror the public frame shows
         by_measurand = dict(zip(df["measurand"], df["ratification"], strict=True))
-        assert by_measurand == {"PM10": "Verified", "NO2": "Provisional"}
+        assert by_measurand == {"PM10": "Ratified", "NO2": "Provisional"}
 
-    def test_verification_map_matches_eionet_vocabulary(self):
-        from aeolus.sources.eea import VERIFICATION_MAP
+    @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
+    def test_unparseable_verification_is_null_not_an_error(self, _mock_mapping):
+        from aeolus.sources.eea import normalise_eea_data
 
-        assert VERIFICATION_MAP == {1: "Verified", 2: "Provisional", 3: "Provisional"}
-
+        raw = self._raw_df()
+        raw["Verification"] = pd.Series(["1.0", "n/a", None], dtype=object)[: len(raw)]
+        out = normalise_eea_data()(raw)
+        assert out["qa_code"].tolist()[:2] == ["1", None]
 
     @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
     def test_qa_code_is_the_verification_code_verbatim(self, _mock_mapping):

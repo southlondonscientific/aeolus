@@ -310,3 +310,14 @@ def _legacy_warning_already_given(monkeypatch):
     from aeolus import schema
 
     monkeypatch.setattr(schema, "_warned_legacy", True)
+
+
+@pytest.fixture(autouse=True)
+def _fresh_regulatory_metadata():
+    """The ratified_to lookup and the metadata memo are process-global; a test
+    that mocks fetch_rdata must not leave its frame cached for the next one."""
+    from aeolus.sources import regulatory
+
+    regulatory.reset_ratification_lookups()
+    yield
+    regulatory.reset_ratification_lookups()

@@ -10,16 +10,6 @@ from unittest.mock import patch
 
 import pandas as pd
 import pytest
-
-
-@pytest.fixture(autouse=True)
-def _fresh_ratification_lookups():
-    """Each test sees exactly one metadata fetch per wired network."""
-    from aeolus.sources import regulatory
-
-    regulatory.reset_ratification_lookups()
-    yield
-    regulatory.reset_ratification_lookups()
 import responses
 
 # Import sources package to ensure all sources are registered
@@ -914,12 +904,6 @@ META = _metadata_rdata([
 
 
 class TestRatifiedToJoin:
-    @pytest.fixture(autouse=True)
-    def _fresh_lookups(self):
-        reg.reset_ratification_lookups()
-        yield
-        reg.reset_ratification_lookups()
-
     def _fetch(self, network, meta=META):
         def side_effect(url):
             return meta if url == reg.METADATA_URLS[network] else _data_rdata([0, 23, 24, 25], NO2=[1.0, 2.0, 3.0, 4.0], O3=[5.0] * 4, SO2=[6.0] * 4)
@@ -968,3 +952,56 @@ class TestRatifiedToJoin:
         assert out["qa_tier"].tolist() == ["reference_full_qc", "reference_provisional"]
         assert out["ratification_stage"].tolist() == ["ratified", "unratified"]
         assert out["ratification"].tolist() == ["Ratified", "Provisional"]
+
+
+class TestRatifiedToJoinReviewFixes:
+    """PR #16 review: silent failures, non-date values, empties, the mirror, refresh."""
+
+    def _run(self, network, meta_response, data_hours=(0, 25)):
+        def side_effect(url):
+            if url == reg.METADATA_URLS[network]:
+                return meta_response
+            return _data_rdata(list(data_hours), NO2=[1.0] * len(data_hours))
+        with patch("aeolus.sources.regulatory.fetch_rdata", side_effect=side_effect):
+            return reg.make_data_fetcher(network)(["MY1"], datetime(2024, 1, 1, tzinfo=timezone.utc), datetime(2024, 1, 3, tzinfo=timezone.utc))
+
+    def test_metadata_unavailable_warns_and_yields_null_codes(self):
+        from aeolus.types import AeolusDataWarning
+
+        with pytest.warns(AeolusDataWarning, match="ratification"):
+            out = self._run("aurn", None)
+        assert out["qa_code"].isna().all()
+
+    @pytest.mark.parametrize("value", [pd.NA, None, "", "ongoing", "not-a-date"])
+    def test_non_date_ratified_to_is_unknown_not_never(self, value):
+        meta = _metadata_rdata([["MY1", "Marylebone Road", "Urban Traffic", 51.52, -0.15, "NO2", "Nitrogen dioxide", "1997-07-17", "ongoing", value, "", "", ""]])
+        out = self._run("aurn", meta)
+        assert out["qa_code"].isna().all(), "only the literal 'Never' means never-ratified"
+
+    def test_literal_never_is_unratified(self):
+        out = self._run("aurn", META)
+        assert set(out.loc[out["measurand"] == "NO2", "qa_code"]) <= {"verified", "unverified"}
+
+    def test_empty_result_carries_the_qa_column(self):
+        from aeolus.types import ADAPTER_DATA_COLUMNS_QA
+
+        with patch("aeolus.sources.regulatory.fetch_rdata", return_value=None), pytest.warns(Warning):
+            out = reg.make_data_fetcher("aurn")(["MY1"], datetime(2024, 1, 1, tzinfo=timezone.utc), datetime(2024, 1, 2, tzinfo=timezone.utc))
+        assert out.empty and list(out.columns) == ADAPTER_DATA_COLUMNS_QA
+
+    def test_adapter_mirror_equals_the_public_mirror(self):
+        out = self._run("aurn", META).sort_values("date_time")
+        assert out["ratification"].tolist() == ["Ratified", "Provisional"]
+
+    def test_lookup_refreshes_after_ttl(self, monkeypatch):
+        monkeypatch.setattr(reg, "_METADATA_TTL_S", 0)
+        with patch("aeolus.sources.regulatory.fetch_rdata", return_value=META) as mock_fetch:
+            reg._ratified_to_lookup("aurn")
+            reg._ratified_to_lookup("aurn")
+        assert mock_fetch.call_count == 2
+
+    def test_find_sites_and_the_join_share_one_metadata_download(self):
+        with patch("aeolus.sources.regulatory.fetch_rdata", return_value=META) as mock_fetch:
+            reg.make_metadata_fetcher("aurn")()
+            reg._ratified_to_lookup("aurn")
+        assert mock_fetch.call_count == 1

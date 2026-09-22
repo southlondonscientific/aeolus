@@ -322,7 +322,7 @@ def fetch_airnow_data(
         ... )
     """
     if not sites:
-        return empty_data_frame()
+        return empty_data_frame(qa=True)
 
     # Parse site codes back to coordinates
     site_coords = {}
@@ -337,7 +337,7 @@ def fetch_airnow_data(
             continue
 
     if not site_coords:
-        return empty_data_frame()
+        return empty_data_frame(qa=True)
 
     all_data = []
     fetch_time = datetime.now(timezone.utc)
@@ -357,7 +357,7 @@ def fetch_airnow_data(
             all_data.append(site_data)
 
     if not all_data:
-        return empty_data_frame()
+        return empty_data_frame(qa=True)
 
     return pd.concat(all_data, ignore_index=True)
 
@@ -536,7 +536,7 @@ def fetch_airnow_current(
     data = _call_airnow_api("observation/latLong/current/", params)
 
     if not data:
-        return empty_data_frame()
+        return empty_data_frame(qa=True)
 
     records = []
     fetch_time = datetime.now(timezone.utc)
@@ -576,7 +576,7 @@ def fetch_airnow_current(
         )
 
     if not records:
-        return empty_data_frame()
+        return empty_data_frame(qa=True)
 
     return pd.DataFrame(records)
 
