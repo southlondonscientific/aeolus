@@ -20,7 +20,7 @@ The v0.5.0 contract: the public column set, the QA enums, and the registry that 
 
 ## Network registry
 
-Each network's identity, QA vocabulary, ratification timing and licence live in `src/aeolus/data/qa_vocabularies/<CODE>.yaml` and are read through this module.
+Each network's identity, QA vocabulary, when its data gets ratified, and its licence live in `src/aeolus/data/qa_vocabularies/<CODE>.yaml` and are read through this module.
 
 ::: aeolus.network_registry
     options:

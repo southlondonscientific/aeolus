@@ -56,3 +56,5 @@ For PurpleAir, `aeolus.sources.purpleair.fetch_purpleair_data(..., include_flagg
 - Compare networks on `qa_tier`, not on the raw `qa_code` — the codes are each network's own words.
 - A null `qa_code` means the upstream said nothing; it is not a bad reading. Check the network's documentation page for what that implies.
 - Recent AURN-family data is provisional for roughly three to six months; the metadata's `ratified_to` date is what Aeolus uses to tell.
+
+Coming from the 0.4 `ratification` column? See [Migrating to 0.5](migrating-to-0.5.md).
