@@ -442,7 +442,7 @@ class TestFetchEeaData:
         fetch_eea_data(["IE0131A"], datetime(2012, 3, 1), datetime(2012, 3, 8))
         assert DATASET_AIRBASE in {c.args[0]["dataset"] for c in mock_download.call_args_list}
         mock_download.reset_mock()
-        fetch_eea_data(["IE0131A"], datetime(2013, 1, 1), datetime(2013, 1, 8))
+        fetch_eea_data(["IE0131A"], datetime(2013, 1, 2), datetime(2013, 1, 8))  # a start of 2013-01-01 00:00Z pads back into 2012
         assert DATASET_AIRBASE not in {c.args[0]["dataset"] for c in mock_download.call_args_list}
 
     @patch("aeolus.sources.eea._get_spo_mapping")
@@ -502,11 +502,17 @@ class TestFetchEeaData:
         mock_mapping.return_value = self._IT_MAPPING
         # Italian up-to-date rows are stamped in CEST (UTC+2): 04:00 wall == 02:00 UTC
         rows = [{**self._rec(1, h, "10.0", 2, samplingpoint=self._IT_SP), "Start": f"2024-07-01T{h:02d}:00:00+00:00", "End": f"2024-07-01T{h + 1:02d}:00:00+00:00"} for h in range(0, 7)]  # noqa: E501
-        mock_download.side_effect = lambda body: _make_parquet_zip(rows) if body["dataset"] == DATASET_UTD else None
+
+        def serve(body):  # the service compares our "Z" bounds against its UTC+1 wall stamps
+            if body["dataset"] != DATASET_UTD:
+                return None
+            lo, hi = (pd.Timestamp(body[k]).tz_localize(None) for k in ("dateTimeStart", "dateTimeEnd"))
+            inside = [r for r in rows if lo <= pd.Timestamp(r["Start"]).tz_localize(None) <= hi]
+            return _make_parquet_zip(inside) if inside else None
+        mock_download.side_effect = serve
         start, end = datetime(2024, 7, 1, tzinfo=timezone.utc), datetime(2024, 7, 1, 2, tzinfo=timezone.utc)
         out = fetch_eea_data(["IT1168A"], start, end)
-        assert mock_download.call_args_list[0].args[0]["dateTimeEnd"] == "2024-07-01T04:00:00Z"
-        assert out["date_time"].max() == pd.Timestamp(end)
+        assert out["date_time"].max() == pd.Timestamp(end)  # 04:00 CEST: only served if the request reached it
 
     @patch("aeolus.sources.eea._get_spo_mapping")
     @patch("aeolus.sources.eea._download_parquet")
@@ -597,6 +603,44 @@ class TestFetchEeaData:
 
         fetch_eea_data(["IE0131A"], datetime(2010, 3, 1), datetime(2010, 3, 8))
         assert [c.args[0]["dataset"] for c in mock_download.call_args_list] == [DATASET_AIRBASE]
+
+    @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
+    @patch("aeolus.sources.eea._download_parquet", return_value=None)
+    def test_the_last_hour_of_2012_lives_in_the_verified_archive(self, mock_download, _mock_mapping):
+        """2012-12-31 23:00Z is 2013-01-01 00:00 on the archive's UTC+1 clock, so E1a must be asked."""
+        from aeolus.sources.eea import DATASET_AIRBASE, DATASET_UTD, DATASET_VERIFIED, fetch_eea_data
+
+        fetch_eea_data(["IE0131A"], datetime(2012, 12, 30, tzinfo=timezone.utc), datetime(2012, 12, 31, 23, tzinfo=timezone.utc))
+        assert [c.args[0]["dataset"] for c in mock_download.call_args_list] == [DATASET_VERIFIED, DATASET_UTD, DATASET_AIRBASE]
+
+    @patch("aeolus.sources.eea._get_spo_mapping", return_value={})
+    @patch("aeolus.sources.eea._download_parquet")
+    def test_missing_station_mapping_is_named_not_blamed_on_the_site_codes(self, mock_download, _mock_mapping):
+        from aeolus.sources.eea import DATASET_VERIFIED, fetch_eea_data
+        from aeolus.types import AeolusDataWarning
+
+        verified = _make_parquet_zip([MOCK_PARQUET_RECORDS[0]])
+        mock_download.side_effect = lambda body: verified if body["dataset"] == DATASET_VERIFIED else None
+        with pytest.warns(AeolusDataWarning, match="station metadata"):
+            out = fetch_eea_data(["IE0131A"], datetime(2024, 1, 1), datetime(2024, 1, 3))
+        assert out.empty
+
+    @patch("aeolus.sources.eea._get_spo_mapping")
+    @patch("aeolus.sources.eea._download_parquet", return_value=b"zip")
+    @patch("aeolus.sources.eea._parse_parquet_zip")
+    def test_an_unparseable_start_in_one_dataset_does_not_sink_the_others(self, mock_parse, _dl, mock_mapping):
+        from aeolus.sources.eea import fetch_eea_data
+        from aeolus.types import AeolusDataWarning
+
+        mock_mapping.return_value = self._DE_MAPPING
+        good = TestNormaliseEeaData._raw_df(None, [self._rec(1, 1, "10.0", 1)])
+        bad = TestNormaliseEeaData._raw_df(None, [self._rec(2, 1, "12.0", 2)]).astype({"Start": object})
+        bad["Start"] = ["not a date"]
+        calls = iter([good, bad])
+        mock_parse.side_effect = lambda _bytes: next(calls)
+        with pytest.warns(AeolusDataWarning, match="dataset 1"):
+            out = fetch_eea_data(["DEBB021"], datetime(2024, 1, 1), datetime(2024, 1, 3))
+        assert out["value"].tolist() == [10.0]
 
 
 class TestSpoMappingCache:

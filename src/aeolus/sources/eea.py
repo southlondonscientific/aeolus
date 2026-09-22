@@ -648,6 +648,11 @@ def _fetch_dataset(body_base: dict, dataset: int) -> pd.DataFrame | None:
     try:
         zip_bytes = _download_parquet({**body_base, "dataset": dataset})
         raw = _parse_parquet_zip(zip_bytes) if zip_bytes else None
+        if raw is None:
+            return None
+        start = pd.to_datetime(raw["Start"])
+        if start.dt.tz is not None:
+            start = start.dt.tz_localize(None)
     except Exception as e:  # noqa: BLE001 - includes requests.RequestException from the download
         warnings.warn(
             f"EEA dataset {dataset} ({DATASET_BACKEND.get(dataset, dataset)}) could not be fetched: {e}",
@@ -655,11 +660,6 @@ def _fetch_dataset(body_base: dict, dataset: int) -> pd.DataFrame | None:
             stacklevel=3,
         )
         return None
-    if raw is None:
-        return None
-    start = pd.to_datetime(raw["Start"])
-    if start.dt.tz is not None:
-        start = start.dt.tz_localize(None)
     return raw.assign(Start=start, dataset=dataset)
 
 
@@ -731,19 +731,21 @@ def fetch_eea_data(
                 notation_list.append(notation)
 
     start_utc, end_utc = to_utc(start_date), to_utc(end_date)
+    request_start, request_end = start_utc - _REQUEST_PAD, end_utc + _REQUEST_PAD
     body_base: dict = {
         "countries": [country.upper()],
         "cities": [],
         "pollutants": notation_list if notation_list else [],
-        "dateTimeStart": (start_utc - _REQUEST_PAD).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "dateTimeEnd": (end_utc + _REQUEST_PAD).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "dateTimeStart": request_start.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "dateTimeEnd": request_end.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "compress": True,
     }
     # The verified archive and the up-to-date feed overlap by up to two years
     # (which years depends on the country), so both are asked for whenever the
-    # window reaches past Airbase; Airbase alone holds 2002–2012.
-    datasets = [] if end_utc.year <= AIRBASE_LAST_YEAR else [DATASET_VERIFIED, DATASET_UTD]
-    if start_utc.year <= AIRBASE_LAST_YEAR:
+    # window reaches past Airbase; Airbase alone holds 2002–2012. The split is
+    # on the archive's own (UTC+1) year, which the padded bounds cover.
+    datasets = [] if request_end.year <= AIRBASE_LAST_YEAR else [DATASET_VERIFIED, DATASET_UTD]
+    if request_start.year <= AIRBASE_LAST_YEAR:
         datasets.append(DATASET_AIRBASE)
     frames = []
     for dataset in datasets:
@@ -757,6 +759,14 @@ def fetch_eea_data(
     # Keep only the requested sites before normalising the whole country.
     sites_upper = {s.upper() for s in sites}
     mapping = _get_spo_mapping()
+    if not mapping:
+        warnings.warn(
+            "EEA station metadata could not be fetched, so sampling points cannot be matched to "
+            "site codes; nothing returned. Try again later.",
+            AeolusDataWarning,
+            stacklevel=2,
+        )
+        return empty_data_frame(qa=True)
     served = raw_df["Samplingpoint"].apply(_samplingpoint_to_eoi, mapping=mapping).str.upper()
     raw_df = raw_df[served.isin(sites_upper)]
     if raw_df.empty:
