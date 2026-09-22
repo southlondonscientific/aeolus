@@ -205,3 +205,9 @@ def test_network_keyword_is_an_alias_for_the_source():
 def test_network_and_sources_together_is_an_error():
     with pytest.raises(TypeError, match="network.*sources"):
         aeolus.download("AURN", ["MY1"], datetime(2024, 1, 1), datetime(2024, 1, 2), network="AURN")
+
+
+def test_adapter_provided_backend_is_kept():
+    frame = pd.concat([adapter_frame("EEA", backend="EEA_E1A"), adapter_frame("EEA", backend=None)], ignore_index=True)
+    out = finalise_data_frame(frame, "EEA")
+    assert out["backend"].tolist() == ["EEA_E1A", "EEA"]
