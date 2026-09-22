@@ -355,7 +355,7 @@ def fetch_purpleair_data(
             - temperature_a, temperature_b: Temperature from each channel
 
     Note:
-        QA/QC Flags (ratification column):
+        QA/QC Flags (qa_code column):
             (these labels are emitted as ``qa_code``; the legacy ``ratification``
             column carries the derived mirror)
             - "Validated": Both channels valid and agree within thresholds

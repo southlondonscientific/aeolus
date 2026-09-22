@@ -40,7 +40,7 @@ qa_code_vocabulary:
     ratification_stage: not_applicable
     source_url: https://www2.purpleair.com
   "Below Detection Limit":
-    description: Both channels agree but the value is below the sensor's detection limit; a valid, tiny reading
+    description: Value below the 0.3 ug/m3 detection limit (dual- or single-channel); a valid, tiny reading
     qa_tier: lcs_factory_only
     ratification_stage: not_applicable
     source_url: https://www2.purpleair.com
