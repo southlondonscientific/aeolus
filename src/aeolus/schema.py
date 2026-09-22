@@ -8,7 +8,7 @@ the only code that knows both schemas — do not add these columns in adapters.
 
 import pandas as pd
 
-from .network_registry import get_network_spec, route_for
+from .network_registry import spec_for_source
 from .qa import derive_qa, legacy_ratification
 
 DATA_COLUMNS = [
@@ -31,8 +31,7 @@ def finalise_data_frame(df: pd.DataFrame, source: str) -> pd.DataFrame:
         out.attrs = attrs
         return out
 
-    network, backend = route_for(source)
-    spec = get_network_spec(network)
+    network, backend, spec = spec_for_source(source)
     out = df.copy()
     out["network"] = network
     out["backend"] = backend

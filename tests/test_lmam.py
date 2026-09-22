@@ -240,8 +240,8 @@ class TestFetchData:
         end = datetime(2024, 1, 2, tzinfo=timezone.utc)
         result = fetch_lmam_data(["AD1"], start, end)
 
-        from aeolus.types import DATA_COLUMNS
-        assert list(result.columns) == DATA_COLUMNS
+        from aeolus.types import ADAPTER_DATA_COLUMNS
+        assert list(result.columns) == ADAPTER_DATA_COLUMNS
         assert (result["source_network"] == "LMAM").all()
 
 

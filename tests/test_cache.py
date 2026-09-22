@@ -340,9 +340,12 @@ class TestDownloadIntegration:
             result2 = api._fetch_single_source("TEST_NET", ["MY1"], start, end)
             assert mock_fetcher.call_count == 1  # cache hit
 
+            # Parquet normalises object-dtype text columns to pandas' string
+            # dtype on the way back; the values are what a cache hit must keep.
             pd.testing.assert_frame_equal(
                 result1.reset_index(drop=True),
                 result2.reset_index(drop=True),
+                check_dtype=False,
             )
 
     def test_networks_download_uses_cache(self, sample_data, isolated_cache):

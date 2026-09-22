@@ -679,10 +679,10 @@ def test_add_measurands_from_sensor_type_no_column():
 
 
 def test_select_columns_require_all_missing_column_returns_empty_schema():
-    from aeolus.types import DATA_COLUMNS, AeolusDataWarning
+    from aeolus.types import ADAPTER_DATA_COLUMNS, AeolusDataWarning
 
     df = pd.DataFrame({"site_code": ["A"], "value": [1.0]})
     with pytest.warns(AeolusDataWarning, match="date_time"):
-        result = select_columns(*DATA_COLUMNS, require_all=True)(df)
-    assert list(result.columns) == DATA_COLUMNS
+        result = select_columns(*ADAPTER_DATA_COLUMNS, require_all=True)(df)
+    assert list(result.columns) == ADAPTER_DATA_COLUMNS
     assert result.empty

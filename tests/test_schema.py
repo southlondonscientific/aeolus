@@ -67,3 +67,61 @@ def test_requested_range_attr_survives():
     frame = adapter_frame()
     frame.attrs["aeolus_requested_range"] = ["2024-01-01T00:00:00+00:00", "2024-01-02T00:00:00+00:00"]
     assert finalise_data_frame(frame, "AURN").attrs == frame.attrs
+
+
+# ---- end to end: the convergence points and the cache ------------------------
+
+from datetime import datetime  # noqa: E402
+from unittest.mock import patch  # noqa: E402
+
+import aeolus  # noqa: E402
+from aeolus.registry import get_source  # noqa: E402
+
+
+def _fake_fetcher(sites, start, end):
+    return adapter_frame("AURN")
+
+
+def test_download_returns_the_public_schema():
+    with patch.dict(get_source("AURN"), {"fetch_data": _fake_fetcher}):
+        out = aeolus.download("AURN", ["MY1"], datetime(2024, 1, 1), datetime(2024, 1, 2))
+    assert list(out.columns) == DATA_COLUMNS
+    assert out.loc[0, "network"] == "AURN" and out.loc[0, "backend"] == "RDATA"
+
+
+def test_the_cache_holds_public_frames(tmp_path):
+    from aeolus import cache
+
+    cache.enable_cache(cache_dir=tmp_path)
+    try:
+        with patch.dict(get_source("AURN"), {"fetch_data": _fake_fetcher}):
+            aeolus.download("AURN", ["MY1"], datetime(2024, 1, 1), datetime(2024, 1, 2))
+        (path,) = tmp_path.rglob("*.parquet")
+        assert "v3" in path.parts
+        assert list(pd.read_parquet(path).columns) == DATA_COLUMNS
+    finally:
+        cache.disable_cache()
+
+
+def test_pre_v3_cache_entries_are_never_served(tmp_path):
+    """Old entries hold values and columns this release changed; the versioned
+    directory keeps them out without inspecting them."""
+    from aeolus import cache
+
+    cache.enable_cache(cache_dir=tmp_path)
+    try:
+        start, end = datetime(2024, 1, 1), datetime(2024, 1, 2)
+        legacy = tmp_path / "v2" / "AURN" / "MY1_100812a6ff04675c.parquet"
+        legacy.parent.mkdir(parents=True)
+        adapter_frame("AURN").to_parquet(legacy)
+        assert cache.get("AURN", "MY1", start, end) is None
+        assert cache.cache_info()["legacy_files"] == 1
+    finally:
+        cache.disable_cache()
+
+
+def test_unregistered_custom_source_is_its_own_unknown_network():
+    out = finalise_data_frame(adapter_frame("MYNET", ratification="whatever"), "MYNET")
+    row = out.iloc[0]
+    assert (row["network"], row["backend"], row["qa_tier"]) == ("MYNET", "MYNET", "unknown")
+    assert row["ratification_stage"] is None and row["ratification"] == "whatever"

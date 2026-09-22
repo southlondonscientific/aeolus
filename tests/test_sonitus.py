@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
-from aeolus.types import DATA_COLUMNS, METADATA_COLUMNS
+from aeolus.types import ADAPTER_DATA_COLUMNS, METADATA_COLUMNS
 
 
 @pytest.fixture(autouse=True)
@@ -131,7 +131,7 @@ class TestNormaliseSonitusData:
         normaliser = normalise_sonitus_data("DCC-AQ1")
         raw = pd.DataFrame(MOCK_GAS_DATA)
         df = normaliser(raw)
-        for col in DATA_COLUMNS:
+        for col in ADAPTER_DATA_COLUMNS:
             assert col in df.columns, f"Missing column: {col}"
         assert len(df) == 8  # 2 rows x 4 measurands
         assert set(df["measurand"]) == {"NO2", "SO2", "CO", "NO"}
@@ -203,7 +203,7 @@ class TestFetchSonitusData:
             datetime(2025, 6, 1, tzinfo=timezone.utc),
             datetime(2025, 6, 2, tzinfo=timezone.utc),
         )
-        for col in DATA_COLUMNS:
+        for col in ADAPTER_DATA_COLUMNS:
             assert col in df.columns
 
     @patch("aeolus.sources.sonitus._call_sonitus_api")

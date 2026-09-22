@@ -62,7 +62,8 @@ from .registry import (
 )
 from .registry import list_sources as _list_sources
 from .types import AeolusDataWarning, AeolusExperimentalWarning
-from .types import DATA_COLUMNS as _STANDARD_COLUMNS
+from .schema import DATA_COLUMNS as _STANDARD_COLUMNS
+from .schema import finalise_data_frame
 from .types import METADATA_COLUMNS as _METADATA_COLUMNS
 from .types import empty_metadata_frame as _empty_metadata_frame
 
@@ -728,7 +729,7 @@ def get_current(
     # with a short window
     fetch_latest = spec.get("fetch_latest")
     if fetch_latest is not None:
-        return fetch_latest(sites)
+        return finalise_data_frame(fetch_latest(sites), backend)
 
     # Fallback: fetch last 4 hours and keep the latest reading.
     # Bypass the cache here — "current" data must always be live.
@@ -742,7 +743,7 @@ def get_current(
         raise ValueError(f"Source {backend} has no fetch_data implementation")
     df = fetch_data(sites, start, now)
     if df.empty:
-        return df
+        return finalise_data_frame(df, backend)
 
     # Keep only the most recent *valid* reading per site + measurand. Drop
     # NaN-value rows first: near-real-time feeds often publish the newest hour
@@ -751,9 +752,9 @@ def get_current(
     # row. (Also sidesteps idxmax on an all-NaT group for the dropped rows.)
     valid = df[df["value"].notna()]
     if valid.empty:
-        return valid.reset_index(drop=True)
+        return finalise_data_frame(valid.reset_index(drop=True), backend)
     idx = valid.groupby(["site_code", "measurand"])["date_time"].idxmax()
-    return valid.loc[idx].reset_index(drop=True)
+    return finalise_data_frame(valid.loc[idx].reset_index(drop=True), backend)
 
 
 # ============================================================================

@@ -1,7 +1,7 @@
 """Integration contract tests for the aeolus schema.
 
 Every source adapter produces DataFrames conforming to the documented 8-column
-``DATA_COLUMNS`` schema. Every analysis and visualisation function in aeolus
+``ADAPTER_DATA_COLUMNS`` schema. Every analysis and visualisation function in aeolus
 consumes that schema. This test file enforces the contract between them:
 **if a source produces the canonical schema, every consumer must accept it.**
 

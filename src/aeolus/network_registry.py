@@ -92,6 +92,24 @@ SOURCE_ROUTES: dict[str, tuple[str, str]] = {
 }
 
 
+def spec_for_source(source: str) -> tuple[str, str, NetworkSpec]:
+    """``(network, backend, spec)`` for a source — including one aeolus has never
+    heard of.
+
+    A source registered with ``register_source`` but absent from
+    ``SOURCE_ROUTES`` (a user's own adapter) is treated as its own network with
+    nothing known about it: ``qa_tier`` is ``unknown`` and no stage is assumed.
+    """
+    name = source.upper()
+    if name in SOURCE_ROUTES:
+        network, backend = SOURCE_ROUTES[name]
+        return network, backend, get_network_spec(network)
+    return name, name, NetworkSpec(
+        code=name, name=name, country="*", regulatory=False,
+        instrument_class="unknown", qa_model="unknown", default_ratification_stage=None,
+    )
+
+
 def route_for(source: str) -> tuple[str, str]:
     try:
         return SOURCE_ROUTES[source.upper()]

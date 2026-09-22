@@ -64,7 +64,7 @@ from ..transforms import (
 )
 from ..types import (
     AeolusDataWarning,
-    DATA_COLUMNS,
+    ADAPTER_DATA_COLUMNS,
     METADATA_COLUMNS,
     empty_data_frame,
     empty_metadata_frame,
@@ -243,7 +243,7 @@ def normalise_sonitus_data(site_code: str) -> callable:
             add_column("source_network", "SONITUS"),
             add_column("ratification", "Unvalidated"),
             add_column("created_at", lambda df: datetime.now(timezone.utc)),
-            select_columns(*DATA_COLUMNS, require_all=True),
+            select_columns(*ADAPTER_DATA_COLUMNS, require_all=True),
             reset_index(),
         )
         return normaliser(melted)

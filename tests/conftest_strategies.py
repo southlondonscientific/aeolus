@@ -10,7 +10,7 @@ import pandas as pd
 from hypothesis import strategies as st
 from hypothesis.extra.pandas import column, data_frames
 
-from aeolus.types import DATA_COLUMNS
+from aeolus.types import ADAPTER_DATA_COLUMNS
 
 # ---------------------------------------------------------------------------
 # Atom strategies
@@ -74,7 +74,7 @@ def aeolus_dataframes(
     n_rows = draw(st.integers(min_value=min_rows, max_value=max_rows))
 
     if n_rows == 0:
-        return pd.DataFrame(columns=DATA_COLUMNS)
+        return pd.DataFrame(columns=ADAPTER_DATA_COLUMNS)
 
     data: dict[str, list] = {
         "site_code": draw(st.lists(site_codes, min_size=n_rows, max_size=n_rows)),

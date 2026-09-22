@@ -148,7 +148,7 @@ def test_no_bare_empty_dataframe_for_schema_columns():
     for schema-shaped empty DataFrames.
 
     Matches literal ``pd.DataFrame(columns=[...])`` constructors where the
-    column list overlaps significantly with the canonical DATA_COLUMNS or
+    column list overlaps significantly with the canonical ADAPTER_DATA_COLUMNS or
     METADATA_COLUMNS — those are empty-schema frames that should use the
     helper instead.
     """
