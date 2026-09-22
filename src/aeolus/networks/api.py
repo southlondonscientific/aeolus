@@ -112,8 +112,8 @@ def download(
             - measurand: Pollutant measured (e.g., "NO2", "PM2.5")
             - value: Measured value
             - units: Units of measurement
-            - source_network: Network name (raw adapter frame; ``aeolus.download()`` returns the public 13-column schema)
-            - ratification: legacy quality label (the public frame carries ``qa_code``/``qa_tier``/``ratification_stage``)
+            - network / backend / qa_code / qa_tier / ratification_stage: the 0.5 contract columns
+            - source_network, ratification: deprecated mirrors (``AEOLUS_LEGACY_COLUMNS=0`` drops them)
             - created_at: When record was fetched
 
     Raises:

@@ -32,12 +32,12 @@ NOTEBOOKS = sorted((ROOT / "notebooks").glob("*.ipynb"))
 FORBIDDEN = [
     re.compile(r"8-column|eight columns|\b8 columns", re.I),
     re.compile(r"ratification\s*=\s*['\"]", re.I),           # ratification='Indicative' etc.
-    re.compile(r"marked as `?(Unvalidated|Indicative|Provisional|provisional)`?"),
+    re.compile(r"(marked|labelled|flagged) as `?(Unvalidated|Indicative|Provisional|provisional)`?"),
     re.compile(r"\*\*Data quality\*\*:\s*(Indicative|Unvalidated|Ratified|Provisional)"),
     re.compile(r"not yet wired|return(s)? an empty frame|only the up-to-date feed"),  # EEA before PR #17
 ]
 # `source_network` / `ratification` may appear only where the line says they are legacy mirrors.
-LEGACY = re.compile(r"\bsource_network\b|\bratification\b(?!_stage)", re.I)
+LEGACY = re.compile(r"\bsource_network\b|\bratification\b(?!_stage|\.md)", re.I)
 LEGACY_CONTEXT = re.compile(r"deprecated|mirror|legacy|1\.0|Migrat|migrat|AEOLUS_LEGACY_COLUMNS|ratification_stage|legacy_ratification")
 
 
@@ -81,3 +81,4 @@ def test_version_strings_agree():
     pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text())
     assert aeolus.__version__ == pyproject["project"]["version"]
     assert f"**Current Version:** {aeolus.__version__}" in (ROOT / "CLAUDE.md").read_text()
+    assert f"version: {aeolus.__version__}" in (ROOT / "CITATION.cff").read_text()

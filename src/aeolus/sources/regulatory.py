@@ -495,23 +495,40 @@ def drop_closed_sites(df: pd.DataFrame) -> pd.DataFrame:
     """
     if "end_date" not in df.columns or df.empty:
         return df
-    ended = pd.to_datetime(df["end_date"], errors="coerce")  # "ongoing", blank, NaN -> NaT
-    today = pd.Timestamp.now(tz="UTC").tz_localize(None).normalize()
-    row_open = ended.isna() | (ended >= today)
-    site_open = row_open.groupby(df["site_code"]).transform("any")
+    site_open = _series_open(df["end_date"]).groupby(df["site_code"]).transform("any")
     return df[site_open]
+
+
+def _series_open(end_date: pd.Series) -> pd.Series:
+    """True where a site-parameter series has not ended: ``ongoing``, blank, or a date not yet past."""
+    ended = pd.to_datetime(end_date, errors="coerce", format="ISO8601")  # "ongoing", blank, NaN -> NaT
+    today = pd.Timestamp.now(tz="UTC").tz_localize(None).normalize()
+    return ended.isna() | (ended >= today)
 
 
 def one_row_per_site(df: pd.DataFrame) -> pd.DataFrame:
     """Collapse the openair metadata's one-row-per-parameter layout to one row per site.
 
-    The parameter columns are dropped before this step, so the rows are exact
-    duplicates apart from ``start_date``/``end_date``; the first row (oldest
-    series) is kept.
+    The parameter columns are dropped before this step, so the rows differ only
+    in their series dates: ``start_date`` becomes the earliest, ``end_date`` is
+    ``ongoing`` if any series is still running (else the latest end), and the
+    per-parameter ``ratified_to`` is dropped (the data path reads it from the
+    raw metadata, per parameter, for the ``qa_code`` join).
     """
-    if "site_code" not in df.columns:
+    if "site_code" not in df.columns or df.empty:
         return df
-    return df.drop_duplicates(subset="site_code", keep="first")
+    df = df.drop(columns=[c for c in ("ratified_to",) if c in df.columns])
+    agg: dict[str, pd.Series] = {}
+    if "start_date" in df.columns:
+        agg["start_date"] = df["start_date"].astype("string").groupby(df["site_code"]).min()
+    if "end_date" in df.columns:
+        open_any = _series_open(df["end_date"]).groupby(df["site_code"]).any()
+        latest = df["end_date"].astype("string").groupby(df["site_code"]).max()
+        agg["end_date"] = latest.where(~open_any, "ongoing")
+    out = df.drop_duplicates(subset="site_code", keep="first").set_index("site_code")
+    for col, values in agg.items():
+        out[col] = values.reindex(out.index).astype(object)
+    return out.reset_index()
 
 
 def normalise_regulatory_metadata(network_name: str, *, include_closed: bool = False) -> Normaliser:
@@ -618,7 +635,8 @@ def make_metadata_fetcher(network_name: str) -> MetadataFetcher:
         MetadataFetcher: Function that fetches and normalises metadata
     """
 
-    def fetch_metadata() -> pd.DataFrame:
+    def fetch_metadata(*, include_closed: bool = False) -> pd.DataFrame:
+        """Site metadata; ``include_closed=True`` also lists sites whose every series has ended."""
         df = _raw_metadata(network_name)
 
         if df is None:
@@ -629,7 +647,7 @@ def make_metadata_fetcher(network_name: str) -> MetadataFetcher:
             )
             return empty_metadata_frame()
 
-        normaliser = normalise_regulatory_metadata(network_name)
+        normaliser = normalise_regulatory_metadata(network_name, include_closed=include_closed)
         return normaliser(df)
 
     return fetch_metadata

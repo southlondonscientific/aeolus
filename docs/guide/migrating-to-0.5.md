@@ -20,7 +20,7 @@
 | — | `backend` | `RDATA`, `SOS`, `ERG_REST`, `EEA_E1A`/`EEA_E2A`/`EEA_AIRBASE`, ... |
 | (metadata) `source_network` | `network` | plus new `country`, `instrument_class`, `provider`, `backend`, `measurands` |
 
-Only the top-level `aeolus.find_sites()` and `aeolus.download()` return the public schema; `aeolus.networks.get_metadata()` and `aeolus.portals.find_sites()` still return the raw adapter frames with `source_network`.
+Every `download()` (top-level, `aeolus.networks`, `aeolus.portals`) returns the public 13-column frame. For metadata, only the top-level `aeolus.find_sites()` returns the public schema; `aeolus.networks.get_metadata()` and `aeolus.portals.find_sites()` still return the raw adapter frames with `source_network`.
 
 ## The `ratification` mirror changed meaning
 
@@ -70,6 +70,7 @@ Still open: the interval convention of the UK-AIR SOS near-real-time feed (`get_
 
 ## Behaviour changes that are not value changes
 
+- `find_sites()` and `networks.get_metadata()` list only AURN-family sites that are still measuring something, one row per site (0.4 listed every site ever run, once per parameter — the nearest AURN site to central London was one closed in 1978). Pass `include_closed=True` for historical work.
 - `download()`, `fetch()`, `find_sites()`, `get_current()` accept `network=` as an alias for the first argument.
 - `summarise()` and `time_average()` report `network` and accept 0.4 frames.
 - `get_source_info()` reports `status` (`stable` | `experimental`) and `status_note`; **EEA is experimental** and raises one `AeolusExperimentalWarning` per process.

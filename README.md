@@ -276,7 +276,7 @@ All data sources return pandas DataFrames with the same 13 columns (`aeolus.sche
 | `ratification` | Deprecated mirror derived from the three QA columns, removed in 1.0 |
 | `created_at` | When the record was fetched (UTC) |
 
-`AEOLUS_LEGACY_COLUMNS=0` drops the two mirrors. Migrating from 0.4? See [Migrating to 0.5](docs/guide/migrating-to-0.5.md).
+`AEOLUS_LEGACY_COLUMNS=0` drops the two mirrors. Migrating from 0.4? See [Migrating to 0.5](https://github.com/southlondonscientific/aeolus/blob/main/docs/guide/migrating-to-0.5.md).
 
 ### Data Transformations
 

@@ -19,7 +19,7 @@ The pre-0.5.0 `ratification` column is still present as a **deprecated mirror** 
 | AURN | `verified` / `unverified` — from the site's per-pollutant `ratified_to` date in the openair metadata | `reference_full_qc` / `reference_provisional` |
 | SAQN, WAQN, NI, AQE | `Ratified` / `Provisional`, the same way | `reference_full_qc` / `reference_provisional` |
 | AURN-SOS and the other near-real-time sources | always the network's unratified token | `reference_provisional` |
-| EEA | the EIONET `Verification` code: `"1"` verified, `"2"` preliminary verified, `"3"` not verified | `reference_full_qc` for `"1"`, else `reference_provisional` |
+| EEA | the EIONET `Verification` code: `"1"` verified, `"2"` preliminary verified, `"3"` not verified, `"0"` Airbase (status not recorded) | `reference_full_qc` for `"1"`, `reference_provisional` for `"2"`/`"3"`, `unknown` for `"0"` |
 | PurpleAir | the channel-agreement label: `Validated`, `Single Channel (A)`/`(B)`, `Below Detection Limit`, `Channel Disagreement`, `Sensor Saturation`, `Invalid`, `Unvalidated` | `lcs_factory_only` (validated, single channel, below detection limit), `flagged` (disagreement, saturation, invalid), `unknown` (unvalidated) |
 | Breathe London | `RatificationStatus` (`P`), null where absent | `lcs_calibrated`, else `unknown` |
 | AirNow | `Provisional` — the AirNow feed is never ratified; certified data is in EPA's AQS | `reference_provisional` |

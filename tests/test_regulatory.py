@@ -1050,3 +1050,45 @@ class TestClosedSitesAreNotListed:
 
         out = normalise_regulatory_metadata("aurn")(self._meta(["ongoing"] * 5))
         assert out["site_code"].tolist() == ["MY1", "ISL", "WA2"]
+
+    def test_site_dates_are_aggregated_not_taken_from_the_first_row(self):
+        """An open site whose first-listed parameter has ended must still read as open."""
+        from aeolus.sources.regulatory import normalise_regulatory_metadata
+
+        meta = self._meta(["2015-12-31", "ongoing", "1978-10-11", "1978-10-11", "ongoing"])
+        meta["start_date"] = ["2000-01-01", "1997-01-01", "1976-07-09", "1976-07-09", "1996-04-01"]
+        meta["ratified_to"] = ["2015-12-31", "2025-06-30", "1978-10-11", "1978-10-11", "2025-06-30"]
+        out = normalise_regulatory_metadata("aurn")(meta).set_index("site_code")
+        assert out.loc["MY1", "end_date"] == "ongoing" and out.loc["MY1", "start_date"] == "1997-01-01"
+        assert out.loc["WA2", "end_date"] == "ongoing"
+        assert "ratified_to" not in out.columns  # per parameter, meaningless per site
+
+    def test_closed_site_keeps_its_last_end_date(self):
+        from aeolus.sources.regulatory import normalise_regulatory_metadata
+
+        out = normalise_regulatory_metadata("aurn", include_closed=True)(self._meta(["ongoing", "ongoing", "1978-08-01", "1978-10-11", "2007-09-30"])).set_index("site_code")
+        assert out.loc["ISL", "end_date"] == "1978-10-11"
+
+    def test_a_site_ending_today_is_still_open(self):
+        from aeolus.sources.regulatory import normalise_regulatory_metadata
+
+        today = pd.Timestamp.now(tz="UTC").strftime("%Y-%m-%d")
+        out = normalise_regulatory_metadata("aurn")(self._meta(["ongoing", "ongoing", today, today, "2007-09-30"]))
+        assert set(out["site_code"]) == {"MY1", "ISL"}
+
+    @pytest.mark.filterwarnings("error::UserWarning")
+    def test_ongoing_first_does_not_provoke_a_pandas_format_warning(self):
+        from aeolus.sources.regulatory import normalise_regulatory_metadata
+
+        out = normalise_regulatory_metadata("aurn")(self._meta(["ongoing", "2015-12-31 00:00:00", "1978-10-11", "1978-10-11", "2007-09-30"]))
+        assert set(out["site_code"]) == {"MY1"}
+
+    def test_include_closed_is_reachable_through_get_metadata_and_find_sites(self):
+        import aeolus
+        from aeolus.sources import regulatory
+
+        meta = self._meta(["ongoing", "ongoing", "1978-10-11", "1978-10-11", "2007-09-30"])
+        with patch.object(regulatory, "_raw_metadata", return_value=meta):
+            assert set(aeolus.networks.get_metadata("AURN")["site_code"]) == {"MY1"}
+            assert set(aeolus.networks.get_metadata("AURN", include_closed=True)["site_code"]) == {"MY1", "ISL", "WA2"}
+            assert set(aeolus.find_sites("AURN", include_closed=True)["site_code"]) == {"MY1", "ISL", "WA2"}

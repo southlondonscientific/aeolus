@@ -517,9 +517,11 @@ def find_sites(
 
     Returns:
         DataFrame with core columns
-        ``[site_code, site_name, latitude, longitude, source_network,
-        measurands]`` plus ``distance_km`` when *near* is used, plus any
-        source-specific extras.  ``measurands`` is a ``list[str]`` of
+        ``[site_code, site_name, latitude, longitude, network, country,
+        instrument_class, provider, backend, measurands, source_network]``
+        (``aeolus.schema.METADATA_COLUMNS``; the last is a deprecated mirror)
+        plus ``distance_km`` when *near* is used, plus any source-specific
+        extras.  ``measurands`` is a ``list[str]`` of
         pollutant names or ``None`` when unknown.  Output feeds directly
         into ``aeolus.download()``.
 
@@ -722,7 +724,7 @@ def get_current(
         sites: List of site codes to fetch current data for.
 
     Returns:
-        DataFrame with the standard 8-column schema, containing only
+        DataFrame with the public 13-column schema, containing only
         the most recent reading per site+measurand.
 
     Raises:
@@ -793,8 +795,8 @@ def summarise(data: pd.DataFrame) -> pd.DataFrame:
     record counts, and data completeness per site+pollutant combination.
 
     Args:
-        data: DataFrame from ``aeolus.download()`` with the standard
-              8-column schema.
+        data: DataFrame from ``aeolus.download()`` (the public schema;
+              pre-0.5 frames are accepted).
 
     Returns:
         DataFrame with one row per site+pollutant, columns:

@@ -143,7 +143,7 @@ Global citizen science network (formerly luftdaten.info) with 35,000+ low-cost s
 Pan-European monitoring data from national reference networks, aggregated by the European Environment Agency. 7,000+ stations across 40+ countries.
 
 - **Coverage**: Europe (EU/EEA member states)
-- **Data quality**: Reference (national regulatory networks)
+- **Data quality**: `qa_tier = reference_full_qc` (verified archive) or `reference_provisional` (up-to-date feed); Airbase rows (2002–2012) are `unknown`
 - **API key**: Not required
 
 ### Sonitus (Smart Dublin)
@@ -165,9 +165,9 @@ Air quality and noise monitoring network in Dublin, Ireland. Measures NO2, SO2, 
 | AQE | Network | England | reference_full_qc / reference_provisional | Yes | 2000s+ |
 | LAQN | Network | London | unknown (no flag published) | Yes | 1990s+ |
 | LMAM | Network | UK (council/regional) | unknown (no flag published) | Yes | 2000s+ |
-| EEA | Network | Europe | reference_full_qc / reference_provisional | No | 2002+ (Airbase to 2012, verified archive from 2013) |
+| EEA | Network | Europe | reference_full_qc / reference_provisional (Airbase unknown) | No | 2002+ (Airbase to 2012, verified archive from 2013) |
 | OpenAQ | Portal | Global | unknown (provider mix) | Yes | 2015+ |
-| PurpleAir | Portal | Global | lcs_factory_only / flagged | Yes | 2017+ |
+| PurpleAir | Portal | Global | lcs_factory_only / flagged (met rows unknown) | Yes | 2017+ |
 | Breathe London | Network | London | lcs_calibrated | Yes | 2019+ |
 | AirQo | Network | Africa | unknown (until wired) | Yes | 2020+ |
 | EPA AirNow | Network | N. America | reference_provisional | Yes | ~45 days |
