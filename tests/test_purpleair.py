@@ -632,6 +632,7 @@ class TestFetchPurpleairData:
             "source_network",
             "ratification",
             "created_at",
+            "qa_code",
         ]
         assert list(result.columns) == expected_columns
 
@@ -1244,6 +1245,7 @@ class TestPurpleairNormalizer:
             "source_network",
             "ratification",
             "created_at",
+            "qa_code",
         ]
         assert list(result.columns) == expected_columns
 
@@ -1693,3 +1695,16 @@ def test_normaliser_all_null_channels_is_quietly_empty():
         result = create_purpleair_normaliser()(raw)
     assert result.empty
     assert list(result.columns) == ADAPTER_DATA_COLUMNS
+
+
+def test_qa_code_is_the_channel_token():
+    from aeolus.sources.purpleair import create_purpleair_normaliser
+    from aeolus.types import ADAPTER_DATA_COLUMNS_QA
+
+    raw = pd.DataFrame({"sensor_index": [1, 1], "time_stamp": [1704067200, 1704070800],
+                        "pm2.5_atm_a": [10.0, 10.0], "pm2.5_atm_b": [10.5, 400.0]})
+    out = create_purpleair_normaliser()(raw).sort_values("date_time")
+    assert list(out.columns) == ADAPTER_DATA_COLUMNS_QA
+    assert out["qa_code"].tolist() == out["ratification"].tolist()
+    assert out["qa_code"].iloc[0] == "Validated"
+    assert out["qa_code"].iloc[1] != "Validated"

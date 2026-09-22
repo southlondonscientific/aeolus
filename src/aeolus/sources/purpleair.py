@@ -638,6 +638,8 @@ def create_purpleair_normaliser():
         parse_timestamps,
         rename_columns,
         convert_temperature,
+        # The channel/confidence label IS the upstream QA token
+        add_column("qa_code", lambda df: df["ratification"].astype(object)),
         add_column("source_network", "PURPLEAIR"),
         # Lazy callable — evaluated per fetch, not frozen at module-import time.
         add_column("created_at", lambda df: datetime.now(timezone.utc)),
@@ -650,6 +652,7 @@ def create_purpleair_normaliser():
             "source_network",
             "ratification",
             "created_at",
+            "qa_code",
             require_all=True,
         ),
     )
