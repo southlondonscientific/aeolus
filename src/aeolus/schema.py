@@ -46,7 +46,16 @@ def finalise_data_frame(df: pd.DataFrame, source: str) -> pd.DataFrame:
     network, backend, spec = spec_for_source(source)
     out = df.copy()
     out["network"] = network
-    out["backend"] = backend
+    # An adapter that serves one network from several upstream datasets (EEA)
+    # says which served each row, as a refinement of the route's backend
+    # (EEA -> EEA_E1A). Anything else is the route's backend.
+    if "backend" in out.columns:
+        given = out["backend"]
+        name = given.astype("string")
+        refines = (name.notna() & ((name == backend) | name.str.startswith(f"{backend}_"))).fillna(False).astype(bool)
+        out["backend"] = given.where(refines, backend)  # where() keeps the dtype: finalising twice must be a no-op
+    else:
+        out["backend"] = backend
     out["source_network"] = network
 
     wired = "qa_code" in out.columns

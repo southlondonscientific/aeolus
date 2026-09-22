@@ -9,6 +9,11 @@ instrument_class: reference
 qa_model: regulatory_temporal_ratification
 default_ratification_stage: null
 qa_code_vocabulary:
+  "0":
+    description: Airbase legacy record (2002–2012); verification status not recorded
+    qa_tier: unknown
+    ratification_stage: null
+    source_url: https://dd.eionet.europa.eu/vocabulary/aq/observationverification
   "1":
     description: Verified
     qa_tier: reference_full_qc

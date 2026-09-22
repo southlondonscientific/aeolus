@@ -195,12 +195,36 @@ class TestEEA:
         run_metadata_conformance(sites, "EEA")
 
     def test_download(self):
+        # NB "STA-IE0028A" here used to make _infer_country_from_sites read the
+        # country as "ST", so this test passed on an empty frame for months.
         data = aeolus.download(
-            "EEA", ["STA-IE0028A"],
+            "EEA", ["IE0028A"],
             start_date=_SPARSE_START, end_date=_SPARSE_END,
         )
-        if not data.empty:
-            run_data_conformance(data, "EEA")
+        assert not data.empty, "recent Irish data must come from the up-to-date feed"
+        run_data_conformance(data, "EEA")
+
+    def test_past_year_is_served_from_the_verified_archive(self):
+        """The bug that made EEA experimental: earlier years came back empty."""
+        data = aeolus.download(
+            "EEA", ["IE0028A"],
+            start_date=datetime(2023, 3, 6, tzinfo=timezone.utc), end_date=datetime(2023, 3, 13, tzinfo=timezone.utc),
+        )
+        assert len(data) > 100, "March 2023 must come from the verified archive"
+        assert set(data["backend"]) == {"EEA_E1A"}
+        assert set(data["qa_code"]) == {"1"}
+        run_data_conformance(data, "EEA")
+
+    def test_irish_archive_clock_matches_sonitus(self):
+        """Guards the _E1A_CLOCK_OVERRIDES entry: Ireland's E1a is plain UTC.
+        Twin pair from the 2026-09-21 time audit: DCC-AQ1 <-> IE0098A."""
+        start, end = datetime(2025, 9, 9, tzinfo=timezone.utc), datetime(2025, 9, 12, tzinfo=timezone.utc)
+        eea = aeolus.download("EEA", ["IE0098A"], start_date=start, end_date=end)
+        son = aeolus.download("SONITUS", ["DCC-AQ1"], start_date=start, end_date=end)
+        e = eea[eea["measurand"] == "NO2"].drop_duplicates("date_time").set_index("date_time")["value"]
+        s = son[son["measurand"] == "NO2"].set_index("date_time")["value"].resample("h").mean()
+        lags = {k: s.shift(k, freq="h").corr(e) for k in (-1, 0, 1)}
+        assert max(lags, key=lags.get) == 0 and lags[0] > 0.99, lags
 
 
 @pytest.mark.conformance
