@@ -20,7 +20,7 @@ Each notebook is self-contained, tells a complete story, and can be adapted for 
 
 ```bash
 # Install Aeolus with notebook dependencies
-pip install aeolus-aq jupyter matplotlib
+pip install --pre aeolus-aq jupyter matplotlib   # --pre: these notebooks need the 0.5 alpha
 
 # Optional: for map visualisations in notebooks 04/05
 pip install geopandas
@@ -36,6 +36,7 @@ jupyter notebook
 ## Design Principles
 
 - **Self-contained** - Each notebook runs independently
+- **0.5 schema** - every download carries `network`, `backend`, `qa_code`, `qa_tier` and `ratification_stage`; the notebooks use those, never the deprecated `source_network`/`ratification` mirrors
 - **Composable workflows** - Demonstrates Aeolus's functional, pipe-based patterns familiar to R/openair users
 - **Realistic scope** - Completes in under 5 minutes; uses manageable date ranges with notes on extending
 - **Narrative structure** - Markdown explains "why" before code shows "how"
