@@ -54,6 +54,20 @@ def assert_data_schema(df: pd.DataFrame, source: str) -> None:
     assert (df["network"] == df["source_network"]).all()
 
 
+# Networks whose adapter emits a real qa_code (v0.5.0 QA wiring, plan 2)
+WIRED_NETWORKS = {"AURN", "SAQN", "WAQN", "NI", "AQE", "EEA", "PURPLEAIR", "BREATHE_LONDON", "AIRNOW"}
+
+
+def assert_qa_wired(df: pd.DataFrame, source: str) -> None:
+    """A wired network must not come back all-unknown on live data."""
+    if df.empty:
+        return
+    network = df["network"].iloc[0]
+    if network in WIRED_NETWORKS:
+        assert (df["qa_tier"] != "unknown").any(), f"[{source}] qa_tier is all unknown for a wired network"
+        assert df["qa_code"].notna().any(), f"[{source}] qa_code is all null for a wired network"
+
+
 def assert_metadata_schema(df: pd.DataFrame, source: str) -> None:
     """Assert required metadata columns are present."""
     missing = set(_META_REQUIRED) - set(df.columns)
@@ -294,6 +308,7 @@ def assert_no_bad_pollutant_spellings(df: pd.DataFrame, source: str) -> None:
 def run_data_conformance(df: pd.DataFrame, source: str) -> None:
     """Run all data-conformance assertions."""
     assert_data_schema(df, source)
+    assert_qa_wired(df, source)
     assert_data_dtypes(df, source)
     assert_physical_plausibility(df, source)
     assert_canonical_units(df, source)
