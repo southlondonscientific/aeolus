@@ -20,7 +20,7 @@ The pre-0.5.0 `ratification` column is still present as a **deprecated mirror** 
 | SAQN, WAQN, NI, AQE | `Ratified` / `Provisional`, the same way | `reference_full_qc` / `reference_provisional` |
 | AURN-SOS and the other near-real-time sources | always the network's unratified token | `reference_provisional` |
 | EEA | the EIONET `Verification` code: `"1"` verified, `"2"` preliminary verified, `"3"` not verified | `reference_full_qc` for `"1"`, else `reference_provisional` |
-| PurpleAir | the channel-agreement label: `Validated`, `Single Channel (A)`/`(B)`, `Channel Disagreement`, `Sensor Saturation`, `Invalid`, `Unvalidated` | `lcs_factory_only` (validated, single channel), `flagged` (disagreement, saturation, invalid), `unknown` |
+| PurpleAir | the channel-agreement label: `Validated`, `Single Channel (A)`/`(B)`, `Below Detection Limit`, `Channel Disagreement`, `Sensor Saturation`, `Invalid`, `Unvalidated` | `lcs_factory_only` (validated, single channel, below detection limit), `flagged` (disagreement, saturation, invalid), `unknown` (unvalidated) |
 | Breathe London | `RatificationStatus` (`P`), null where absent | `lcs_calibrated`, else `unknown` |
 | AirNow | `Provisional` — the AirNow feed is never ratified; certified data is in EPA's AQS | `reference_provisional` |
 | LAQN, LMAM, Sensor.Community, Sonitus, OpenAQ, AirQo | null — these feeds publish no per-row flag | `unknown` |
@@ -48,7 +48,7 @@ clean = data[data["qa_tier"] != "flagged"]
 print(data.groupby(["network", "ratification_stage"], dropna=False).size())
 ```
 
-For PurpleAir, `aeolus.download("PURPLEAIR", ..., include_flagged=False)` keeps only rows whose `qa_code` is `Validated`.
+For PurpleAir, `aeolus.sources.purpleair.fetch_purpleair_data(..., include_flagged=False)` keeps only rows whose `qa_code` is `Validated` (`aeolus.download` has no such option; filter the frame instead).
 
 ## Recommendations
 

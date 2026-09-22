@@ -39,6 +39,11 @@ qa_code_vocabulary:
     qa_tier: flagged
     ratification_stage: not_applicable
     source_url: https://www2.purpleair.com
+  "Below Detection Limit":
+    description: Both channels agree but the value is below the sensor's detection limit; a valid, tiny reading
+    qa_tier: lcs_factory_only
+    ratification_stage: not_applicable
+    source_url: https://www2.purpleair.com
   "Unvalidated":
     description: Unvalidated
     qa_tier: unknown

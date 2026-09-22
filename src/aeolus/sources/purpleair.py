@@ -356,6 +356,8 @@ def fetch_purpleair_data(
 
     Note:
         QA/QC Flags (ratification column):
+            (these labels are emitted as ``qa_code``; the legacy ``ratification``
+            column carries the derived mirror)
             - "Validated": Both channels valid and agree within thresholds
             - "Channel Disagreement": Both channels valid but disagree
             - "Single Channel (A)" or "Single Channel (B)": Only one channel valid
@@ -665,7 +667,7 @@ def create_purpleair_normaliser():
         if long_df.empty:
             # Every channel null (e.g. an offline sensor): legitimately no data,
             # not a schema violation
-            return empty_data_frame()
+            return empty_data_frame(qa=True)
         return pipeline(long_df)
 
     return normalise

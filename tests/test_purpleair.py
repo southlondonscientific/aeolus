@@ -1685,7 +1685,7 @@ def test_normaliser_all_null_channels_is_quietly_empty():
     import warnings
 
     from aeolus.sources.purpleair import create_purpleair_normaliser
-    from aeolus.types import ADAPTER_DATA_COLUMNS
+    from aeolus.types import ADAPTER_DATA_COLUMNS_QA
 
     raw = pd.DataFrame(
         {"sensor_index": [1], "time_stamp": [1704067200], "pm2.5_atm_a": [None], "pm2.5_atm_b": [None]}
@@ -1694,7 +1694,7 @@ def test_normaliser_all_null_channels_is_quietly_empty():
         warnings.simplefilter("error")
         result = create_purpleair_normaliser()(raw)
     assert result.empty
-    assert list(result.columns) == ADAPTER_DATA_COLUMNS
+    assert list(result.columns) == ADAPTER_DATA_COLUMNS_QA
 
 
 def test_qa_code_is_the_channel_token():
@@ -1717,3 +1717,24 @@ def test_adapter_mirror_equals_the_public_mirror():
     out = create_purpleair_normaliser()(raw).sort_values("date_time")
     assert out["qa_code"].iloc[0] == "Validated" and out["qa_code"].iloc[1] != "Validated"
     assert out["ratification"].tolist() == ["Validated", "Invalid"]
+
+
+def test_offline_sensor_with_include_flagged_false_does_not_crash():
+    """All channels null → the normaliser's own empty path must carry qa_code,
+    or the include_flagged filter raises KeyError."""
+    from aeolus.sources import purpleair
+    from aeolus.types import ADAPTER_DATA_COLUMNS_QA
+
+    client = MagicMock()
+    client.request_sensor_historic_data.return_value = {
+        "fields": ["time_stamp", "pm2.5_atm_a", "pm2.5_atm_b"], "data": [[1704067200, None, None]],
+    }
+    with patch.object(purpleair, "_get_purpleair_client", return_value=client):
+        out = purpleair.fetch_purpleair_data(["1"], datetime(2024, 1, 1), datetime(2024, 1, 2), include_flagged=False)
+    assert out.empty and list(out.columns) == ADAPTER_DATA_COLUMNS_QA
+
+
+def test_below_detection_limit_is_in_the_vocabulary():
+    from aeolus.network_registry import get_network_spec
+
+    assert get_network_spec("PURPLEAIR").qa_code_vocabulary["Below Detection Limit"]["qa_tier"] == "lcs_factory_only"

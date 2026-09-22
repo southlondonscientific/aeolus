@@ -534,7 +534,7 @@ def normalise_eea_data():
         # integer code (blank, "n/a", a float that is not whole) is a null
         # code, never an error and never a made-up status.
         codes = pd.to_numeric(df["Verification"], errors="coerce")
-        integral = codes.notna() & (codes == codes.round())
+        integral = codes.notna() & np.isfinite(codes) & (codes % 1 == 0)
         text = codes.where(integral, 0).fillna(0).astype(int).astype(str)
         df["qa_code"] = pd.Series(np.where(integral, text, None), index=df.index, dtype=object)
         df["ratification"] = legacy_mirror("EEA", df["qa_code"])

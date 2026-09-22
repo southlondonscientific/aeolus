@@ -296,9 +296,10 @@ class TestNormaliseEeaData:
         from aeolus.sources.eea import normalise_eea_data
 
         raw = self._raw_df()
-        raw["Verification"] = pd.Series(["1.0", "n/a", None], dtype=object)[: len(raw)]
-        out = normalise_eea_data()(raw)
-        assert out["qa_code"].tolist()[:2] == ["1", None]
+        raw["Verification"] = pd.Series(["1.0", float("inf")], dtype=object)[: len(raw)]
+        assert normalise_eea_data()(raw)["qa_code"].tolist() == ["1", None]
+        raw["Verification"] = pd.Series(["n/a", 2.5], dtype=object)[: len(raw)]
+        assert normalise_eea_data()(raw)["qa_code"].tolist() == [None, None]
 
     @patch("aeolus.sources.eea._get_spo_mapping", return_value=MOCK_SPO_MAPPING)
     def test_qa_code_is_the_verification_code_verbatim(self, _mock_mapping):
