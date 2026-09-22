@@ -36,8 +36,7 @@ Samplingpoint mapping: EEA metadata CSV (discomap.eea.europa.eu)
 Implementation notes:
     The download API serves three datasets: 1 = up-to-date (E2a, recent data
     only), 2 = verified (E1a, reported annually), 3 = historical Airbase
-    (<=2012). Only dataset=1 is queried today — see the note on
-    ``DATASET_E1A`` below. The per-row ``Verification`` field determines
+    (<=2012) — see ``DATASET_UTD``/``DATASET_VERIFIED``/``DATASET_AIRBASE``. The per-row ``Verification`` field determines
     ratification status (EIONET observationverification vocabulary):
       - 1 = Verified             -> "Verified"
       - 2 = Preliminary verified -> "Provisional"
@@ -135,13 +134,23 @@ MEASURAND_TO_NOTATION = {
     "C6H6": "C6H6",
 }
 
-# Dataset ID sent to the download API. NB the name is historical and wrong:
-# probing the API (2026-09-20) shows dataset=1 is the *up-to-date* E2a feed
-# (recent data only, Verification=2), dataset=2 is the verified E1a archive
-# (Verification=1) and dataset=3 is historical Airbase (<=2012). Only
-# dataset=1 is queried today, so downloads before the up-to-date window come
-# back empty. Multi-dataset selection is v0.5.0 work: docs/dev/v050_design.md §17.
-DATASET_E1A = 1
+# Dataset ids of the EEA download API. NB: the API's own zip folders confirm
+# these — 1 is the *up-to-date* feed, not the verified one (the constant was
+# misnamed DATASET_UTD = 1 until v0.5.0, so earlier years came back empty).
+DATASET_UTD = 1        # E2a: recent data, continuously transmitted
+DATASET_VERIFIED = 2   # E1a: reported annually after national QA/QC
+DATASET_AIRBASE = 3    # historical Airbase, 2002–2012
+DATASET_PRIORITY = (DATASET_VERIFIED, DATASET_UTD, DATASET_AIRBASE)  # who wins a duplicate day
+DATASET_BACKEND = {DATASET_VERIFIED: "EEA_E1A", DATASET_UTD: "EEA_E2A", DATASET_AIRBASE: "EEA_AIRBASE"}
+
+# EEA states hourly Start/End are "converted to the UTC+1 timezone". Verified
+# true for the up-to-date feed in DE/NL/IE/ES/PL and the verified archive in
+# DE/NL/PL/IT. Two exceptions found by measurement:
+#   - Italy's up-to-date feed is local civil time (Europe/Rome);
+#   - Ireland's verified archive is plain UTC (lag 0 vs Sonitus, r=0.9999).
+# Everything else is assumed UTC+1 — which is why EEA stays `experimental`.
+_UTD_LOCAL_CLOCK = {"IT": "Europe/Rome"}
+_E1A_CLOCK_OVERRIDES = {"IE": "UTC"}
 
 # Pollutant names as they appear in PopupInfo HTML
 _POPUP_POLLUTANT_PATTERNS = {
@@ -483,28 +492,30 @@ def normalise_eea_data():
         return df
 
     def stamps_to_utc(df: pd.DataFrame) -> pd.DataFrame:
-        """Convert EEA's hourly ``Start`` to tz-aware UTC.
+        """Convert EEA's hourly ``Start`` to tz-aware UTC, per dataset and country.
 
-        The EEA download service states that hourly Start/End are "converted to
-        the UTC+1 timezone" (fixed, no daylight saving) — confirmed against the
-        German UBA API and Luchtmeetnet. Italy's *up-to-date* feed, the only
-        dataset queried today, is the exception: it is on local civil time
-        (every one of 569 sampling points skips an hour on spring-forward day),
-        so it is localised as Europe/Rome. The hour that does not exist in
-        spring, and the ambiguous one in autumn, cannot be placed and are dropped.
+        The EEA states hourly Start/End are "converted to the UTC+1 timezone"
+        (fixed, no daylight saving). Measured exceptions, see the module
+        constants: Italy's up-to-date feed is local civil time, and Ireland's
+        verified archive is plain UTC. The hour that does not exist in spring,
+        and the ambiguous one in autumn, cannot be placed for a local-clock
+        feed and are dropped.
         """
         df = df.copy()
         naive = pd.to_datetime(df["date_time"])
         if naive.dt.tz is not None:
             naive = naive.dt.tz_localize(None)
+        country = df["Samplingpoint"].astype(str).str.split("/").str[0]  # "IE/SPO.IE…" -> "IE"
+        dataset = df["dataset"] if "dataset" in df.columns else pd.Series(DATASET_UTD, index=df.index)
         utc = naive.dt.tz_localize("Etc/GMT-1").dt.tz_convert("UTC")  # POSIX sign: GMT-1 is UTC+1
-        italy = df["Samplingpoint"].astype(str).str.startswith("IT/")
-        if italy.any():
-            utc[italy] = (
-                naive[italy]
-                .dt.tz_localize("Europe/Rome", ambiguous="NaT", nonexistent="NaT")
-                .dt.tz_convert("UTC")
-            )
+        for code, zone in _UTD_LOCAL_CLOCK.items():
+            rows = (country == code) & (dataset == DATASET_UTD)
+            if rows.any():
+                utc[rows] = naive[rows].dt.tz_localize(zone, ambiguous="NaT", nonexistent="NaT").dt.tz_convert("UTC")
+        for code, zone in _E1A_CLOCK_OVERRIDES.items():
+            rows = (country == code) & (dataset == DATASET_VERIFIED)
+            if rows.any():
+                utc[rows] = naive[rows].dt.tz_localize(zone).dt.tz_convert("UTC")
         df["date_time"] = utc
         return df[df["date_time"].notna()]
 
@@ -628,7 +639,7 @@ def fetch_eea_data(
         "countries": [country.upper()],
         "cities": [],
         "pollutants": notation_list if notation_list else [],
-        "dataset": DATASET_E1A,
+        "dataset": DATASET_UTD,
         "dateTimeStart": to_utc(start_date).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "dateTimeEnd": to_utc(end_date).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "compress": True,

@@ -311,6 +311,28 @@ class TestNormaliseEeaData:
         assert dict(zip(df["measurand"], df["qa_code"], strict=True)) == {"PM10": "1", "NO2": "2"}
 
 
+    @pytest.mark.parametrize(
+        "samplingpoint, dataset, start, expected_utc",
+        [
+            ("DE/SPO.DE_DEBB021_NO2_dataGroup1", 2, "2024-07-01T01:00:00", "2024-07-01 00:00"),  # E1a, UTC+1
+            ("IT/SPO.IT1168A_8_chemi_1998-01-30_00:00:00", 2, "2024-07-01T01:00:00", "2024-07-01 00:00"),  # Italy E1a is fixed UTC+1
+            ("IT/SPO.IT1168A_8_chemi_1998-01-30_00:00:00", 1, "2024-07-01T02:00:00", "2024-07-01 00:00"),  # Italy E2a is local (CEST)
+            ("IE/SPO.IE.IE0098ASample1_8", 2, "2024-07-01T00:00:00", "2024-07-01 00:00"),  # Ireland E1a is plain UTC (verified vs Sonitus)
+            ("IE/SPO.IE.IE0098ASample1_8", 1, "2024-07-01T01:00:00", "2024-07-01 00:00"),  # Ireland E2a is UTC+1
+        ],
+    )
+    def test_stamps_depend_on_dataset_and_country(self, samplingpoint, dataset, start, expected_utc):
+        from aeolus.sources.eea import normalise_eea_data
+
+        raw = self._raw_df([{**MOCK_PARQUET_RECORDS[0], "Samplingpoint": samplingpoint, "Start": start, "End": start}])
+        raw["dataset"] = dataset
+        # Patch the mapping, not the per-row function: Series.apply treats a
+        # MagicMock as dict-like and the pipeline then has nothing to concatenate.
+        with patch("aeolus.sources.eea._get_spo_mapping", return_value={samplingpoint.split("/", 1)[1]: "X0001A"}):
+            out = normalise_eea_data()(raw)
+        assert out["date_time"].iloc[0] == pd.Timestamp(expected_utc, tz="UTC")
+
+
 class TestFetchEeaData:
     """Test the data fetcher with mocked Parquet API."""
 
