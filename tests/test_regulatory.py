@@ -1092,3 +1092,18 @@ class TestClosedSitesAreNotListed:
             assert set(aeolus.networks.get_metadata("AURN")["site_code"]) == {"MY1"}
             assert set(aeolus.networks.get_metadata("AURN", include_closed=True)["site_code"]) == {"MY1", "ISL", "WA2"}
             assert set(aeolus.find_sites("AURN", include_closed=True)["site_code"]) == {"MY1", "ISL", "WA2"}
+
+    def test_dates_are_iso_strings_or_none_whatever_the_input_types(self):
+        """datetime64 with NaT, pd.NA strings and all-missing starts come out as YYYY-MM-DD, ongoing or None."""
+        from aeolus.sources.regulatory import one_row_per_site
+
+        df = pd.DataFrame({
+            "site_code": ["A", "A", "B", "C"],
+            "start_date": pd.to_datetime(["2001-01-01", None, None, "2010-06-01"]),
+            "end_date": pd.array(["2015-12-31", "ongoing", pd.NA, "2012-01-01"], dtype="string"),
+        })
+        out = one_row_per_site(df).set_index("site_code")
+        assert out.loc["A", "start_date"] == "2001-01-01" and out.loc["A", "end_date"] == "ongoing"
+        assert out.loc["B", "start_date"] is None and out.loc["B", "end_date"] == "ongoing"
+        assert out.loc["C", "start_date"] == "2010-06-01" and out.loc["C", "end_date"] == "2012-01-01"
+        assert out["start_date"].dtype == object and out["end_date"].dtype == object

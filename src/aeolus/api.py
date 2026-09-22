@@ -528,7 +528,10 @@ def find_sites(
         include_all: When *source* is ``None``, include sources that require
             an API key and warn on failures.
         **filters: Source-specific keyword filters (e.g. ``country``,
-            ``sensor_type``, ``location_type``).
+            ``sensor_type``, ``location_type``, ``include_closed`` for the
+            AURN family). Each source receives only the keywords its
+            fetcher accepts; the rest are ignored, so a misspelt filter
+            does not fail the search — check the result.
 
     Returns:
         DataFrame with core columns
