@@ -158,3 +158,50 @@ def test_no_warning_when_mirrors_are_off(monkeypatch):
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         finalise_data_frame(adapter_frame(), "AURN")
+
+
+# ---- metadata identity columns and the network= alias -----------------------
+
+
+def metadata_frame(**extra):
+    base = {"site_code": ["MY1"], "site_name": ["Marylebone Road"], "latitude": [51.52],
+            "longitude": [-0.15], "source_network": ["AURN"], "measurands": [["NO2"]]}
+    return pd.DataFrame({**base, **{k: [v] for k, v in extra.items()}})
+
+
+def test_metadata_gains_identity_columns():
+    from aeolus.schema import METADATA_COLUMNS, finalise_metadata_frame
+
+    out = finalise_metadata_frame(metadata_frame(location_type="Kerbside"), "AURN")
+    assert list(out.columns) == METADATA_COLUMNS + ["location_type"]
+    row = out.iloc[0]
+    assert (row["network"], row["country"], row["instrument_class"], row["backend"]) == ("AURN", "GB", "reference", "RDATA")
+    assert row["provider"] is None and row["source_network"] == "AURN"
+
+
+def test_lmam_provider_comes_from_pcode():
+    from aeolus.schema import finalise_metadata_frame
+
+    out = finalise_metadata_frame(metadata_frame(pcode="sussex"), "LMAM")
+    assert out.loc[0, "provider"] == "sussex"
+
+
+def test_find_sites_returns_identity_columns():
+    from aeolus.schema import METADATA_COLUMNS
+
+    with patch.dict(get_source("AURN"), {"fetch_metadata": lambda **kw: metadata_frame()}):
+        out = aeolus.find_sites("AURN")
+    assert list(out.columns) == METADATA_COLUMNS
+    assert out.loc[0, "country"] == "GB"
+
+
+def test_network_keyword_is_an_alias_for_the_source():
+    with patch.dict(get_source("AURN"), {"fetch_data": _fake_fetcher}):
+        a = aeolus.download("AURN", ["MY1"], datetime(2024, 1, 1), datetime(2024, 1, 2))
+        b = aeolus.download(network="AURN", sites=["MY1"], start_date=datetime(2024, 1, 1), end_date=datetime(2024, 1, 2))
+    pd.testing.assert_frame_equal(a.drop(columns="created_at"), b.drop(columns="created_at"))
+
+
+def test_network_and_sources_together_is_an_error():
+    with pytest.raises(TypeError, match="network.*sources"):
+        aeolus.download("AURN", ["MY1"], datetime(2024, 1, 1), datetime(2024, 1, 2), network="AURN")

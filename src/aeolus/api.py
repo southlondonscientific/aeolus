@@ -64,8 +64,8 @@ from .registry import list_sources as _list_sources
 from .types import AeolusDataWarning, AeolusExperimentalWarning
 from .schema import DATA_COLUMNS as _STANDARD_COLUMNS
 from .schema import finalise_data_frame
-from .types import METADATA_COLUMNS as _METADATA_COLUMNS
-from .types import empty_metadata_frame as _empty_metadata_frame
+from .schema import METADATA_COLUMNS as _METADATA_COLUMNS
+from .schema import empty_public_metadata_frame, finalise_metadata_frame
 
 
 _warned_experimental: set[str] = set()
@@ -153,12 +153,13 @@ def list_sources(include_all: bool = False) -> list[str]:
 
 
 def download(
-    sources: str | dict[str, list[str]],
+    sources: str | dict[str, list[str]] | None = None,
     sites: list[str] | None = None,
     start_date: datetime = None,
     end_date: datetime = None,
     last: str | None = None,
     combine: bool = True,
+    network: str | None = None,
 ) -> pd.DataFrame | dict[str, pd.DataFrame]:
     """
     Download air quality data with smart routing to networks/portals.
@@ -243,6 +244,13 @@ def download(
         ...     combine=False
         ... )
     """
+    # ``network=`` is an alias for the first argument (v0.5.0); choosing a
+    # backend for a network is the v0.6.0 routing engine.
+    if network is not None:
+        if sources is not None:
+            raise TypeError("pass either `network=` or `sources`, not both")
+        sources = network
+
     # Resolve last= shorthand and validate that we have a date range.
     # The submodules re-resolve ``last`` themselves so the cache can key on
     # the shorthand; resolving here validates the arguments up front.
@@ -384,7 +392,7 @@ def get_source_info(source: str) -> dict[str, Any]:
 
 # Convenience function aliases for backward compatibility
 def fetch(
-    sources: str | dict[str, list[str]],
+    sources: str | dict[str, list[str]] | None = None,
     sites: list[str] | None = None,
     start_date: datetime = None,
     end_date: datetime = None,
@@ -467,6 +475,7 @@ def find_sites(
     bbox: tuple[float, float, float, float] | None = None,
     measurand: str | list[str] | None = None,
     include_all: bool = False,
+    network: str | list[str] | None = None,
     **filters: Any,
 ) -> pd.DataFrame:
     """
@@ -534,6 +543,11 @@ def find_sites(
         ...     bbox=(-0.5, 51.3, 0.3, 51.7),
         ... )
     """
+    if network is not None:
+        if source is not None:
+            raise TypeError("pass either `network=` or `source`, not both")
+        source = network
+
     # --- validate inputs ---
     if near is not None and bbox is not None:
         raise ValueError(
@@ -584,7 +598,7 @@ def find_sites(
             else:
                 df = _fetch_network_sites(name, spec, search_bbox, filters)
             if df is not None and not df.empty:
-                results.append(df)
+                results.append(finalise_metadata_frame(df, name))
         except Exception as e:
             warnings.warn(
                 f"Failed to fetch sites from {name}: {e}",
@@ -592,7 +606,7 @@ def find_sites(
             )
 
     if not results:
-        return _empty_metadata_frame()
+        return empty_public_metadata_frame()
 
     combined = pd.concat(results, ignore_index=True)
 
@@ -639,7 +653,7 @@ def find_sites(
 
         # Cache the per-source default_measurands lookup once.
         source_defaults: dict[str, set[str]] = {}
-        for src_name in combined["source_network"].unique():
+        for src_name in combined["network"].unique():
             spec = get_source(src_name)
             defaults = (spec or {}).get("default_measurands")
             if defaults:
@@ -662,7 +676,7 @@ def find_sites(
             [
                 _matches(m, n)
                 for m, n in zip(
-                    combined["measurands"], combined["source_network"], strict=True
+                    combined["measurands"], combined["network"], strict=True
                 )
             ],
             index=combined.index,
@@ -688,8 +702,9 @@ def find_sites(
 
 
 def get_current(
-    source: str,
-    sites: list[str],
+    source: str | None = None,
+    sites: list[str] | None = None,
+    network: str | None = None,
 ) -> pd.DataFrame:
     """
     Get the most recent readings for the given sites.
@@ -715,6 +730,12 @@ def get_current(
         >>> latest = aeolus.get_current("AURN", sites=["MY1", "KC1"])
         >>> print(latest[["site_code", "date_time", "measurand", "value"]])
     """
+    if network is not None:
+        if source is not None:
+            raise TypeError("pass either `network=` or `source`, not both")
+        source = network
+    if source is None or sites is None:
+        raise ValueError("get_current() needs a source (or network=) and a list of sites")
     source_upper = source.upper()
 
     # Route to SOS backend declared by the primary source, if any.

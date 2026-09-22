@@ -72,3 +72,41 @@ def finalise_data_frame(df: pd.DataFrame, source: str) -> pd.DataFrame:
     out = out[public_data_columns()]
     out.attrs = attrs
     return out
+
+
+# ---- site metadata ----------------------------------------------------------
+
+METADATA_COLUMNS = [
+    "site_code", "site_name", "latitude", "longitude", "network", "country",
+    "instrument_class", "provider", "backend", "measurands", "source_network",
+]
+
+
+def public_metadata_columns() -> list[str]:
+    if options.legacy_columns:
+        return list(METADATA_COLUMNS)
+    return [c for c in METADATA_COLUMNS if c != "source_network"]
+
+
+def empty_public_metadata_frame() -> pd.DataFrame:
+    return pd.DataFrame(columns=public_metadata_columns())
+
+
+def finalise_metadata_frame(df: pd.DataFrame, source: str) -> pd.DataFrame:
+    """Add network identity to an adapter's site metadata. Extra columns are kept."""
+    network, backend, spec = spec_for_source(source)
+    out = df.copy()
+    for column in ("site_name", "latitude", "longitude", "measurands"):
+        if column not in out.columns:
+            out[column] = None
+    out["network"] = network
+    out["source_network"] = network
+    out["country"] = spec.country
+    out["backend"] = backend
+    if "instrument_class" not in out.columns:
+        out["instrument_class"] = spec.instrument_class
+    # LMAM's provider is its pcode subfolder (spec D4); null for every other network
+    out["provider"] = out["pcode"] if network == "LMAM" and "pcode" in out.columns else None
+    core = public_metadata_columns()
+    extras = [c for c in out.columns if c not in METADATA_COLUMNS]
+    return out[core + extras]
