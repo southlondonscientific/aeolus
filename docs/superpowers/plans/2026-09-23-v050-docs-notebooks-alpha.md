@@ -16,13 +16,13 @@
 - Public data schema is exactly `aeolus.schema.DATA_COLUMNS` (13 columns, in this order): `site_code, network, date_time, measurand, value, units, qa_code, qa_tier, ratification_stage, backend, source_network, ratification, created_at`. Metadata schema is `aeolus.schema.METADATA_COLUMNS` (11): `site_code, site_name, latitude, longitude, network, country, instrument_class, provider, backend, measurands, source_network`.
 - `qa_tier` values (frozen, spec §4): `reference_full_qc`, `reference_provisional`, `lcs_calibrated`, `lcs_factory_only`, `flagged`, `unknown`. `ratification_stage` values: `unratified`, `ratified`, `supplied`, `not_applicable`, or null.
 - `source_network` and `ratification` are deprecated mirrors, removed in 1.0; `AEOLUS_LEGACY_COLUMNS=0` (or `aeolus.options.legacy_columns = False`) drops them. Docs may mention them only as deprecated mirrors.
-- The legacy `ratification` mirror is derived by `aeolus.qa.legacy_ratification`: stage `ratified` → `Ratified`, `unratified` → `Provisional`, tier `lcs_calibrated` → `Indicative`, `lcs_factory_only` → `Validated`, `flagged` → `Invalid`, tier `unknown` with a stage → `Unvalidated`, otherwise `None`. Docs must not present these labels as what a network "marks" data as; they describe `qa_code`/`qa_tier` instead.
+- The legacy `ratification` mirror is derived by `aeolus.qa.legacy_ratification` (`src/aeolus/qa.py:52-59`), **stage wins over tier**: start from the string `"None"`; tier `unknown` with a non-null stage → `Unvalidated`; then tier `lcs_calibrated` → `Indicative`, `lcs_factory_only` → `Validated`, `flagged` → `Invalid`; then stage `ratified` → `Ratified` and `unratified` → `Provisional` overwrite whatever the tier gave. So Breathe London `P` (lcs_calibrated, unratified) mirrors as `Provisional`, not `Indicative`. Unwired adapters keep their own `ratification` column (`schema.py:66`): AirQo `Indicative`, OpenAQ/Sensor.Community/Sonitus `Unvalidated`, LAQN/LMAM `"None"`. Docs must not present these labels as what a network "marks" data as; they describe `qa_code`/`qa_tier` instead.
 - `date_time` is tz-aware UTC and marks the START of the averaging interval (13:00 = [13:00, 14:00)). Units are as the network reports them; the one conversion is LAQN RData gases (ppb → µg/m³ at 20 °C, documented in `docs/sources/uk-networks.md`).
 - Version strings live in TWO places and must agree: `pyproject.toml` `version = "..."` and `src/aeolus/__init__.py` `__version__ = "..."`. `CLAUDE.md` "Current Version" is the third, informational.
 - Never print API keys. `.env` at the repo root holds them; CI has none. `AIRQO_API_KEY` is expired (user-owned item) — do not chase it; report honestly.
 - Offline suite command (the only pytest command executors run unless a step says "live"): `uv run pytest tests/ -m "not live and not integration and not conformance" --no-cov -p no:cacheprovider -q` (~3 min).
-- Docs build check: `uv run --extra docs mkdocs build --strict -q` (passes on `main` today; must still pass after every docs task).
-- One commit per task, message body ends with `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`. Branch: `feat/v050-docs-alpha` off `main` (`e88ee4e` or later).
+- Docs build check: `uv run --extra docs mkdocs build --strict` — **without `-q`** (`-q` hides the warnings that strict mode turns into failures, so `--strict -q` always exits 0). On `main` today this FAILS with 4 warnings (three griffe "no annotation" warnings for `**kwargs`/`**filters` in `src/aeolus/api.py:410`, `src/aeolus/networks/api.py:43`, `src/aeolus/portals/api.py:43`, and a broken link in `docs/validation/README.md` to `../../tests/test_openair_parity.py`); Task 4 fixes them, after which every docs task must keep it green. CI's `docs.yml` runs plain `mkdocs build`; leave it.
+- One commit per task, message body ends with the attribution lines the executing session was given (Co-Authored-By and, if present, Claude-Session). Branch: `feat/v050-docs-alpha`, already created off `main` (`e88ee4e`) with the plan commit on it.
 - Publishing to PyPI (pushing the `v0.5.0a1` tag) is outward-facing and irreversible: **Task 9 stops and asks the user before pushing the tag.**
 
 ## What is stale today (survey, 2026-09-23)
@@ -88,14 +88,15 @@ NOTEBOOKS = sorted((ROOT / "notebooks").glob("*.ipynb"))
 
 # Phrases that only made sense before v0.5.0.
 FORBIDDEN = [
-    re.compile(r"8-column|eight columns|\b8 columns"),
-    re.compile(r"ratification\s*=\s*['\"]"),           # ratification='Indicative' etc.
-    re.compile(r"marked as `?(Unvalidated|Indicative|Provisional)`?"),
-    re.compile(r"\*\*Data quality\*\*:\s*(Indicative|Unvalidated)"),
+    re.compile(r"8-column|eight columns|\b8 columns", re.I),
+    re.compile(r"ratification\s*=\s*['\"]", re.I),           # ratification='Indicative' etc.
+    re.compile(r"marked as `?(Unvalidated|Indicative|Provisional|provisional)`?"),
+    re.compile(r"\*\*Data quality\*\*:\s*(Indicative|Unvalidated|Ratified|Provisional)"),
+    re.compile(r"not yet wired|return(s)? an empty frame|only the up-to-date feed"),  # EEA before PR #17
 ]
 # `source_network` / `ratification` may appear only where the line says they are legacy mirrors.
-LEGACY = re.compile(r"\bsource_network\b|\bratification\b(?!_stage)")
-LEGACY_CONTEXT = re.compile(r"deprecated|mirror|legacy|1\.0|Migrat|migrat|AEOLUS_LEGACY_COLUMNS|ratification_stage")
+LEGACY = re.compile(r"\bsource_network\b|\bratification\b(?!_stage)", re.I)
+LEGACY_CONTEXT = re.compile(r"deprecated|mirror|legacy|1\.0|Migrat|migrat|AEOLUS_LEGACY_COLUMNS|ratification_stage|legacy_ratification")
 
 
 def _offending_lines(text: str):
@@ -114,16 +115,14 @@ def test_user_docs_use_v050_vocabulary(path):
 
 
 @pytest.mark.parametrize("path", NOTEBOOKS, ids=lambda p: p.name)
-def test_notebook_code_uses_v050_columns(path):
+def test_notebook_source_uses_v050_vocabulary(path):
+    """Code AND markdown cells (outputs are not checked: they are whatever the API printed)."""
     nb = json.loads(path.read_text())
     bad = []
     for i, cell in enumerate(nb["cells"]):
-        if cell["cell_type"] != "code":
-            continue
-        for line in "".join(cell["source"]).splitlines():
-            if "source_network" in line or re.search(r"[\"']ratification[\"']", line):
-                bad.append(f"cell {i}: {line.strip()}")
-    assert not bad, f"{path.name} reads legacy columns:\n" + "\n".join(bad)
+        for n, line in _offending_lines("".join(cell["source"])):
+            bad.append(f"cell {i} ({cell['cell_type']}) line {n}: {line}")
+    assert not bad, f"{path.name} still uses pre-0.5.0 vocabulary:\n" + "\n".join(bad)
 
 
 @pytest.mark.parametrize("path", NOTEBOOKS, ids=lambda p: p.name)
@@ -145,12 +144,12 @@ def test_version_strings_agree():
 - [ ] **Step 2: Run it and confirm it is red for the right files**
 
 Run: `uv run pytest tests/test_docs_vocabulary.py -q -p no:cacheprovider --no-cov 2>&1 | grep -E "^FAILED|passed|failed"`
-Expected: FAIL for `README.md`, `CLAUDE.md`, `quickstart.md`, `downloading.md`, `sources.md`, most of `docs/sources/*.md`, `openair_comparison.md`; notebooks 02–07 (columns) and 02 (kernel); `test_version_strings_agree` PASSES (0.4.5.4 everywhere today). `overview.md` and `ratification.md` should already pass — if they fail, fix the regex, not the doc, unless the line is genuinely stale.
+Expected (dry-run 2026-09-23): FAIL for `README.md` (lines 54, 63, 168), `CLAUDE.md` (244, 283), `quickstart.md`, `downloading.md`, `overview.md` (line 98 lists `source_network` without saying it is a mirror — the doc is stale, not the regex), `sources.md`, every `docs/sources/*.md` except possibly `uk-networks.md`, `openair_comparison.md`; notebooks 02–07 (columns, prose) and 02 (kernel). `ratification.md` and `test_version_strings_agree` PASS (0.4.5.4 everywhere today). If `ratification.md` fails, the offending line is one to fix in the doc only if it is genuinely stale; otherwise widen `LEGACY_CONTEXT`, never `LEGACY`.
 
 - [ ] **Step 3: Commit the red test alone**
 
 ```bash
-git checkout -b feat/v050-docs-alpha main
+git branch --show-current   # must print feat/v050-docs-alpha (created with the plan commit)
 git add tests/test_docs_vocabulary.py
 git commit -m "test(docs): guard the user docs and notebooks against pre-0.5.0 vocabulary"
 ```
@@ -160,15 +159,16 @@ git commit -m "test(docs): guard the user docs and notebooks against pre-0.5.0 v
 ### Task 2: README, quick start, configuration, downloading guide
 
 **Files:**
-- Modify: `README.md:44-60` (example output), `README.md:168`, `README.md` schema table (~262-275, add a link to the migration guide)
+- Modify: `README.md:44-60` (example output), `README.md:63` ("common 8-column schema" → "common 13-column schema"), `README.md:168`, `README.md` schema table (~262-273: today 11 rows with the two mirrors sharing a row and no `created_at`; add `created_at`, reorder to `DATA_COLUMNS` order, add a link to the migration guide)
 - Modify: `docs/getting-started/quickstart.md:25-37`
+- Modify: `docs/guide/overview.md:84` (the example row shows AURN MY1 with `qa_code` null / `unknown` / `None` — pre-Plan-2; AURN is wired: make the row `verified | reference_full_qc | ratified | RDATA | AURN | Ratified`) and `:98` (append ` (deprecated mirror)` after `source_network` in the metadata header line)
 - Modify: `docs/getting-started/configuration.md` (add an "Aeolus settings" section after the API keys)
 - Modify: `docs/guide/downloading.md:75,93`
-- Modify: `CLAUDE.md:283`
+- Modify: `CLAUDE.md:283`, `CLAUDE.md:244` ("Strict 8-column data schema" in the v0.3.0rc2 history → "Strict data schema (8 columns then; 13 since 0.5.0)"), and the `## Release History` / `## Roadmap` headings that still say "v0.4.0 (current)" → add a `### v0.5.0 (in progress)` entry above them summarising Plans 1–4 in three bullets and change "(current)" to "(March 2026)"`
 - Test: `tests/test_docs_vocabulary.py`
 
 **Interfaces:**
-- Consumes: `aeolus.schema.DATA_COLUMNS`, `aeolus.options.legacy_columns`, env vars `AEOLUS_LEGACY_COLUMNS`, `AEOLUS_CACHE_DIR`, `AEOLUS_CACHE_VOLATILE_TTL_S`, `AEOLUS_METADATA_TTL_S`, `AEOLUS_RDATA_BREAKER_FAILURES` (verify each name with `grep -rn "AEOLUS_" src/aeolus/*.py src/aeolus/sources/*.py` before documenting; document only those that exist, with the code's default).
+- Consumes: `aeolus.schema.DATA_COLUMNS`, `aeolus.options.legacy_columns` (the ONLY attribute on `aeolus.options`), env vars verified 2026-09-23 with `grep -rn "AEOLUS_" src/aeolus/*.py src/aeolus/sources/*.py`: `AEOLUS_LEGACY_COLUMNS` (1), `AEOLUS_CACHE_DIR` (`~/.cache/aeolus`), `AEOLUS_CACHE_VOLATILE_TTL_S` (3600), `AEOLUS_METADATA_TTL_S` (86400), `AEOLUS_RDATA_BREAKER_FAILURES` (3), `AEOLUS_RDATA_BREAKER_COOLDOWN_S` (60), `AEOLUS_SOS_BREAKER_FAILURES` (5), `AEOLUS_SOS_BREAKER_COOLDOWN_S` (60). Re-run the grep before writing; document exactly what exists.
 - Produces: the README schema table is the canonical short description; the migration guide (Task 5) links to it.
 
 - [ ] **Step 1: Produce a real example output for the README**
@@ -183,7 +183,7 @@ d = aeolus.download('AURN', sites=['MY1'], start_date=datetime(2024,1,1), end_da
 print(d[['site_code','network','date_time','measurand','value','units','qa_code','qa_tier','ratification_stage','backend']].head(4).to_string())
 "
 ```
-Paste the printed table into `README.md` in place of lines 53–58, adding one line under it: `(plus the deprecated mirrors source_network and ratification, and created_at — 13 columns in all; see the schema table below)`.
+Paste the printed table into `README.md` in place of lines 53–58, adding one line under it: `(ten of the 13 columns shown; the others are the deprecated mirrors source_network and ratification, and created_at — see the schema table below)`. Change line 63's "common 8-column schema" to "common 13-column schema".
 
 - [ ] **Step 2: Rewrite README line 168 and the schema table**
 
@@ -231,12 +231,15 @@ All optional. Read once at import (or first use) from the environment.
 | Variable | Default | Effect |
 |---|---|---|
 | `AEOLUS_LEGACY_COLUMNS` | `1` | `0` drops the deprecated `source_network` and `ratification` mirrors — use it to prove your code has migrated to 0.5 |
-| `AEOLUS_CACHE_DIR` | `~/.cache/aeolus` | Where downloads are cached (a versioned sub-directory per cache format) |
-| `AEOLUS_CACHE_VOLATILE_TTL_S` | (code default) | How long a download whose window touches "now" is served from cache |
+| `AEOLUS_CACHE_DIR` | `~/.cache/aeolus` | Where downloads are cached (a versioned sub-directory per cache format, currently `v4`) |
+| `AEOLUS_CACHE_VOLATILE_TTL_S` | `3600` | How long a download whose window touches "now" (e.g. `last="7d"`) is served from cache before it is refreshed |
 | `AEOLUS_METADATA_TTL_S` | `86400` | How long AURN-family site metadata (the `ratified_to` join) is memoised |
-| `AEOLUS_RDATA_BREAKER_FAILURES` | `3` | Consecutive failures before an openair RData host is skipped for the rest of the process |
+| `AEOLUS_RDATA_BREAKER_FAILURES` | `3` | Consecutive failures after which an openair RData host fails fast |
+| `AEOLUS_RDATA_BREAKER_COOLDOWN_S` | `60` | How long that host fails fast before Aeolus probes it again |
+| `AEOLUS_SOS_BREAKER_FAILURES` | `5` | The same, for the UK-AIR SOS near-real-time endpoint |
+| `AEOLUS_SOS_BREAKER_COOLDOWN_S` | `60` | Cool-down for the SOS breaker |
 
-The same switches exist in code on `aeolus.options` (for example `aeolus.options.legacy_columns = False`).
+`AEOLUS_LEGACY_COLUMNS` is also settable in code: `aeolus.options.legacy_columns = False`.
 ```
 Delete any row whose variable does not exist in the code.
 
@@ -244,20 +247,20 @@ Delete any row whose variable does not exist in the code.
 
 `downloading.md:75`: `# Shows: site_code, network, measurand, start, end, records, valid, data_capture`.
 `downloading.md:93`: `The resulting DataFrame contains data from all sources, distinguished by the `network` column (and `backend`, which says which fetcher served each row).`
-`CLAUDE.md:283`: replace with `- Networks that publish no per-row flag (LAQN, LMAM, Sensor.Community, Sonitus, OpenAQ) have null `qa_code` and `qa_tier = unknown`; low-cost networks carry `ratification_stage = not_applicable``.
+`CLAUDE.md:283`: replace with `- Networks that publish no per-row flag (LAQN, LMAM, Sensor.Community, Sonitus, OpenAQ, and AirQo until its key is renewed) have null `qa_code` and `qa_tier = unknown`; low-cost networks default to `ratification_stage = not_applicable` (Breathe London `P` rows are `unratified`)`.
 
 - [ ] **Step 6: Run the guard for these files and the docs build**
 
-Run: `uv run pytest tests/test_docs_vocabulary.py -q -p no:cacheprovider --no-cov -k "README or CLAUDE or quickstart or configuration or downloading" 2>&1 | tail -3`
+Run: `uv run pytest tests/test_docs_vocabulary.py -q -p no:cacheprovider --no-cov -k "README or CLAUDE or quickstart or configuration or downloading or overview" 2>&1 | tail -3`
 Expected: all PASS.
-Run: `uv run --extra docs mkdocs build --strict -q && echo OK`
-Expected: `OK`.
+Run: `uv run --extra docs mkdocs build --strict 2>&1 | tail -3`
+Expected: still the 4 pre-existing warnings and no new one (Task 4 clears them).
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add README.md CLAUDE.md docs/getting-started docs/guide/downloading.md
-git commit -m "docs: README, quick start, configuration and downloading guide describe the 0.5 schema"
+git add README.md CLAUDE.md docs/getting-started docs/guide/downloading.md docs/guide/overview.md
+git commit -m "docs: README, quick start, configuration, overview and downloading guide describe the 0.5 schema"
 ```
 
 ---
@@ -265,8 +268,10 @@ git commit -m "docs: README, quick start, configuration and downloading guide de
 ### Task 3: Sources guide and per-source pages speak `qa_code`/`qa_tier`
 
 **Files:**
-- Modify: `docs/guide/sources.md:90-176`
-- Modify: `docs/sources/airqo.md`, `breathe-london.md`, `sensor-community.md`, `sonitus.md`, `openaq.md`, `airnow.md`, `eea.md`, `purpleair.md`, `lmam.md` (the lines listed in the survey table; each page gets one consistent "Data quality" section)
+- Modify: `docs/guide/sources.md:14-176` (the LAQN `:67` and LMAM `:75` bullets say "Data quality: Ratified" — their tier is `unknown`; AirNow `:127` "Provisional"; the comparison table `:160-176` incl. LMAM "Ratified" and EEA "2013+" → "2002+" now that Airbase is queried)
+- Modify: `docs/sources/airqo.md`, `breathe-london.md`, `sensor-community.md`, `sonitus.md`, `openaq.md`, `airnow.md` (`:10` "Data quality: Provisional" too), `eea.md` (`:15` "Ratification: Verified … or Provisional"; `:62-70` old `ratification` table — delete; `:72-78` "queries only the up-to-date feed … earlier years return an empty frame; the verified archive is not yet wired in" and "uses the E1a dataset" — false since PR #17, rewrite from the `backend` paragraph at `:91`), `purpleair.md`, `lmam.md` (`:71` says "ratification status" — reword to "QA tier"), `uk-networks.md` (`:165-175` "Recent data may be marked as provisional" → "Recent rows carry `qa_code = unverified`/`Provisional` until ratified")
+- Every source page: there must be exactly ONE `## Data quality` heading (eea, airnow, breathe-london and uk-networks currently have both a "Data Quality" and a "Data quality" H2 — merge them)
+- Modify: docstrings that mkdocstrings renders into `docs/api/*`: `src/aeolus/api.py:520`, `src/aeolus/networks/api.py` (`get_metadata`), `src/aeolus/portals/api.py:58,132`, `src/aeolus/sources/airqo.py:233,436`, `purpleair.py:172,344`, `breathe_london.py:301`, `airnow.py:309` — each says `source_network` or "ratification: Data quality flag"; reword to the adapter reality ("the eight adapter columns plus `qa_code`; `finalise_data_frame` adds the rest" or, for the metadata functions, "raw adapter metadata: `source_network`; use `aeolus.find_sites()` for the public schema")
 - Modify: `docs/dev/openair_comparison.md:71,264`
 - Test: `tests/test_docs_vocabulary.py`
 
@@ -314,19 +319,21 @@ Specific line fixes:
 - `airnow.md:107`: `AirNow rows carry `qa_code = "Provisional"` (`qa_tier = reference_provisional`, `ratification_stage = unratified`) because:` and keep the reasons.
 - `eea.md:62-70`: replace the `ratification` table with the `Verification` → `qa_code`/`qa_tier` table from the row above (the existing line 89 paragraph can move up into it).
 - `purpleair.md:133`: `print(data['qa_code'].value_counts())`.
-- `lmam.md:71`: reword so `source_network` becomes `network`.
+- `lmam.md:71`: "ratification status" → "QA tier (`qa_tier`)".
+- `docs/api/networks.md:55`: the `list_networks()` example output lacks LMAM, EEA and SONITUS — regenerate it with `uv run python -c "import aeolus; print(aeolus.networks.list_networks())"`.
 - `docs/dev/openair_comparison.md:71`: `network` in the `summarise` column list; `:264`: `| Site identity | `site` column | `site_code` + `network` columns |`.
 
 - [ ] **Step 3: Run the guard and the docs build**
 
-Run: `uv run pytest tests/test_docs_vocabulary.py -q -p no:cacheprovider --no-cov -k "sources or openair" 2>&1 | tail -3` → all PASS.
-Run: `uv run --extra docs mkdocs build --strict -q && echo OK` → `OK`.
+Run: `uv run pytest tests/test_docs_vocabulary.py -q -p no:cacheprovider --no-cov -k "sources or openair or networks or uk" 2>&1 | tail -3` → all PASS.
+Run: `uv run --extra docs mkdocs build --strict 2>&1 | tail -3` → still only the 4 pre-existing warnings.
+Run: `grep -c source_network site/api/networks/index.html site/api/portals/index.html` → `0` for both (the docstrings are what those pages render).
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add docs/guide/sources.md docs/sources docs/dev/openair_comparison.md
-git commit -m "docs: sources guide and per-source pages describe qa_code and qa_tier"
+git add docs/guide/sources.md docs/sources docs/api/networks.md docs/dev/openair_comparison.md src/aeolus
+git commit -m "docs: sources guide, per-source pages and rendered docstrings describe qa_code and qa_tier"
 ```
 
 ---
@@ -339,7 +346,7 @@ git commit -m "docs: sources guide and per-source pages describe qa_code and qa_
 - Test: `uv run --extra docs mkdocs build --strict`
 
 **Interfaces:**
-- Consumes: public names in `aeolus.schema` (`DATA_COLUMNS`, `METADATA_COLUMNS`, `finalise_data_frame`, `finalise_metadata_frame`, `public_data_columns`, `empty_public_frame`), `aeolus.qa` (`QaTier`, `RatificationStage`, `derive_qa`, `legacy_ratification` — check the enum names with `grep -n "^class\|^def" src/aeolus/qa.py`), `aeolus.network_registry` (`NetworkSpec`, `get_network_spec`, `list_network_specs`, `route_for`, `spec_for_source`), `aeolus.units` (`canonical_unit`, `canonical_units`), `aeolus.cache` (`cache_info`, `clear_cache` — check names with `grep -n "^def " src/aeolus/cache.py`).
+- Consumes: public names verified 2026-09-23: `aeolus.schema` (`DATA_COLUMNS`, `METADATA_COLUMNS`, `finalise_data_frame`, `finalise_metadata_frame`, `public_data_columns`, `empty_public_frame`), `aeolus.qa` (the tuples `QA_TIERS`, `RATIFICATION_STAGES`, `QA_MODELS`, `INSTRUMENT_CLASSES` and functions `derive_qa`, `legacy_ratification` — there are no enum classes), `aeolus.network_registry` (`NetworkSpec`, `get_network_spec`, `list_network_specs`, `route_for`, `spec_for_source`, `SOURCE_ROUTES`), `aeolus.units` (`canonical_unit`, `canonical_units`), `aeolus.cache` public API only (`enable_cache`, `disable_cache`, `clear_cache`, `cache_info`, `is_enabled`; NOT `get`/`put`/`fetch_with_cache`). mkdocstrings silently omits members without a docstring, so every listed member needs one (a one-line docstring on a module constant goes on the line after it as a string literal).
 
 - [ ] **Step 1: Write `docs/api/schema.md`**
 
@@ -359,6 +366,8 @@ The v0.5.0 contract: the public column set, the QA enums, and the registry that 
 
 ::: aeolus.qa
     options:
+      members: [QA_TIERS, RATIFICATION_STAGES, QA_MODELS, INSTRUMENT_CLASSES, derive_qa, legacy_ratification]
+      show_if_no_docstring: true
       show_root_heading: false
 
 ## Network registry
@@ -367,7 +376,8 @@ Each network's identity, QA vocabulary, ratification timing and licence live in 
 
 ::: aeolus.network_registry
     options:
-      members: [NetworkSpec, get_network_spec, list_network_specs, route_for, spec_for_source]
+      members: [NetworkSpec, SOURCE_ROUTES, get_network_spec, list_network_specs, route_for, spec_for_source]
+      show_if_no_docstring: true
       show_root_heading: false
 
 ## Units and cache
@@ -378,9 +388,14 @@ Each network's identity, QA vocabulary, ratification timing and licence live in 
 
 ::: aeolus.cache
     options:
+      members: [enable_cache, disable_cache, clear_cache, cache_info, is_enabled]
       show_root_heading: false
 ```
 If `mkdocs build --strict` rejects a `members:` name, remove that name (do not invent one).
+
+- [ ] **Step 1b: Clear the pre-existing strict-mode warnings**
+
+Annotate the three unannotated variadic parameters griffe complains about: `src/aeolus/api.py:410` `**kwargs: Any`, `src/aeolus/networks/api.py:43` `**filters: Any`, `src/aeolus/portals/api.py:43` `**filters: Any` (add `from typing import Any` where missing), and `src/aeolus/cache.py:373` `fetcher: Callable[..., pd.DataFrame]`. Fix the link in `docs/validation/README.md` to `../../tests/test_openair_parity.py`: point it at the GitHub blob URL `https://github.com/southlondonscientific/aeolus/blob/main/tests/test_openair_parity.py` (mkdocs cannot resolve paths outside `docs/`). Run the offline suite for `tests/test_api.py tests/test_cache.py` afterwards (`uv run pytest tests/test_api.py tests/test_cache.py -q -p no:cacheprovider --no-cov -m "not live and not integration and not conformance"`).
 
 - [ ] **Step 2: Wire the nav and the index table**
 
@@ -389,13 +404,13 @@ If `mkdocs build --strict` rejects a `members:` name, remove that name (do not i
 
 - [ ] **Step 3: Build strictly**
 
-Run: `uv run --extra docs mkdocs build --strict -q && echo OK` → `OK` (mkdocstrings warnings about missing docstrings are errors under `--strict`; add a one-line docstring to the offending public function in `src/` rather than loosening the build).
+Run: `uv run --extra docs mkdocs build --strict 2>&1 | tail -2` → no "Aborted" line, exit 0. Then `grep -c "reference_full_qc" site/api/schema/index.html` → ≥ 1 (proves the `QA_TIERS` values rendered).
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add docs/api/schema.md docs/api/index.md mkdocs.yml src/aeolus
-git commit -m "docs(api): reference pages for schema, qa, network_registry, units and cache"
+git add docs/api/schema.md docs/api/index.md docs/validation/README.md mkdocs.yml src/aeolus
+git commit -m "docs(api): reference pages for schema, qa, network_registry, units and cache; strict build green"
 ```
 
 ---
@@ -420,7 +435,7 @@ git commit -m "docs(api): reference pages for schema, qa, network_registry, unit
 
 ## Ten-minute checklist
 
-1. Install `aeolus_aq>=0.5.0a1` (PyYAML is a new runtime dependency; conda users need `pyyaml` too).
+1. Install the alpha: `pip install --pre "aeolus_aq==0.5.0a1"` (pip only — alphas are not published to conda-forge; PyYAML is a new runtime dependency and comes with the wheel).
 2. Run your code with `AEOLUS_LEGACY_COLUMNS=0`. Anything that reads `source_network` or `ratification` breaks here — fix it with the column map below.
 3. Rename: `source_network` → `network`. If you also need to know *which fetcher* produced a row, read `backend`.
 4. Replace every test on `ratification` with a test on `qa_tier` or `ratification_stage` (table below). Keep `qa_code` if you want the network's own word.
@@ -438,8 +453,7 @@ git commit -m "docs(api): reference pages for schema, qa, network_registry, unit
 
 ## The `ratification` mirror changed meaning
 
-The mirror is now computed from `qa_tier` and `ratification_stage`:
-`ratified` → `Ratified`; `unratified` → `Provisional`; tier `lcs_calibrated` → `Indicative`; `lcs_factory_only` → `Validated`; `flagged` → `Invalid`; tier `unknown` with a stage → `Unvalidated`; otherwise `None`.
+For wired networks the mirror is now computed from `qa_tier` and `ratification_stage`, and the **stage wins**: tier `lcs_calibrated` → `Indicative`, `lcs_factory_only` → `Validated`, `flagged` → `Invalid`, tier `unknown` with a stage → `Unvalidated`; then stage `ratified` → `Ratified` and `unratified` → `Provisional` overwrite the tier label. Rows with no stage and no tier label are the *string* `"None"` (as in 0.4), not a null. Networks that publish no flag keep the label their adapter always set.
 
 Concretely, per network:
 
@@ -447,25 +461,41 @@ Concretely, per network:
 |---|---|---|---|
 | AURN, SAQN, WAQN, NI, AQE | always `None` | `Ratified` / `Provisional` per site, pollutant and date (`ratified_to` from the openair metadata) | `ratification_stage` |
 | AURN-SOS etc. / `get_current()` | `None` | `Provisional` | `ratification_stage` |
-| EEA | `Verified`/`Preliminary`/`Not verified` (and inverted before 0.4.6) | `Ratified` / `Provisional`; Airbase rows `None` | `qa_code` (`"1"`, `"2"`, `"3"`, `"0"`) |
-| PurpleAir | channel labels | `Validated` / `Invalid` | `qa_code` (the label) |
-| Breathe London | `Indicative` synthesised when absent | `Indicative` (`P`) or `Unvalidated` (no status) | `qa_code` |
+| EEA | `Verified` / `Provisional`, **inverted** (1 → Provisional) | `Ratified` (code 1) / `Provisional` (2, 3); Airbase rows (code 0) `None` | `qa_code` (`"1"`, `"2"`, `"3"`, `"0"`) |
+| PurpleAir | channel labels verbatim | `Validated` (Validated, Single Channel A/B, Below Detection Limit) / `Invalid` (Channel Disagreement, Sensor Saturation, Invalid) / `Unvalidated` | `qa_code` (the label) |
+| Breathe London | `Indicative` synthesised when the API gave no status | `Provisional` (status `P`: calibrated but unratified) or `Unvalidated` (no status) | `qa_code` |
 | AirNow | `Provisional` | `Provisional` | `ratification_stage` |
-| LAQN, LMAM, Sensor.Community, Sonitus, OpenAQ, AirQo | various | `Unvalidated` or `None` | `qa_tier` (`unknown`) |
+| AirQo | `Indicative` | `Indicative` (unchanged; not yet wired) | `qa_tier` (`unknown`) |
+| Sensor.Community, Sonitus, OpenAQ | `Unvalidated` | `Unvalidated` (unchanged) | `qa_tier` (`unknown`) |
+| LAQN, LMAM | `None` | `None` (unchanged) | `qa_tier` (`unknown`); LMAM `ratification_stage = supplied` |
 
 ## Values that changed (re-baseline)
 
 | Path | What changed | Since |
 |---|---|---|
-| `LAQN` (RData route) gases NO2, NOx, NO, O3, SO2, CO | were ppb/ppm labelled `ug/m3`/`mg/m3`; now converted with Defra's 20 °C factors (×1.9125 NO2/NOx, ×1.9957 O3, ×2.6609 SO2, ×1.1642 CO, ×1.2474 NO). MY1 annual NO2 2023: 21.8 → 41.7 | 0.5.0 |
+| `LAQN` (RData route) gases NO2, NOx, NO, O3, SO2, CO | were ppb/ppm labelled `ug/m3`/`mg/m3`; now converted with Defra's 20 °C factors (×1.9125 NO2/NOx, ×1.9957 O3, ×2.6609 SO2, ×1.1642 CO, ×1.2474 NO). MY1 annual NO2 2023: 21.8 → 41.6 | 0.5.0 |
+| `LAQN-ERG` | returned whole days; now trimmed to the requested hours | 0.5.0 |
 | SOS sources and Sonitus CO | unit relabelled `ug/m3` → `mg/m3`, values unchanged | 0.5.0 |
 | SOS unit strings | `ug/m-3` → `ug/m3` | 0.5.0 |
-| AirNow, SOS | `-999`/sentinel rows dropped instead of stored | 0.5.0 |
+| AirNow, SOS, regulatory, Sonitus, EEA | `-999`/sentinel and NaN rows dropped instead of stored | 0.5.0 |
+| AirNow | the final day of a window was mostly skipped; now fetched | 0.5.0 |
+| `get_current("AIRNOW")` | timestamps were off by the site's UTC offset | 0.5.0 |
+| AirQo | genuine 0 µg/m³ readings are kept (were dropped) | 0.5.0 |
 | EEA, any year before the up-to-date feed | previously **empty**; now served from the verified archive (E1a) or Airbase, with `backend` saying which | 0.5.0 |
+| EEA `ratification` | was inverted (code 1 → `Provisional`); now code 1 → `Ratified`, 2/3 → `Provisional` | 0.5.0 |
 | EEA timestamps | converted from the EEA's UTC+1 (Ireland's archive: UTC; Italy's feed: local) — one-hour shift vs 0.4 | 0.5.0 |
-| Sonitus timestamps | were bin end; now bin start (−15 min / −1 h) | 0.5.0 |
-| `time_average(freq="ME"/"QE"/"YE"/"W")` | rows labelled at period start (were end) | 0.5.0 |
+| OpenAQ timestamps | were the END of the hour; now the start (−1 h) | 0.5.0 |
+| Sonitus timestamps | were the end of each 15-minute bin; now the start (−15 min); first summer hour no longer lost | 0.5.0 |
+| Request windows (PurpleAir, Sonitus, Breathe London, EEA) | were read on the machine's local clock; now UTC | 0.5.0 |
+| `time_average(freq="ME"/"QE"/"YE"/"W")` | rows labelled at period start (were end) and capture uses the right denominator | 0.5.0 |
+| `aq_stats()` | converts ppb/ppm to µg/m³ before thresholds and reports a `units` column (annual means were ppb labelled µg/m³) | 0.5.0 |
+| `time_average()`, `trend()`, temporal plots | mixed-unit groups converted before pooling (were averaged across scales) | 0.5.0 |
+| Duplicate `(site, measurand, date_time)` rows | collapsed before statistics (inflated capture and averages) | 0.5.0 |
+| AQI of a missing reading | unknown, not the worst band (or a crash) | 0.5.0 |
+| `aqi_summary()` coverage | real period span and one cadence per site/pollutant | 0.5.0 |
 | data capture, period AQI | shift with the above | 0.5.0 |
+
+Still open (spec §17.10): the interval convention of the UK-AIR SOS near-real-time feed (`get_current()`) is unverified while Defra's endpoint is down; it may label hours one out of step with downloads. Compare before you join the two.
 
 ## Behaviour changes that are not value changes
 
@@ -473,7 +503,7 @@ Concretely, per network:
 - `summarise()` and `time_average()` report `network` and accept 0.4 frames.
 - `get_source_info()` reports `status` (`stable` | `experimental`) and `status_note`; **EEA is experimental** and raises one `AeolusExperimentalWarning` per process.
 - Each AURN-family download fetches that network's metadata once per process (memoised `AEOLUS_METADATA_TTL_S`, default a day) for the ratification join.
-- Retries now actually retry; a dead openair host is skipped after `AEOLUS_RDATA_BREAKER_FAILURES` failures.
+- Retries now actually retry; after `AEOLUS_RDATA_BREAKER_FAILURES` consecutive failures an openair host fails fast for `AEOLUS_RDATA_BREAKER_COOLDOWN_S` (60 s) before it is probed again.
 
 ## Proving you have migrated
 
@@ -486,19 +516,19 @@ python -W error::DeprecationWarning -c "import aeolus; ..."   # or turn the one-
 
 Hermes, RHEA, Clara and Argus: pin `aeolus_aq==0.5.0a1`, run with the mirrors off, and re-pull stored readings for the paths in the re-baseline table. Argus's write path (guarded upsert + `readings_history`) is designed for exactly this re-pull; see `argus/docs/2026-09-20-write-path-upsert-handoff.md`.
 ```
-Check every factual line against `CHANGELOG.md` before committing; where they disagree, the CHANGELOG (written when the change landed) wins and the guide is corrected. Check the cache version with `grep _CACHE_VERSION src/aeolus/cache.py` (the CHANGELOG line 76 still says `v3`; if the code says `v4`, fix the CHANGELOG line too).
+Check every factual line against `CHANGELOG.md` before committing; where they disagree, the CHANGELOG (written when the change landed) wins and the guide is corrected. Three CHANGELOG lines are themselves stale and must be fixed in this task: line 52 says `~/.cache/aeolus/v2/` and line 75 says `v3/` — the code is `v4` (`_CACHE_VERSION` in `src/aeolus/cache.py`), so make both say `v4`; line 84 (the `Added` "Source status" bullet) still says EEA queries "only the up-to-date feed, so earlier years return nothing; every row is therefore `Provisional`" — replace that clause with "its timestamp clocks are verified for a handful of countries only".
 
 - [ ] **Step 2: Wire the nav and links; build strictly**
 
-`mkdocs.yml`: add the nav entry. `docs/index.md`: after the first paragraph add `Upgrading from 0.4? Read [Migrating to 0.5](guide/migrating-to-0.5.md) first.` `docs/guide/ratification.md`: at the end add `Coming from the 0.4 `ratification` column? See [Migrating to 0.5](migrating-to-0.5.md).`
-Run: `uv run --extra docs mkdocs build --strict -q && echo OK` → `OK`.
+`mkdocs.yml`: add the nav entry. `docs/index.md`: after the first paragraph add `Upgrading from 0.4? Read [Migrating to 0.5](guide/migrating-to-0.5.md) first.` and, wherever it says `pip install aeolus-aq`, add a following line `pip install --pre aeolus-aq   # the 0.5 alpha these docs describe`. `docs/getting-started/installation.md`: same `--pre` note, plus "0.5 alphas are pip-only; conda-forge carries the last 0.4 release until 0.5.0 final". `docs/guide/ratification.md`: at the end add `Coming from the 0.4 `ratification` column? See [Migrating to 0.5](migrating-to-0.5.md).`
+Run: `uv run --extra docs mkdocs build --strict 2>&1 | tail -2` → exit 0, no "Aborted".
 Run: `uv run pytest tests/test_docs_vocabulary.py -q -p no:cacheprovider --no-cov 2>&1 | tail -2` → docs tests PASS (notebook tests still red).
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add docs/guide/migrating-to-0.5.md docs/index.md docs/guide/ratification.md mkdocs.yml CHANGELOG.md
-git commit -m "docs: migration guide for 0.5 (column map, mirror semantics, re-baseline table)"
+git add docs/guide/migrating-to-0.5.md docs/index.md docs/getting-started/installation.md docs/guide/ratification.md mkdocs.yml CHANGELOG.md
+git commit -m "docs: migration guide for 0.5 (column map, mirror semantics, re-baseline table); pre-release install notes"
 ```
 
 ---
@@ -511,7 +541,7 @@ git commit -m "docs: migration guide for 0.5 (column map, mirror semantics, re-b
 - Test: `tests/test_docs_vocabulary.py` (`test_notebook_code_uses_v050_columns`, `test_notebook_kernel_is_python3`)
 
 **Interfaces:**
-- Consumes: the new columns; `find_sites()` metadata now has `network`.
+- Consumes: the new columns. NB only the top-level `aeolus.find_sites()` returns the public metadata schema with `network`; `aeolus.networks.get_metadata()` and `aeolus.portals.find_sites()` return raw adapter frames with `source_network` and no `network` (by design: finalisation happens at the public convergence points). Notebook 07 cells 6–7 call those two and then check `core_cols` — switch them to `aeolus.find_sites("PURPLEAIR", ...)` / `aeolus.find_sites("AIRQO")`.
 - Produces: notebooks that Task 7 executes unchanged.
 
 - [ ] **Step 1: Apply the edits with a script (do not hand-edit JSON)**
@@ -525,8 +555,10 @@ SUBS = [
     (r"'source_network'", "'network'"),
     # ratification → the QA columns (03 cell 10, 06 cell 11, 07 cells 12 and 20)
     (r'combined\.groupby\(\["network", "ratification"\]\)\.size\(\)', 'combined.groupby(["network", "qa_tier"]).size()'),
-    (r'# Check ratification flags — shows data quality metadata', '# Check the QA tier — PurpleAir rows are lcs_factory_only, AURN rows reference_*'),
-    (r'# Check ratification — AirQo data is unvalidated low-cost sensor data', '# Check the QA tier — AirQo publishes calibrated and raw streams; until the key is renewed the tier is unknown'),
+    (r'# Check ratification flags — shows data quality metadata', '# Compare QA tiers — reference_* for AURN; lcs_factory_only, flagged or unknown for PurpleAir'),
+    (r'# Check ratification — AirQo data is unvalidated low-cost sensor data', '# QA tier — AirQo is low-cost sensor data; Aeolus reports its tier as unknown until the calibrated/raw flag is wired'),
+    (r'Ratification flags by (source|network):', 'QA tiers by network:'),
+    (r'Ratification flags:', 'QA tiers:'),
     (r'pm25\["ratification"\]\.value_counts\(\)', 'pm25["qa_tier"].value_counts()'),
     (r'flags = net_data\["ratification"\]\.value_counts\(\)', 'flags = net_data["qa_tier"].value_counts()'),
     (r'"QA Flags": ", "\.join\(net_data\["ratification"\]\.unique\(\)\)', '"QA tiers": ", ".join(sorted(net_data["qa_tier"].unique()))'),
@@ -543,11 +575,22 @@ for path in sorted(ROOT.glob("*.ipynb")):
             cell["source"] = new.splitlines(keepends=True)
     path.write_text(json.dumps(nb, indent=1, ensure_ascii=False) + "\n")
 ```
-Then: `grep -n "ratification\|source_network" notebooks/*.ipynb | grep -v '"ratification_stage\|outputs' | head` — any remaining hit is a markdown cell to reword by hand (say "quality tier" instead of "ratification flag").
+Then list what the script did not reach (case-insensitive, source cells only, outputs ignored):
+```bash
+uv run --no-project python - <<'EOF'
+import json, re, glob
+for f in sorted(glob.glob("notebooks/*.ipynb")):
+    for i, c in enumerate(json.load(open(f))["cells"]):
+        for ln in "".join(c["source"]).splitlines():
+            if re.search(r"source_network|ratification(?!_stage)", ln, re.I):
+                print(f.split("/")[-1], f"cell {i} ({c['cell_type']}):", ln.strip()[:120])
+EOF
+```
+Known hits to reword by hand (dry-run 2026-09-23): markdown in 03 cells 0 and 20, 06 cell 21, 07 cells 0, 5 (says the metadata schema is "`latitude`, `longitude`, `source_network`" — make it `network`), 11 and 21; the 07 cell 12 comment; and 07 cells 6–7 (`pa_meta = aeolus.find_sites("PURPLEAIR", near=..., radius_km=...)`, `airqo_meta = aeolus.find_sites("AIRQO")` — keep the existing arguments). Say "QA tier" where they said "ratification flag". Edit the JSON with a small script (`nb["cells"][i]["source"] = ...`) or `jupyter nbconvert` is not needed; do not hand-edit the file in an editor that re-indents it.
 
 - [ ] **Step 2: Update `notebooks/README.md`**
 
-Under "Design Principles" add: `- **0.5 schema** - every download carries `network`, `backend`, `qa_code`, `qa_tier` and `ratification_stage`; the notebooks use those, never the deprecated `source_network`/`ratification` mirrors.` In the table, mark 06 and 07 with `(requires a current AirQo token; outputs last executed <date from Task 7>)` only if Task 7 cannot run them.
+Change the install line to `pip install --pre aeolus-aq jupyter matplotlib   # --pre: these notebooks need the 0.5 alpha`. Under "Design Principles" add: `- **0.5 schema** - every download carries `network`, `backend`, `qa_code`, `qa_tier` and `ratification_stage`; the notebooks use those, never the deprecated `source_network`/`ratification` mirrors.` In the table, mark 06 and 07 with `(requires a current AirQo token; outputs last executed <date from Task 7>)` only if Task 7 cannot run them.
 
 - [ ] **Step 3: Run the notebook guard tests**
 
@@ -589,7 +632,7 @@ Expected: each finishes in under 5 minutes (README promise) with no `FAILED:` li
 
 - [ ] **Step 3: Execute the keyed notebooks (03, 05 need PurpleAir / BL; 06, 07 need AirQo)**
 
-Same command for `03_sensor_vs_reference`, `05_exposure_assessment`, then `06_african_air_quality`, `07_global_sensor_comparison`. Expected: 03 and 05 pass. **06 and 07 will fail at AirQo authentication while the key is expired.** In that case: `git checkout notebooks/06_african_air_quality.ipynb notebooks/07_global_sensor_comparison.ipynb` is WRONG (it would revert Task 6's edits) — instead leave their outputs as executed-with-failure? No: keep Task 6's edited source with the *previous* outputs cleared: `uv run --with nbconvert jupyter nbconvert --clear-output --inplace notebooks/06_african_air_quality.ipynb notebooks/07_global_sensor_comparison.ipynb`, and record in `notebooks/README.md` table: `06`, `07`: "outputs cleared 2026-09-2x pending a renewed AirQo token". Say so in the PR description and the session log. Do not fabricate outputs.
+Same command for `03_sensor_vs_reference`, `05_exposure_assessment`, then `06_african_air_quality`, `07_global_sensor_comparison`. Expected: 03 and 05 pass. **06 and 07 will fail at AirQo authentication while the key is expired.** If they do: keep Task 6's edited source and clear their (stale, pre-0.5) outputs — `uv run --with nbconvert --with ipykernel jupyter nbconvert --clear-output --inplace notebooks/06_african_air_quality.ipynb notebooks/07_global_sensor_comparison.ipynb` — then record in the `notebooks/README.md` table for 06 and 07: "outputs cleared 2026-09-2x pending a renewed AirQo token". Say so in the PR description and the session log. Never `git checkout` those files (it would revert Task 6) and never fabricate outputs.
 
 - [ ] **Step 4: Sanity-check the outputs**
 
@@ -601,7 +644,8 @@ for f in sorted(glob.glob("notebooks/*.ipynb")):
     print(f.split("/")[-1], "executed" if execd else "NO OUTPUTS", "| errors:", len(errs))
 EOF`
 Expected: 01–05, 08 executed with 0 errors; 06, 07 either executed (key renewed) or NO OUTPUTS.
-Also spot-check one output shows the new columns: `grep -c '"qa_tier"' notebooks/03_sensor_vs_reference.ipynb` → ≥ 1.
+Also spot-check that an *output* shows the new columns (the JSON escapes quotes, so grep the bare word in outputs only):
+`uv run --no-project python -c "import json;nb=json.load(open('notebooks/03_sensor_vs_reference.ipynb'));print(sum('qa_tier' in ''.join(o.get('text', '')) for c in nb['cells'] for o in c.get('outputs', [])))"` → ≥ 1.
 
 - [ ] **Step 5: Add the execution date to `notebooks/README.md`** — one line under the table: `Outputs last executed live on 2026-09-2x with aeolus 0.5.0a1 (dev).`
 
@@ -712,5 +756,7 @@ Write `../argus/docs/2026-09-2x-aeolus-0.5.0a1-handoff.md` (≤ 40 lines): pin `
 **Spec coverage.** §12 (API surface & migration) → Tasks 2, 5; §14 step 3 (cut the alpha) → Tasks 8–9; §14 step 4 (migration guide, CHANGELOG re-baseline notes, docs rewrite) → Tasks 2–5, 8; §3/§4 (wire format, enums, as documented) → Tasks 2–4; §17.1 mirrors → Tasks 2, 5; §17.10 units/time → Task 5 re-baseline table and Task 2 quick start; roadmap "re-execute the 8 notebooks live" → Tasks 6–7. **Not here (deliberately):** Plan 5 ARGUS backend; conda-forge (alphas are not picked up by the feedstock bot; the final 0.5.0 will be); a `notebooks` extra in `pyproject.toml` (YAGNI — `uv run --with` suffices for maintainers, and the notebooks README already tells users to `pip install jupyter matplotlib`).
 
 **Placeholder scan.** Dates written `2026-09-2x` are to be replaced with the actual date at execution; PR-body `<…>` slots are to be filled from the run. No other placeholders.
+
+**Plan review (2026-09-23, dry-run against a scratch copy).** Found and fixed here: the strict docs check was a no-op (`-q`), and `main` fails strict with 4 warnings (now Task 4 step 1b); the guard missed case variants, `Ratified`/`Provisional` "Data quality" bullets, the stale EEA "not yet wired" prose, notebook markdown and print strings (regexes widened; notebook test now scans all source cells); mirror precedence was stated tier-first (stage wins; Breathe London `P` → `Provisional`, AirQo stays `Indicative`); EEA 0.4 labels, MY1 41.6, Sonitus −15 min only, breaker cool-down semantics; eleven re-baseline rows were missing; `aeolus.options` has only `legacy_columns`; `networks.get_metadata()`/`portals.find_sites()` do not carry `network` (notebook 07 switched to `aeolus.find_sites`); CHANGELOG lines 52/75 (`v2`/`v3` → `v4`) and 84 (stale EEA clause); pre-release install notes needed because the site deploys 0.5 docs while PyPI's default is 0.4.5.4; extra stale lines in eea.md, sources.md, airnow.md, uk-networks.md, overview.md:84/98, README:63, CLAUDE.md:244, `docs/api/networks.md:55` and the rendered docstrings.
 
 **Type consistency.** Column names match `aeolus.schema.DATA_COLUMNS`; tier/stage values match `aeolus.qa`; env var names in Task 2 are verified against the code at execution (step 4 says to drop any that do not exist); the vocabulary guard's exempt file name (`migrating-to-0.5.md`) matches Task 5's file name and the nav entry.
