@@ -397,7 +397,7 @@ def fetch(
     start_date: datetime = None,
     end_date: datetime = None,
     last: str | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> pd.DataFrame | dict[str, pd.DataFrame]:
     """
     Alias for download(). Download air quality data.

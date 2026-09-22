@@ -11,7 +11,7 @@ matching, the test fails and this document stops rendering.
   AURN dataset (Marylebone Road, 2023). Built with Quarto; renders to
   HTML showing side-by-side comparison tables and overlay plots.
 
-  Backed by [`tests/test_openair_parity.py`](../../tests/test_openair_parity.py)
+  Backed by [`tests/test_openair_parity.py`](https://github.com/southlondonscientific/aeolus/blob/main/tests/test_openair_parity.py)
   which runs on every PR.
 
 ## Regenerating reference data

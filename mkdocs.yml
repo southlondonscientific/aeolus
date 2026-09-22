@@ -98,6 +98,7 @@ nav:
       - aeolus.networks: api/networks.md
       - aeolus.portals: api/portals.md
       - aeolus.metrics: api/metrics.md
+      - aeolus.schema / qa / registry: api/schema.md
   - Contributing: contributing.md
 
 extra:

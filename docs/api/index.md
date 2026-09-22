@@ -10,6 +10,7 @@ This section provides detailed documentation for all Aeolus functions and classe
 | [`aeolus.networks`](networks.md) | Network-specific functions |
 | [`aeolus.portals`](portals.md) | Portal-specific functions (OpenAQ, PurpleAir) |
 | [`aeolus.metrics`](metrics.md) | Air quality indices and analysis functions |
+| [`aeolus.schema`, `aeolus.qa`, `aeolus.network_registry`](schema.md) | The 0.5 contract: public columns, QA tiers, per-network vocabularies, units and cache |
 
 ## Quick Reference
 

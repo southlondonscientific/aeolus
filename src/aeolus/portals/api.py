@@ -26,13 +26,15 @@ requiring search/discovery patterns rather than complete listing.
 
 from datetime import datetime
 
+from typing import Any
+
 import pandas as pd
 
 from .._dates import resolve_dates
 from ..registry import get_source, unknown_source_message
 
 
-def find_sites(portal: str, **filters) -> pd.DataFrame:
+def find_sites(portal: str, **filters: Any) -> pd.DataFrame:
     """
     Search for monitoring locations in a portal.
 

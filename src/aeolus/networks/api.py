@@ -26,13 +26,15 @@ be listed completely.
 
 from datetime import datetime
 
+from typing import Any
+
 import pandas as pd
 
 from .._dates import resolve_dates
 from ..registry import get_source, unknown_source_message
 
 
-def get_metadata(network: str, **filters) -> pd.DataFrame:
+def get_metadata(network: str, **filters: Any) -> pd.DataFrame:
     """
     Get monitoring site metadata for a network.
 
