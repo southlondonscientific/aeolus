@@ -465,6 +465,7 @@ def _fetch_site_historical(
                         "source_network": "AIRNOW",
                         "ratification": "Provisional",
                         "created_at": fetch_time,
+                        "qa_code": "Provisional",  # AirNow never ratifies; AQS does
                     }
                 )
 
@@ -569,6 +570,7 @@ def fetch_airnow_current(
                 "source_network": "AIRNOW",
                 "ratification": "Provisional",
                 "created_at": fetch_time,
+                "qa_code": "Provisional",  # AirNow never ratifies; AQS does
                 "category": obs.get("Category", {}).get("Name", ""),
             }
         )
