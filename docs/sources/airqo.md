@@ -6,7 +6,7 @@
 
 - **Coverage**: Uganda, Kenya, and expanding across Africa
 - **Sensors**: 200+ low-cost monitors
-- **Data quality**: Indicative (machine learning calibrated)
+- **Data quality**: machine-learning calibrated low-cost sensors; `qa_tier = unknown` until the calibrated/raw flag is wired
 - **API key**: Required
 - **Operator**: Makerere University, Uganda
 
@@ -53,14 +53,15 @@ data = aeolus.download(
 )
 ```
 
-## Data Quality
+## Data quality
 
 AirQo sensors use machine learning calibration:
 
 - Calibrated against reference monitors where available
-- Quality flags indicate confidence levels
+- The API distinguishes calibrated from raw streams
 - Best for understanding spatial and temporal patterns
-- Data marked as `ratification='Indicative'`
+
+Aeolus does not yet read AirQo's calibrated/raw flag, so `qa_code` is null and `qa_tier` is `unknown` (`ratification_stage = not_applicable`); the vocabulary is ready (`calibrated` → `lcs_calibrated`, `raw` → `lcs_factory_only`) for when it is wired. See the [Data Quality guide](../guide/ratification.md).
 
 ## Coverage Areas
 

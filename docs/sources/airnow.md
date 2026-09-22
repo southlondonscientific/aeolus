@@ -7,7 +7,7 @@
 - **Coverage**: United States, Canada, Mexico (2,500+ stations)
 - **Data**: Real-time observations and forecasts
 - **Pollutants**: O3, PM2.5, PM10, NO2, SO2, CO
-- **Data quality**: Provisional (preliminary, subject to change)
+- **Data quality**: `qa_code = Provisional`, `qa_tier = reference_provisional` (preliminary, subject to change)
 - **API key**: Required (free registration)
 
 ## Getting an API Key
@@ -102,9 +102,9 @@ data = fetch_airnow_current(
 print(data[["measurand", "value", "units"]])
 ```
 
-## Data Quality
+## Data quality
 
-AirNow data is marked as `ratification='Provisional'` because:
+Every AirNow row carries `qa_code = "Provisional"` (`qa_tier = reference_provisional`, `ratification_stage = unratified`): the AirNow feed is never ratified — certified data is published separately through EPA's AQS. In AirNow's words:
 
 - Data is preliminary and subject to change
 - Not intended for regulatory purposes
@@ -179,7 +179,3 @@ print(pm25.groupby("site_code")["value"].mean())
 - [API Documentation](https://docs.airnowapi.org/)
 - [Air Quality Index (AQI) Basics](https://www.airnow.gov/aqi/aqi-basics/)
 - [EPA Air Quality System (AQS)](https://www.epa.gov/aqs) - For verified historical data
-
-## Data quality
-
-Every AirNow row carries `qa_code = "Provisional"` (`qa_tier = reference_provisional`, `ratification_stage = unratified`): the AirNow feed is never ratified — certified data is published separately through EPA's AQS.

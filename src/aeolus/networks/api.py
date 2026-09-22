@@ -49,7 +49,7 @@ def get_metadata(network: str, **filters) -> pd.DataFrame:
             - site_name: Human-readable site name
             - latitude: Site latitude
             - longitude: Site longitude
-            - source_network: Network name
+            - source_network: Network name (raw adapter metadata; ``aeolus.find_sites()`` returns the public schema with ``network``)
 
     Raises:
         ValueError: If network is unknown or not a network type
@@ -110,8 +110,8 @@ def download(
             - measurand: Pollutant measured (e.g., "NO2", "PM2.5")
             - value: Measured value
             - units: Units of measurement
-            - source_network: Network name
-            - ratification: Data quality flag
+            - source_network: Network name (raw adapter frame; ``aeolus.download()`` returns the public 13-column schema)
+            - ratification: legacy quality label (the public frame carries ``qa_code``/``qa_tier``/``ratification_stage``)
             - created_at: When record was fetched
 
     Raises:

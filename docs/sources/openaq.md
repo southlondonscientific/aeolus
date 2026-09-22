@@ -97,7 +97,7 @@ OpenAQ uses lowercase pollutant names:
 
 Aeolus normalises these to the standard format automatically.
 
-## Data Quality Considerations
+## Data quality
 
 OpenAQ aggregates data from diverse sources with varying quality:
 
@@ -105,7 +105,7 @@ OpenAQ aggregates data from diverse sources with varying quality:
 - **Low-cost sensors**: PurpleAir, Clarity, etc. (indicative quality)
 - **Research stations**: Quality varies
 
-Check the `source_network` column to understand data provenance.
+OpenAQ exposes no per-row quality flag, so `qa_code` is null and `qa_tier` is `unknown`. Rows carry `network = "OPENAQ"` and `backend = "OPENAQ"`; the originating provider is not exposed per row in 0.5.
 
 ## Rate Limits
 

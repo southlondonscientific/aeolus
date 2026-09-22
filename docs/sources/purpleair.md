@@ -75,7 +75,7 @@ PurpleAir sensors have two laser particle counters (Channel A and Channel B) for
 | 100-1000 µg/m³ | Relative | ±10% |
 | > 1000 µg/m³ | Saturation | Flagged as saturated |
 
-### Ratification Flags
+### QA labels (`qa_code`)
 
 - `Validated`: Both channels agree within thresholds
 - `Channel Disagreement`: Both valid but disagree beyond thresholds
@@ -130,7 +130,7 @@ data = aeolus.download(
 )
 
 # Check QA/QC flag distribution
-print(data['ratification'].value_counts())
+print(data['qa_code'].value_counts())
 ```
 
 ## Resources

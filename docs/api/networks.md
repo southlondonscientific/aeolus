@@ -53,8 +53,8 @@ data = aeolus.networks.download(
 ```python
 networks = aeolus.networks.list_networks()
 print(networks)
-# ['AURN', 'SAQN', 'WAQN', 'NI', 'AQE', 'LAQN',
-#  'BREATHE_LONDON', 'AIRQO', 'AIRNOW', 'SENSOR_COMMUNITY']
+# ['AIRNOW', 'AIRQO', 'BREATHE_LONDON', 'EEA', 'AURN', 'SAQN', 'NI', 'WAQN',
+#  'AQE', 'LAQN', 'LMAM', 'SENSOR_COMMUNITY', 'SONITUS']
 ```
 
 ## Supported Networks

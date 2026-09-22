@@ -6,7 +6,7 @@
 
 - **Coverage**: UK (council and regional networks outside AURN/AQE)
 - **Sensor type**: Reference and reference-equivalent instruments
-- **Data quality**: Ratified (where provider supplies it; otherwise indicative)
+- **Data quality**: no per-row flag in the DEFRA feed — `qa_code` null, `qa_tier = unknown`, `ratification_stage = supplied`
 - **API key**: Not required
 - **Operator**: Various local authorities (DEFRA aggregates)
 
@@ -68,4 +68,4 @@ The `{pcode}/` subfolder is the discriminator between provider networks — `fin
 - **Clock changes.** Several LMAM providers log in local time. Their data arrives on a correct UTC grid, but with one hour missing each spring (the local hour that does not exist) and two each autumn (the ambiguous one). Expect data capture a little under 100 % for those days; AURN-family sites are unaffected.
 
 - The R `openair` package's `source="local"` and `source="lmam"` are aliases for the same DEFRA feed.
-- Sites overlap with other UK sources at certain locations (e.g. a few AURN-affiliated sites also appear in LMAM via the `aqdm` provider). When a site is available in both, prefer the source with the ratification status you need.
+- Sites overlap with other UK sources at certain locations (e.g. a few AURN-affiliated sites also appear in LMAM via the `aqdm` provider). When a site is available in both, prefer the source whose QA tier (`qa_tier`) you need — AURN rows say whether they are ratified, LMAM rows do not.

@@ -433,8 +433,8 @@ def fetch_airqo_data(
             - measurand: Pollutant measured (e.g., "PM2.5", "PM10")
             - value: Measured value
             - units: Units of measurement (ug/m3)
-            - source_network: "AirQo"
-            - ratification: Data quality flag
+            - source_network: "AIRQO" (raw adapter frame; the public frame adds ``network``, ``qa_code``, ``qa_tier``)
+            - ratification: legacy quality label
             - created_at: When record was fetched
 
     Note:
