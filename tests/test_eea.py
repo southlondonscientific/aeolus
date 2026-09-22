@@ -469,6 +469,25 @@ class TestFetchEeaData:
         assert sorted(out["value"].tolist()) == [10.0, 10.4]
 
 
+    @patch("aeolus.sources.eea._get_spo_mapping")
+    @patch("aeolus.sources.eea._download_parquet")
+    def test_request_window_is_widened_for_the_eea_clock_and_trimmed_after(self, mock_download, mock_mapping):
+        """The EEA reads our bounds on its UTC+1 grid, so a plain request loses the
+        window's last hour and gains one before its start. Ask wider, trim after."""
+        from aeolus.sources.eea import DATASET_VERIFIED, fetch_eea_data
+
+        mock_mapping.return_value = self._DE_MAPPING
+        # Archive rows stamped 00:00-04:00 in EEA's UTC+1 = 23:00 (prev day) .. 03:00 UTC
+        verified = _make_parquet_zip([self._rec(2, h, "10.0", 1) for h in range(0, 5)])
+        mock_download.side_effect = lambda body: verified if body["dataset"] == DATASET_VERIFIED else None
+        start, end = datetime(2024, 1, 2, tzinfo=timezone.utc), datetime(2024, 1, 2, 2, tzinfo=timezone.utc)
+
+        out = fetch_eea_data(["DEBB021"], start, end).sort_values("date_time")
+        body = mock_download.call_args_list[0].args[0]
+        assert body["dateTimeStart"] == "2024-01-01T23:00:00Z" and body["dateTimeEnd"] == "2024-01-02T03:00:00Z"
+        assert out["date_time"].min() == pd.Timestamp(start) and out["date_time"].max() == pd.Timestamp(end)
+
+
 class TestSpoMappingCache:
     """The ``_spo_to_eoi`` module global must NOT latch to ``{}`` on a
     transient fetch failure — otherwise every subsequent EEA data fetch in

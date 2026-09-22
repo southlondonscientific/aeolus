@@ -54,7 +54,7 @@ Implementation notes:
 
 import math
 import warnings
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from io import BytesIO, StringIO
 from logging import getLogger
 from zipfile import ZipFile
@@ -685,12 +685,16 @@ def fetch_eea_data(
             if notation:
                 notation_list.append(notation)
 
+    # The service reads our bounds on its own UTC+1 grid (a "Z" suffix
+    # notwithstanding), so a plain request drops the window's last hour and
+    # adds one before its start. Ask an hour wider each side and trim after.
+    start_utc, end_utc = to_utc(start_date), to_utc(end_date)
     body_base: dict = {
         "countries": [country.upper()],
         "cities": [],
         "pollutants": notation_list if notation_list else [],
-        "dateTimeStart": to_utc(start_date).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "dateTimeEnd": to_utc(end_date).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "dateTimeStart": (start_utc - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "dateTimeEnd": (end_utc + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "compress": True,
     }
     # The verified archive and the up-to-date feed overlap by up to two years
@@ -708,9 +712,10 @@ def fetch_eea_data(
     normalise = normalise_eea_data()
     df = normalise(raw_df)
 
-    # Filter to requested sites
+    # Filter to requested sites and to the requested window
     sites_upper = {s.upper() for s in sites}
     df = df[df["site_code"].str.upper().isin(sites_upper)]
+    df = df[(df["date_time"] >= start_utc) & (df["date_time"] <= end_utc)]
 
     if df.empty:
         return empty_data_frame(qa=True)

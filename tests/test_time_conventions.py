@@ -68,7 +68,10 @@ def test_eea_window_converts_aware_dates_to_utc(monkeypatch):
     seen = {}
     monkeypatch.setattr(eea, "_download_parquet", lambda body: seen.update(body) or None)
     eea.fetch_eea_data(["IE005AP"], datetime(2024, 1, 1, 17, tzinfo=PLUS5), datetime(2024, 1, 2, 17, tzinfo=PLUS5))
-    assert seen["dateTimeStart"] == "2024-01-01T12:00:00Z"
+    # 17:00+05:00 is 12:00Z; the EEA request is widened by an hour each side
+    # (its server reads bounds on its UTC+1 grid) and trimmed after
+    assert seen["dateTimeStart"] == "2024-01-01T11:00:00Z"
+    assert seen["dateTimeEnd"] == "2024-01-02T13:00:00Z"
 
 
 # ---- response stamps --------------------------------------------------------
