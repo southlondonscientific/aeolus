@@ -1150,3 +1150,25 @@ gh pr create --base main --title "v0.5.0 contract core: network registry, QA mod
 - **Spec coverage.** §3.1 → Tasks 4–5; §3.2 → Task 7; §4.1–4.4 → Task 1; §4.3 mirror → Tasks 1, 4; §5 and §6 → Tasks 2–3; §8 → Task 2; §12 (`network=`, mirrors) → Tasks 6–7; §17.1 → Task 6; §17.2 → Task 5; §17.8 → Task 5. **Deliberately not here:** §7 QA wiring (Plan 2), §17.6 EEA datasets (Plan 3), §17.9 reference temperature (Plan 2), §11 ARGUS (Plan 5), the Argus parity CI test (switches on when Argus has seeds — Plan 5).
 - **Spec gaps this plan resolves:** no `backend` value for Breathe London (added `BREATHE_LONDON`); PyYAML not yet a dependency (added); `SAQD` source unmentioned (routes to network `SAQN`).
 - **Known limits:** `network=` is an alias only — it does not choose between `AURN` and `AURN-SOS` (that is the v0.6.0 routing engine). `instrument_class` is the network default on every site; per-site overrides arrive with Plan 2.
+
+## Execution record (2026-09-22)
+
+All eight tasks landed on `feat/v050-contract-core`, one commit each, tests first. Three departures from the plan as
+written, each found by the suite rather than by reading:
+
+1. **Unregistered sources.** `finalise_data_frame` demanded a `SOURCE_ROUTES` entry; anything registered with
+   `register_source` outside that table (test doubles, a user's own adapter) raised. Added
+   `network_registry.spec_for_source()`, which treats such a source as its own network with `qa_tier="unknown"` and
+   no assumed stage. `route_for()` still raises for unknown names.
+2. **Cache column check dropped.** The plan had `cache.get()` reject any frame whose columns are not the public schema.
+   That broke the cache's generic `put`/`get` (property tests roundtrip adapter frames), and it was redundant: the
+   versioned directory (`v3`) is what keeps pre-0.5.0 entries out. Test replaced by "a `v2` entry is never served".
+3. **`find_sites` under `AEOLUS_LEGACY_COLUMNS=0`** re-added `source_network` as all-`None` in its column-guarantee
+   loop; it now uses `schema.public_metadata_columns()`. Found only by the mirrors-off verification run.
+
+Also: `types.METADATA_COLUMNS` was left as the *adapter* metadata list (adapters' `select_columns` calls use it);
+the public list is `schema.METADATA_COLUMNS`. `transforms.py` docstrings still show `add_column("source_network", …)`
+because that is what adapters emit — the plan's instruction to change them was wrong.
+
+Verification: offline 1464 passed; isolated Python 3.13 with no `.env` 1464 passed; mirrors-off run fails only in
+tests that read a mirror on purpose (none in `src/`); live conformance — see the PR.
