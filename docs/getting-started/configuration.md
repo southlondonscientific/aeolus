@@ -45,7 +45,7 @@ import aeolus
 
 ## Aeolus settings
 
-All optional. Read once, when `aeolus` is imported.
+All optional. Read once, when `aeolus` is imported (`AEOLUS_CACHE_DIR`: on first use of the cache).
 
 | Variable | Default | Effect |
 |---|---|---|

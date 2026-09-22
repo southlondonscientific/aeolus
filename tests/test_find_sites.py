@@ -669,3 +669,35 @@ def test_source_without_latlon_does_not_keyerror():
     result = api.find_sites("NOCOORD_NET")
     assert list(result.columns) == METADATA_COLUMNS
     assert api.find_sites("NOCOORD_NET", near=(51.5, -0.1)).empty
+
+
+# ============================================================================
+# Source-specific keywords reach only the fetchers that accept them
+# ============================================================================
+
+
+def test_include_closed_is_not_forwarded_to_a_fetcher_that_cannot_take_it():
+    """A bbox-aware network whose fetcher has a fixed signature must still get its bbox."""
+    calls = []
+
+    def strict_fetch(bbox=None):
+        calls.append({"bbox": bbox})
+        return _make_metadata(LONDON_SITES, "STRICT_NET")
+
+    register_source("STRICT_NET", {
+        "type": "network", "name": "Strict", "fetch_metadata": strict_fetch,
+        "fetch_data": lambda sites, s, e: pd.DataFrame(), "normalise": lambda df: df,
+        "requires_api_key": False, "bbox_aware": True,
+    })
+    out = api.find_sites("STRICT_NET", near=(51.5, -0.12), radius_km=20, include_closed=True)
+    assert not out.empty
+    assert calls == [{"bbox": pytest.approx(calls[0]["bbox"])}] and calls[0]["bbox"] is not None
+
+
+def test_include_closed_alone_does_not_unlock_a_portal(register_test_portal):
+    """A portal still needs a real filter or a spatial constraint (find_sites warns and returns nothing)."""
+    from aeolus.types import AeolusDataWarning
+
+    with pytest.warns(AeolusDataWarning, match="requires search filters"):
+        out = api.find_sites("TEST_PORTAL", include_closed=True)
+    assert out.empty

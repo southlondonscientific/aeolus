@@ -45,9 +45,10 @@ Basic usage:
     ... )
 """
 
+import inspect
 import warnings
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Callable
 
 import pandas as pd
 
@@ -427,6 +428,23 @@ def fetch(
 # ============================================================================
 
 
+def _accepted_kwargs(fn: Callable, kwargs: dict) -> dict:
+    """The subset of ``kwargs`` that ``fn``'s signature can take.
+
+    Fetchers differ: some take ``**filters``, some a fixed ``bbox=``, some
+    nothing. A keyword one of them does not know (``include_closed`` is only
+    meaningful to the AURN family) must not cost another its ``bbox``.
+    """
+    try:
+        params = inspect.signature(fn).parameters.values()
+    except (TypeError, ValueError):
+        return dict(kwargs)
+    if any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params):
+        return dict(kwargs)
+    names = {p.name for p in params if p.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY)}
+    return {k: v for k, v in kwargs.items() if k in names}
+
+
 def _fetch_network_sites(
     name: str, spec: dict, search_bbox: tuple | None, filters: dict
 ) -> pd.DataFrame:
@@ -434,11 +452,8 @@ def _fetch_network_sites(
     kwargs = dict(filters)
     if search_bbox is not None and spec.get("bbox_aware"):
         kwargs["bbox"] = search_bbox
-    try:
-        return spec["fetch_metadata"](**kwargs)
-    except TypeError:
-        # Source's fetch_metadata doesn't accept these kwargs — call bare.
-        return spec["fetch_metadata"]()
+    fetch = spec["fetch_metadata"]
+    return fetch(**_accepted_kwargs(fetch, kwargs))
 
 
 def _fetch_portal_sites(
@@ -453,7 +468,7 @@ def _fetch_portal_sites(
     :func:`aeolus.portals.find_sites` so the same call is consistent
     across the public API and the submodule.
     """
-    kwargs = dict(filters)
+    kwargs = {k: v for k, v in filters.items() if k != "include_closed"}  # AURN-family only; never a portal filter
     if search_bbox is not None:
         kwargs["bbox"] = search_bbox
     if not kwargs:

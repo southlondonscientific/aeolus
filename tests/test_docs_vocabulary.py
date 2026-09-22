@@ -82,3 +82,11 @@ def test_version_strings_agree():
     assert aeolus.__version__ == pyproject["project"]["version"]
     assert f"**Current Version:** {aeolus.__version__}" in (ROOT / "CLAUDE.md").read_text()
     assert f"version: {aeolus.__version__}" in (ROOT / "CITATION.cff").read_text()
+
+
+def test_guard_rules_on_fixture_lines():
+    """The guard's regexes, pinned: links to ratification.md are fine; old labels are not."""
+    assert not list(_offending_lines("See the [Data Quality](../guide/ratification.md) guide."))
+    assert list(_offending_lines("Rows are labelled as `Indicative` by default."))
+    assert list(_offending_lines("The `ratification` column says whether data is checked."))
+    assert not list(_offending_lines("`ratification` is a deprecated mirror of the QA columns."))

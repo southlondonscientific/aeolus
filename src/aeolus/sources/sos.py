@@ -288,7 +288,7 @@ def _build_station_mapping(
 
     # Fetch RData metadata for this network
     fetch_meta = make_metadata_fetcher(network)
-    meta_df = fetch_meta()
+    meta_df = fetch_meta(include_closed=True)  # a closed station must match itself, not an open neighbour
     if meta_df.empty:
         return {}
 

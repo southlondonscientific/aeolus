@@ -520,14 +520,16 @@ def one_row_per_site(df: pd.DataFrame) -> pd.DataFrame:
     df = df.drop(columns=[c for c in ("ratified_to",) if c in df.columns])
     agg: dict[str, pd.Series] = {}
     if "start_date" in df.columns:
-        agg["start_date"] = df["start_date"].astype("string").groupby(df["site_code"]).min()
+        started = pd.to_datetime(df["start_date"], errors="coerce", format="ISO8601")
+        agg["start_date"] = started.groupby(df["site_code"]).min().dt.strftime("%Y-%m-%d")
     if "end_date" in df.columns:
         open_any = _series_open(df["end_date"]).groupby(df["site_code"]).any()
-        latest = df["end_date"].astype("string").groupby(df["site_code"]).max()
+        ended = pd.to_datetime(df["end_date"], errors="coerce", format="ISO8601")
+        latest = ended.groupby(df["site_code"]).max().dt.strftime("%Y-%m-%d")
         agg["end_date"] = latest.where(~open_any, "ongoing")
     out = df.drop_duplicates(subset="site_code", keep="first").set_index("site_code")
     for col, values in agg.items():
-        out[col] = values.reindex(out.index).astype(object)
+        out[col] = values.reindex(out.index).astype(object).where(lambda v: v.notna(), None)
     return out.reset_index()
 
 

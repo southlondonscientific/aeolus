@@ -70,7 +70,7 @@ Still open: the interval convention of the UK-AIR SOS near-real-time feed (`get_
 
 ## Behaviour changes that are not value changes
 
-- `find_sites()` and `networks.get_metadata()` list only AURN-family sites that are still measuring something, one row per site (0.4 listed every site ever run, once per parameter — the nearest AURN site to central London was one closed in 1978). Pass `include_closed=True` for historical work.
+- `find_sites()` and `networks.get_metadata()` list only AURN-family sites that are still measuring something, one row per site (0.4 listed every site ever run, once per parameter — the nearest AURN site to central London was one closed in 1978). Site `start_date`/`end_date` are now aggregated across the site's series and the per-parameter `ratified_to` is gone from the site list (read `qa_code` on the data instead). Pass `include_closed=True` for historical work.
 - `download()`, `fetch()`, `find_sites()`, `get_current()` accept `network=` as an alias for the first argument.
 - `summarise()` and `time_average()` report `network` and accept 0.4 frames.
 - `get_source_info()` reports `status` (`stable` | `experimental`) and `status_note`; **EEA is experimental** and raises one `AeolusExperimentalWarning` per process.
