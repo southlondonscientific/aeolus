@@ -231,7 +231,12 @@ Mock API responses are defined as pytest fixtures within each test file.
 
 ## Release History
 
-### v0.4.0 (current, March 2026)
+### v0.5.0 (in progress, September 2026)
+- **Contract-first schema**: 13 public columns (`network`, `backend`, `qa_code`/`qa_tier`/`ratification_stage`, deprecated mirrors) built by `aeolus.schema.finalise_data_frame`; network registry over YAML vocabularies; real QA codes wired for the AURN family, SOS, EEA, PurpleAir, Breathe London and AirNow.
+- **Corrected numbers** (the planned v0.4.6 scrub, folded in): LAQN gases converted from ppb; SOS/Sonitus CO units; sentinels dropped; EEA past years now served from the verified archive and Airbase with per-country clocks; interval-start timestamps everywhere. Consumers re-baseline — see `docs/guide/migrating-to-0.5.md`.
+- Plans in `docs/superpowers/plans/2026-09-2*-v050-*.md`; `0.5.0a1` is the alpha for internal consumers.
+
+### v0.4.0 (March 2026)
 - **User story notebooks**: 8 executable Jupyter notebooks in `notebooks/` covering real-world workflows.
 - **Local file caching**: `aeolus.cache` module for Parquet-based download caching.
 - **OpenAQ SDK 1.0rc2**: Auto rate-limit waiting, full pagination, improved connection tuning.
@@ -241,12 +246,12 @@ Mock API responses are defined as pytest fixtures within each test file.
 
 ### v0.3.0rc2 (February 2026)
 - **Timezone fixes**: All 7 data sources now produce UTC-aware `date_time` and `created_at` columns.
-- **Schema consistency**: Strict 8-column data schema. Empty DataFrames carry standard columns.
+- **Schema consistency**: Strict data schema (13 columns since 0.5.0). Empty DataFrames carry standard columns.
 - **Release process**: Tag `v*` on main triggers GitHub Actions (`release.yml`).
 
 ## Roadmap
 
-### v0.4.0 (current)
+### v0.4.0 (done)
 ~~**User story notebooks**~~ (done) - 8 executable Jupyter notebooks in `notebooks/`, mapped to 9 validated user personas. Spec: `docs/dev/user_stories_v040.md`.
 
 **Analysis functions** (high priority):
@@ -280,7 +285,7 @@ Mock API responses are defined as pytest fixtures within each test file.
 - Python 3.11+ required
 - Uses `pandas` for data handling
 - `date_time` is tz-aware UTC and marks the START of its interval: 13:00 means [13:00, 14:00) (openair "date beginning"). Adapters convert upstreams that differ (EEA is UTC+1; Sonitus stamps bin END; OpenAQ use `datetime_from`). Use `aeolus._dates.to_utc()` on any user datetime before `.timestamp()` or `strftime("…Z")`
-- Low-cost sensor data marked as `ratification='Unvalidated'`
+- Networks that publish no per-row flag (LAQN, LMAM, Sensor.Community, Sonitus, OpenAQ, and AirQo until its key is renewed) have null `qa_code` and `qa_tier = unknown`; low-cost networks default to `ratification_stage = not_applicable` (Breathe London `P` rows are `unratified`)
 - PurpleAir data has additional QA flags (`Validated`, `Single Channel`, etc.)
 - All timestamps are UTC-aware (enforced since v0.3.0rc2)
 - Data schema is strict 13 columns (`aeolus.schema.DATA_COLUMNS`); adapters emit the 8 `ADAPTER_DATA_COLUMNS`; `site_name` is in metadata only

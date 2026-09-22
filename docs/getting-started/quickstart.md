@@ -23,18 +23,25 @@ print(data.head())
 
 ## Understanding the Output
 
-All data sources return a standardised pandas DataFrame with these columns:
+Every download returns the same 13 columns (`aeolus.schema.DATA_COLUMNS`):
 
 | Column | Description |
 |--------|-------------|
 | `site_code` | Unique identifier for the monitoring site |
-| `date_time` | Timestamp (start of measurement period) |
-| `measurand` | Pollutant name (PM2.5, NO2, O3, etc.) |
+| `network` | Which network produced the data (`AURN`, `LAQN`, `EEA`, ...) |
+| `date_time` | Start of the averaging interval, tz-aware UTC (`13:00` covers 13:00–14:00) |
+| `measurand` | Pollutant name (PM2.5, NO2, O3, ...) |
 | `value` | Measured concentration |
-| `units` | Measurement units (typically µg/m³) |
-| `source_network` | Data source identifier |
-| `ratification` | Data quality flag |
-| `created_at` | When the record was fetched |
+| `units` | As the network reports them (`ug/m3`; `mg/m3` for CO; `ppb` for AirNow gases) |
+| `qa_code` | The network's own quality token, verbatim (null where it publishes none) |
+| `qa_tier` | Cross-network quality tier: `reference_full_qc`, `reference_provisional`, `lcs_calibrated`, `lcs_factory_only`, `flagged`, `unknown` |
+| `ratification_stage` | `unratified`, `ratified`, `supplied`, `not_applicable` or null |
+| `backend` | Which fetcher served the row (`RDATA`, `SOS`, `ERG_REST`, `EEA_E1A`, ...) |
+| `source_network` | Deprecated mirror of `network` (removed in 1.0) |
+| `ratification` | Deprecated mirror derived from the three QA columns (removed in 1.0) |
+| `created_at` | When the record was fetched (UTC) |
+
+Set `AEOLUS_LEGACY_COLUMNS=0` to drop the two mirrors. The [Data Quality](../guide/ratification.md) guide explains the three QA columns network by network.
 
 ## Finding Available Sites
 
