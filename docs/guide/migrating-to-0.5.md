@@ -4,7 +4,7 @@
 
 ## Ten-minute checklist
 
-1. Install the alpha: `pip install --pre "aeolus_aq==0.5.0a1"` (pip only — alphas are not published to conda-forge; PyYAML is a new runtime dependency and comes with the wheel).
+1. Install the alpha: `pip install --pre "aeolus_aq==0.5.0a2"` (pip only — alphas are not published to conda-forge; PyYAML is a new runtime dependency and comes with the wheel).
 2. Run your code with `AEOLUS_LEGACY_COLUMNS=0`. Anything that reads `source_network` or `ratification` breaks here — fix it with the column map below.
 3. Rename: `source_network` → `network`. If you also need to know *which fetcher* produced a row, read `backend`.
 4. Replace every test on `ratification` with a test on `qa_tier` or `ratification_stage` (table below). Keep `qa_code` if you want the network's own word.
@@ -86,4 +86,4 @@ python -W error::DeprecationWarning -c "import aeolus; ..."   # or turn the one-
 
 ## Consumers
 
-Hermes, RHEA, Clara and Argus: pin `aeolus_aq==0.5.0a1`, run with the mirrors off, and re-pull stored readings for the paths in the re-baseline table. Argus's write path (guarded upsert + `readings_history`) is designed for exactly this re-pull; see `argus/docs/2026-09-20-write-path-upsert-handoff.md`.
+Hermes, RHEA, Clara and Argus: pin `aeolus_aq==0.5.0a2`, run with the mirrors off, and re-pull stored readings for the paths in the re-baseline table. Argus's write path (guarded upsert + `readings_history`) is designed for exactly this re-pull; see `argus/docs/2026-09-20-write-path-upsert-handoff.md`.

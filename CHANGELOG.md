@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0a2] - 2026-10-05
+
 ### Fixed
 
 - **A 4xx from SOS no longer trips the circuit-breaker.** The process-wide SOS breaker counted every error, so five 404s from retired timeseries IDs opened it for 60 s and every later SOS call in that window failed fast. In Argus, AQE's retired IDs opened it each cycle just before the SAQN poll, which then returned nothing (live SAQN empty since at least 2 Oct 2026). A 4xx now counts as the host answering, the same rule as the RData breaker; connection errors, timeouts, 5xx, 408 and 429 still count.

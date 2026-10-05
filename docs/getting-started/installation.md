@@ -11,7 +11,7 @@
 pip install --pre aeolus-aq
 ```
 
-These docs describe 0.5, which is published as a pre-release (`0.5.0a1`) for consumers to migrate against; without `--pre`, pip installs the last 0.4 release. See [Migrating to 0.5](../guide/migrating-to-0.5.md).
+These docs describe 0.5, which is published as a pre-release (`0.5.0a2`) for consumers to migrate against; without `--pre`, pip installs the last 0.4 release. See [Migrating to 0.5](../guide/migrating-to-0.5.md).
 
 ## Optional Extras
 
