@@ -350,6 +350,36 @@ class TestStationMapping:
             ts_ids = {ts["ts_id"] for ts in ts_list}
             assert "999" not in ts_ids
 
+    @responses.activate
+    def test_timeseries_without_location_are_reported(self, monkeypatch, caplog):
+        """Defra serves some live series with no station location; they cannot
+        be matched, so the rebuild says which ones it skipped."""
+        monkeypatch.setattr(
+            "aeolus.sources.regulatory.make_metadata_fetcher",
+            lambda net: (lambda **kw: MOCK_AURN_METADATA.copy()),
+        )
+        no_foi = {
+            "id": "2362",
+            "label": "pollutant/5 2362 - GB_SamplingFeature_missingFOI",
+            "uom": "ug.m-3",
+            "station": {"properties": {"id": 0, "label": "missingFOI"}},
+            "parameters": {"phenomenon": {"id": "5", "label": "..."}},
+        }
+        responses.add(
+            responses.GET,
+            f"{sos.SOS_BASE_URL}/timeseries",
+            json=MOCK_TIMESERIES + [no_foi],
+            status=200,
+        )
+
+        _register_mock_aurn_and_sos()
+        with caplog.at_level("WARNING", logger="aeolus.sources.sos"):
+            mapping = sos._build_station_mapping("aurn")
+
+        assert "CLL2" in mapping
+        assert "no station location" in caplog.text
+        assert "2362" in caplog.text
+
 
 # ============================================================================
 # Data fetching
@@ -702,6 +732,18 @@ class TestCircuitBreaker:
 
         assert sos._breaker_opened_until is None
         assert sos._breaker_failure_count == 0
+
+    @pytest.mark.parametrize("status", [408, 429])
+    @responses.activate
+    def test_rate_limit_and_timeout_replies_still_open_breaker(self, status):
+        """408/429 are the host pushing back, not a missing resource."""
+        responses.add(responses.GET, f"{sos.SOS_BASE_URL}/services", status=status)
+
+        for _ in range(sos._BREAKER_FAILURES_THRESHOLD):
+            with pytest.raises(requests.exceptions.RequestException):
+                sos._fetch_sos_json("services")
+
+        assert sos._breaker_opened_until is not None
 
     @responses.activate
     def test_4xx_counts_as_the_host_answering(self):
