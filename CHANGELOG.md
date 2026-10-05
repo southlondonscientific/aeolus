@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A 4xx from SOS no longer trips the circuit-breaker.** The process-wide SOS breaker counted every error, so five 404s from retired timeseries IDs opened it for 60 s and every later SOS call in that window failed fast. In Argus, AQE's retired IDs opened it each cycle just before the SAQN poll, which then returned nothing (live SAQN empty since at least 2 Oct 2026). A 4xx now counts as the host answering, the same rule as the RData breaker; connection errors, timeouts, 5xx, 408 and 429 still count.
+- **Static SOS station mapping rebuilt (2026-10-05).** The March file held timeseries IDs Defra has since retired (they 404). Of 187 dropped IDs, 184 404. Three Warrington series (2362 PM10, 2365 PM2.5, 4126 NO) still answer but Defra now serves them with no station location (`GB_SamplingFeature_missingFOI`), so location matching cannot map them; AURN WAR drops out and AQE WAR keeps NO2/NOx only (the site has reported no valid data since about 9 Sep 2026). AURN 199 → 189 sites, SAQN 23 → 22, WAQN 12 → 11, NI 7, AQE 15 → 13.
+- **The mapping rebuild now warns about timeseries it skips for having no station location**, naming them, instead of dropping them silently.
+
 ## [0.5.0a1] - 2026-09-22 (alpha for internal consumers)
 
 First alpha of the 0.5 contract for Hermes, RHEA, Clara and Argus to migrate against. Not for general use. Migration guide: `docs/guide/migrating-to-0.5.md`.

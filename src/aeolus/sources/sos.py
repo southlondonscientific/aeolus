@@ -188,7 +188,16 @@ def _fetch_sos_json(endpoint: str, **params) -> dict | list:
     try:
         result = _fetch_sos_json_raw(endpoint, **params)
     except Exception as exc:
-        _record_sos_failure(exc)
+        # A 4xx means the host answered and this one resource is absent (a
+        # retired timeseries ID 404s) — the same rule as the RData breaker.
+        # Counting it tripped the process-wide breaker, so one network's stale
+        # IDs blanked the next network's poll inside the cooldown. 408 and 429
+        # are the host pushing back, so they still count as failures.
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+        if status is not None and status < 500 and status not in (408, 429):
+            _record_sos_success()
+        else:
+            _record_sos_failure(exc)
         raise
     _record_sos_success()
     return result
@@ -312,11 +321,15 @@ def _build_station_mapping(
 
     # Match each SOS timeseries to the nearest metadata site
     mapping: dict[str, list[dict]] = {}
+    no_location: list[str] = []
 
     for ts in all_ts:
         station = ts.get("station", {})
         coords = station.get("geometry", {}).get("coordinates", [])
         if len(coords) < 2:
+            # Matching is by location, so these cannot be mapped (Defra has
+            # served live series with "GB_SamplingFeature_missingFOI").
+            no_location.append(str(ts.get("id")))
             continue
 
         # UK-AIR SOS returns [lat, lon, elevation] — not GeoJSON [lon, lat] order
@@ -349,6 +362,14 @@ def _build_station_mapping(
             }
             mapping.setdefault(best_code, []).append(ts_info)
 
+    if no_location:
+        logger.warning(
+            "SOS mapping (%s): %d timeseries have no station location and were "
+            "skipped: %s",
+            network.upper(),
+            len(no_location),
+            ", ".join(no_location[:20]),
+        )
     return mapping
 
 
