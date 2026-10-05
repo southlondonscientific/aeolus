@@ -188,7 +188,15 @@ def _fetch_sos_json(endpoint: str, **params) -> dict | list:
     try:
         result = _fetch_sos_json_raw(endpoint, **params)
     except Exception as exc:
-        _record_sos_failure(exc)
+        # A 4xx means the host answered and this one resource is absent (a
+        # retired timeseries ID 404s) — the same rule as the RData breaker.
+        # Counting it tripped the process-wide breaker, so one network's stale
+        # IDs blanked the next network's poll inside the cooldown.
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+        if status is not None and status < 500:
+            _record_sos_success()
+        else:
+            _record_sos_failure(exc)
         raise
     _record_sos_success()
     return result

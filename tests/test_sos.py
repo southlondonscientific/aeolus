@@ -687,6 +687,71 @@ class TestCircuitBreaker:
         assert df.empty
         assert len(responses.calls) == 0
 
+    @responses.activate
+    def test_404s_do_not_open_breaker(self):
+        """A 404 is one missing timeseries, not an unhealthy host."""
+        responses.add(
+            responses.GET,
+            f"{sos.SOS_BASE_URL}/timeseries/999/getData",
+            status=404,
+        )
+
+        for _ in range(sos._BREAKER_FAILURES_THRESHOLD + 3):
+            with pytest.raises(requests.exceptions.HTTPError):
+                sos._fetch_sos_json("timeseries/999/getData")
+
+        assert sos._breaker_opened_until is None
+        assert sos._breaker_failure_count == 0
+
+    @responses.activate
+    def test_4xx_counts_as_the_host_answering(self):
+        """A 4xx between 5xx failures breaks the consecutive run, as for RData."""
+        responses.add(responses.GET, f"{sos.SOS_BASE_URL}/services", status=502)
+        with pytest.raises(requests.exceptions.RequestException):
+            sos._fetch_sos_json("services")
+        assert sos._breaker_failure_count == 1
+
+        responses.add(
+            responses.GET, f"{sos.SOS_BASE_URL}/timeseries/999/getData", status=404
+        )
+        with pytest.raises(requests.exceptions.HTTPError):
+            sos._fetch_sos_json("timeseries/999/getData")
+        assert sos._breaker_failure_count == 0
+
+    @responses.activate
+    def test_retired_timeseries_do_not_starve_later_sites(self):
+        """Regression (Argus, 2026-10-02 on): AQE's retired timeseries IDs 404'd,
+        opened the process-wide breaker, and every SAQN fetch polled inside the
+        60 s cooldown came back empty."""
+        n_gone = sos._BREAKER_FAILURES_THRESHOLD + 2
+        sos._network_mappings["aqe"] = {
+            f"GONE{i}": [{"ts_id": f"9{i}", "measurand": "NO2", "uom": "ug/m3"}]
+            for i in range(n_gone)
+        }
+        sos._network_mappings["saqn"] = {
+            "ED3": [{"ts_id": "3", "measurand": "NO2", "uom": "ug/m3"}],
+        }
+        for i in range(n_gone):
+            responses.add(
+                responses.GET,
+                f"{sos.SOS_BASE_URL}/timeseries/9{i}/getData",
+                status=404,
+            )
+        responses.add(
+            responses.GET,
+            f"{sos.SOS_BASE_URL}/timeseries/3/getData",
+            json=MOCK_GETDATA_RESPONSE,
+            status=200,
+        )
+        start = datetime(2026, 3, 18, tzinfo=timezone.utc)
+        end = datetime(2026, 3, 19, tzinfo=timezone.utc)
+
+        aqe = sos.make_sos_data_fetcher("aqe")(list(sos._network_mappings["aqe"]), start, end)
+        saqn = sos.make_sos_data_fetcher("saqn")(["ED3"], start, end)
+
+        assert aqe.empty
+        assert not saqn.empty
+
 
 class TestLatestFetcher:
     @responses.activate
