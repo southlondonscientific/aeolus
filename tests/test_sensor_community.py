@@ -5,7 +5,9 @@ Tests the API calls, metadata fetching, data fetching, rate limiting,
 and normalization with mocked responses.
 """
 
+import gzip
 import time
+import warnings
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
@@ -24,6 +26,8 @@ from aeolus.sources.sensor_community import (
     USER_AGENT,
     VALUE_NAME_MAP,
     RateLimiter,
+    PROBE_SENSOR_TYPES,
+    _archive_urls,
     _fetch_sensor_archive,
     _get_sensor_types_for_sites,
     _make_request,
@@ -33,6 +37,7 @@ from aeolus.sources.sensor_community import (
     fetch_sensor_community_realtime,
     set_rate_limiting,
 )
+from aeolus.types import AeolusDataWarning
 from aeolus.types import empty_data_frame as _empty_dataframe
 
 # ============================================================================
@@ -728,10 +733,47 @@ class TestFetchSensorArchive:
         mock_response.text = ""
         mock_request.return_value = mock_response
 
-        _fetch_sensor_archive(datetime(2024, 1, 15), "SDS011", "12345")
+        with patch("aeolus.sources.sensor_community._archive_urls", wraps=lambda d, t, s: _archive_urls(d, t, s, today=datetime(2026, 10, 6))):
+            _fetch_sensor_archive(datetime(2024, 1, 15), "SDS011", "12345")
 
-        expected_url = f"{ARCHIVE_BASE}/2024-01-15/2024-01-15_sds011_sensor_12345.csv"
+        # a past year: the gzipped year folder is tried first, and found here
+        expected_url = f"{ARCHIVE_BASE}/2024/2024-01-15/2024-01-15_sds011_sensor_12345.csv.gz"
         mock_request.assert_called_once_with(expected_url, timeout=60)
+
+    def test_archive_urls_order_by_year(self):
+        """Current year: root first; earlier years: /{YYYY}/…csv.gz first (the archive moves past years)."""
+        today = datetime(2026, 10, 6)
+        past = _archive_urls(datetime(2024, 1, 15), "SDS011", "12345", today=today)
+        assert past == [f"{ARCHIVE_BASE}/2024/2024-01-15/2024-01-15_sds011_sensor_12345.csv.gz",
+                        f"{ARCHIVE_BASE}/2024-01-15/2024-01-15_sds011_sensor_12345.csv"]
+        now = _archive_urls(datetime(2026, 3, 1), "SPS30", "7", today=today)
+        assert now[0] == f"{ARCHIVE_BASE}/2026-03-01/2026-03-01_sps30_sensor_7.csv"
+
+    @patch("aeolus.sources.sensor_community._make_request")
+    def test_fetch_sensor_archive_falls_back_and_reads_gzip(self, mock_request, mock_sensor_archive_csv):
+        """If the first location 404s, the second is used; gzipped content is decompressed."""
+        found = MagicMock()
+        found.content = gzip.compress(mock_sensor_archive_csv.encode())
+        mock_request.side_effect = [None, found]
+
+        df = _fetch_sensor_archive(datetime(2024, 1, 15), "SDS011", "12345")
+
+        assert mock_request.call_count == 2
+        assert not df.empty and set(df.measurand) >= {"PM2.5"}
+
+    def test_probe_types_include_sps30(self):
+        """SPS30 sensors were never found before: they must be probed for unknown sensors."""
+        assert "SPS30" in PROBE_SENSOR_TYPES and PROBE_SENSOR_TYPES[0] == "SDS011"
+
+    @patch("aeolus.sources.sensor_community._get_sensor_types_for_sites", return_value={"1": "SDS011", "2": "SDS011"})
+    @patch("aeolus.sources.sensor_community._make_request", return_value=None)
+    def test_warns_when_no_archive_files_found(self, mock_request, mock_types):
+        """Nothing found at all is reported, not silently returned as empty."""
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            df = fetch_sensor_community_data(["1", "2"], datetime(2024, 1, 1), datetime(2024, 1, 2))
+        assert df.empty
+        assert any(issubclass(x.category, AeolusDataWarning) and "No Sensor.Community archive files" in str(x.message) for x in w)
 
     @patch("aeolus.sources.sensor_community._make_request")
     def test_fetch_sensor_archive_parses_csv(

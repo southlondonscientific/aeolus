@@ -32,6 +32,7 @@ Data Archive: https://archive.sensor.community/
 Map: https://maps.sensor.community/
 """
 
+import gzip
 import io
 import time
 import warnings
@@ -55,8 +56,20 @@ logger = getLogger(__name__)
 DATA_API_BASE = "https://data.sensor.community"
 ARCHIVE_BASE = "https://archive.sensor.community"
 
-# User-Agent header (required by Sensor.Community as of Nov 2022)
-USER_AGENT = "aeolus-aq/0.3.0 (https://github.com/southlondonscientific/aeolus; air quality research)"
+# User-Agent header (required by Sensor.Community as of Nov 2022, so they can contact us about excessive requests)
+try:
+    from importlib.metadata import version as _pkg_version
+
+    _AEOLUS_VERSION = _pkg_version("aeolus_aq")
+except Exception:  # noqa: BLE001 — running from a source tree without installed metadata
+    _AEOLUS_VERSION = "dev"
+USER_AGENT = f"aeolus-aq/{_AEOLUS_VERSION} (https://github.com/southlondonscientific/aeolus; air quality research)"
+
+# Sensor types tried, in order, for a sensor whose type is unknown (PM sensors first)
+PROBE_SENSOR_TYPES = ["SDS011", "SPS30", "PMS5003", "PMS7003", "BME280"]
+
+# Archive look-ups made / found during the current fetch (reported if nothing at all is found)
+_archive_stats = {"requested": 0, "found": 0}
 
 # Rate limiting defaults (conservative since no official limits documented)
 DEFAULT_RATE_LIMIT_REQUESTS = 10  # Max requests per period
@@ -584,6 +597,7 @@ def fetch_sensor_community_data(
 
     all_data = []
     current_date = start_date
+    _archive_stats.update(requested=0, found=0)
 
     while current_date <= end_date:
         date_str = current_date.strftime("%Y-%m-%d")
@@ -600,8 +614,8 @@ def fetch_sensor_community_data(
         # For unknown sensors, try common PM sensor types
         if unknown_sites:
             for site_id in list(unknown_sites):
-                # Try SDS011 first (most common), then BME280
-                for try_type in ["SDS011", "BME280", "PMS5003", "PMS7003"]:
+                # Try PM sensor types first (SDS011 is the most common), then BME280
+                for try_type in PROBE_SENSOR_TYPES:
                     df = _fetch_sensor_archive(current_date, try_type, site_id)
                     if not df.empty:
                         # Cache the successful type for future requests, and
@@ -614,6 +628,16 @@ def fetch_sensor_community_data(
                         break
 
         current_date += timedelta(days=1)
+
+    if _archive_stats["requested"] and not _archive_stats["found"]:
+        # Missing files are normal for a few sensor-days; none at all usually means wrong IDs/types or a moved archive
+        warnings.warn(
+            f"No Sensor.Community archive files found for {_archive_stats['requested']} sensor-day look-ups "
+            f"({len(sites)} sensors, {start_date:%Y-%m-%d} to {end_date:%Y-%m-%d}). Check the sensor IDs and types, "
+            f"or whether the archive layout at {ARCHIVE_BASE} has changed.",
+            AeolusDataWarning,
+            stacklevel=2,
+        )
 
     if not all_data:
         return empty_data_frame()
@@ -641,8 +665,10 @@ def _fetch_sensor_archive(
     """
     Fetch archive data for a specific sensor on a specific date.
 
-    The archive stores one CSV file per sensor per day:
-    {date}_{sensor_type}_sensor_{sensor_id}.csv
+    The archive stores one CSV file per sensor per day. Days of the current year sit at the root,
+    ``/{date}/{date}_{sensor_type}_sensor_{sensor_id}.csv``; earlier years have been moved into year folders and
+    gzipped, ``/{YYYY}/{date}/{date}_{sensor_type}_sensor_{sensor_id}.csv.gz``. Both locations are tried, the likelier
+    one first, so the year-end move does not break fetches.
 
     Args:
         date: The date to fetch
@@ -654,15 +680,22 @@ def _fetch_sensor_archive(
     """
     date_str = date.strftime("%Y-%m-%d")
     filename = f"{date_str}_{sensor_type.lower()}_sensor_{sensor_id}.csv"
-    url = f"{ARCHIVE_BASE}/{date_str}/{filename}"
 
-    response = _make_request(url, timeout=60)
+    _archive_stats["requested"] += 1
+    response = None
+    for url in _archive_urls(date, sensor_type, sensor_id):
+        response = _make_request(url, timeout=60)
+        if response is not None:
+            break
     if response is None:
         return empty_data_frame()
+    _archive_stats["found"] += 1
 
     try:
+        raw = response.content if isinstance(response.content, (bytes, bytearray)) else None
+        text = gzip.decompress(raw).decode("utf-8") if raw and raw[:2] == b"\x1f\x8b" else response.text
         df = pd.read_csv(
-            io.StringIO(response.text),
+            io.StringIO(text),
             sep=";",
             low_memory=False,
         )
@@ -679,6 +712,17 @@ def _fetch_sensor_archive(
         return empty_data_frame()
 
     return _normalise_sensor_data(df, sensor_type, sensor_id)
+
+
+def _archive_urls(date: datetime, sensor_type: str, sensor_id: str, today: datetime | None = None) -> list[str]:
+    """Candidate archive URLs for one sensor-day, likeliest first: the root for the current year, the gzipped
+    year folder for earlier years (the archive moves past years into /{YYYY}/ some time after the year ends)."""
+    date_str = date.strftime("%Y-%m-%d")
+    name = f"{date_str}_{sensor_type.lower()}_sensor_{sensor_id}.csv"
+    root = f"{ARCHIVE_BASE}/{date_str}/{name}"
+    yearly = f"{ARCHIVE_BASE}/{date.year}/{date_str}/{name}.gz"
+    this_year = (today or datetime.now(timezone.utc)).year
+    return [root, yearly] if date.year >= this_year else [yearly, root]
 
 
 def _normalise_sensor_data(

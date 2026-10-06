@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Sensor.Community history works again for past years.** The archive has moved earlier years into year folders and gzipped them (`/{YYYY}/{date}/{date}_{type}_sensor_{id}.csv.gz`); only the current year stays at the root. The fetcher only tried the root, and 404s were suppressed, so every fetch before the current year returned an empty frame without any warning. Both locations are now tried (likeliest first) and gzipped files are decompressed.
+- **A fetch that finds no archive files at all now warns** (`AeolusDataWarning`, naming the look-up count and date range) instead of returning an empty frame silently. Individual missing sensor-days stay quiet, as before.
+- **SPS30 sensors are now found.** Sensors of unknown type are probed as SDS011, SPS30, PMS5003, PMS7003, then BME280; SPS30 was missing, so those sensors were re-probed every day and never fetched.
+- The User-Agent now carries the installed aeolus version (it said 0.3.0).
+
 ## [0.5.0a2] - 2026-10-05
 
 ### Fixed
